@@ -1,0 +1,1 @@
+init,power__fact,set,55,32
