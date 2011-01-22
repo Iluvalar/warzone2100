@@ -66,45 +66,33 @@
 #define	WEIGHT_CMD_RANK				(WEIGHT_DIST_TILE * 4)			//A single rank is as important as 4 tiles distance
 #define	WEIGHT_CMD_SAME_TARGET		WEIGHT_DIST_TILE				//Don't want this to be too high, since a commander can have many units assigned
 
-// alliances
-// players are 0-7; player 8 appears to be unused; player 9 is features
-UBYTE	alliances[MAX_PLAYERS + 2][MAX_PLAYERS + 2];
+uint8_t alliances[MAX_PLAYER_SLOTS][MAX_PLAYER_SLOTS];
 
 /// A bitfield of vision sharing in alliances, for quick manipulation of vision information
-uint8_t	alliancebits[MAX_PLAYERS + 2];
+PlayerMask alliancebits[MAX_PLAYER_SLOTS];
 
 /// A bitfield for the satellite uplink
-uint8_t satuplinkbits;
+PlayerMask satuplinkbits;
 
 // see if a structure has the range to fire on a target
-static BOOL aiStructHasRange(STRUCTURE *psStruct, BASE_OBJECT *psTarget, int weapon_slot)
+static bool aiStructHasRange(STRUCTURE *psStruct, BASE_OBJECT *psTarget, int weapon_slot)
 {
-	WEAPON_STATS		*psWStats;
-	SDWORD				xdiff,ydiff, longRange;
-
 	if (psStruct->numWeaps == 0 || psStruct->asWeaps[0].nStat == 0)
 	{
 		// Can't attack without a weapon
 		return false;
 	}
 
-	psWStats = psStruct->asWeaps[weapon_slot].nStat + asWeaponStats;
+	WEAPON_STATS *psWStats = psStruct->asWeaps[weapon_slot].nStat + asWeaponStats;
 
-	xdiff = (SDWORD)psStruct->pos.x - (SDWORD)psTarget->pos.x;
-	ydiff = (SDWORD)psStruct->pos.y - (SDWORD)psTarget->pos.y;
-	longRange = proj_GetLongRange(psWStats);
-	if (xdiff*xdiff + ydiff*ydiff < longRange*longRange)
-	{
-		// in range
-		return true;
-	}
-
-	return false;
+	Vector2i diff = removeZ(psStruct->pos - psTarget->pos);
+	int longRange = proj_GetLongRange(psWStats);
+	return diff*diff < longRange*longRange && lineOfFire(psStruct, psTarget, weapon_slot, true);
 }
 
-static BOOL aiDroidHasRange(DROID *psDroid, BASE_OBJECT *psTarget, int weapon_slot)
+static bool aiDroidHasRange(DROID *psDroid, BASE_OBJECT *psTarget, int weapon_slot)
 {
-	int32_t xdiff, ydiff, longRange;
+	int32_t longRange;
 
 	if (psDroid->droidType == DROID_SENSOR)
 	{
@@ -121,18 +109,11 @@ static BOOL aiDroidHasRange(DROID *psDroid, BASE_OBJECT *psTarget, int weapon_sl
 		longRange = proj_GetLongRange(psWStats);
 	}
 
-	xdiff = (SDWORD)psDroid->pos.x - (SDWORD)psTarget->pos.x;
-	ydiff = (SDWORD)psDroid->pos.y - (SDWORD)psTarget->pos.y;
-	if (xdiff*xdiff + ydiff*ydiff < longRange*longRange)
-	{
-		// in range
-		return true;
-	}
-
-	return false;
+	Vector2i diff = removeZ(psDroid->pos - psTarget->pos);
+	return diff*diff < longRange*longRange;
 }
 
-static BOOL aiObjHasRange(BASE_OBJECT *psObj, BASE_OBJECT *psTarget, int weapon_slot)
+static bool aiObjHasRange(BASE_OBJECT *psObj, BASE_OBJECT *psTarget, int weapon_slot)
 {
 	if (psObj->type == OBJ_DROID)
 	{
@@ -150,12 +131,10 @@ BOOL aiInitialise(void)
 {
 	SDWORD		i,j;
 
-	// The +1 is for features, that are owned by player 9 for hackish reasons
-	// Yes, we do mean "player 9", as in "the players are 0-7, and we skip over player 8"
-	for (i = 0; i < MAX_PLAYERS + 2; i++)
+	for (i = 0; i < MAX_PLAYER_SLOTS; i++)
 	{
 		alliancebits[i] = 0;
-		for (j = 0; j < MAX_PLAYERS + 2; j++)
+		for (j = 0; j < MAX_PLAYER_SLOTS; j++)
 		{
 			bool valid = (i == j && i < MAX_PLAYERS);
 
@@ -224,12 +203,11 @@ static BASE_OBJECT *aiSearchSensorTargets(BASE_OBJECT *psObj, int weapon_slot, W
 		{
 			continue;
 		}
-		if (aiObjHasRange(psObj, psTemp, weapon_slot) && visibleObject(psSensor, psTemp, false))
+		int distSq = objPosDiffSq(psTemp->pos, psObj->pos);
+		// Need to be in range, prefer closer targets or CB targets
+		if ((isCB > foundCB || (isCB == foundCB && distSq < tarDist)) && distSq > minDist)
 		{
-			int distSq = objPosDiffSq(psTemp->pos, psObj->pos);
-
-			// Need to be in range, prefer closer targets or CB targets
-			if ((isCB > foundCB || (isCB == foundCB && distSq < tarDist)) && distSq > minDist)
+			if (aiObjHasRange(psObj, psTemp, weapon_slot) && visibleObject(psSensor, psTemp, false))
 			{
 				tarDist = distSq;
 				psTarget = psTemp;
@@ -534,7 +512,7 @@ SDWORD aiBestNearestTarget(DROID *psDroid, BASE_OBJECT **ppsObj, int weapon_slot
 		bestMod = targetAttackWeight(bestTarget, (BASE_OBJECT *)psDroid, weapon_slot);
 	}
 
-	weaponEffect = ((WEAPON_STATS *)(asWeaponStats + psDroid->asWeaps[weapon_slot].nStat))->weaponEffect;
+	weaponEffect = (asWeaponStats + psDroid->asWeaps[weapon_slot].nStat)->weaponEffect;
 
 	electronic = electronicDroid(psDroid);
 
@@ -552,7 +530,7 @@ SDWORD aiBestNearestTarget(DROID *psDroid, BASE_OBJECT **ppsObj, int weapon_slot
 			targetInQuestion = NULL;
 
 			/* Can we see what it is doing? */
-			if(friendlyObj->visible[psDroid->player])
+			if(friendlyObj->visible[psDroid->player] == UBYTE_MAX)
 			{
 				if(friendlyObj->type == OBJ_DROID)
 				{
@@ -568,11 +546,7 @@ SDWORD aiBestNearestTarget(DROID *psDroid, BASE_OBJECT **ppsObj, int weapon_slot
 							// make sure this target wasn't assigned explicitly to this droid
 							if(friendlyDroid->order != DORDER_ATTACK)
 							{
-								// make sure target is near enough
-								if (aiDroidHasRange(psDroid, tempTarget, weapon_slot))
-								{
-									targetInQuestion = tempTarget;		//consider this target
-								}
+								targetInQuestion = tempTarget;  //consider this target
 							}
 						}
 					}
@@ -580,7 +554,7 @@ SDWORD aiBestNearestTarget(DROID *psDroid, BASE_OBJECT **ppsObj, int weapon_slot
 				else if(friendlyObj->type == OBJ_STRUCTURE)
 				{
 					tempTarget = ((STRUCTURE*)friendlyObj)->psTarget[0];
-					if (tempTarget && !aiObjectIsProbablyDoomed(tempTarget) && aiDroidHasRange(psDroid, tempTarget, weapon_slot))
+					if (tempTarget && !aiObjectIsProbablyDoomed(tempTarget))
 					{
 						targetInQuestion = tempTarget;
 					}
@@ -589,11 +563,11 @@ SDWORD aiBestNearestTarget(DROID *psDroid, BASE_OBJECT **ppsObj, int weapon_slot
 		}
 
 		if (targetInQuestion != NULL
-		    && targetInQuestion != (BASE_OBJECT *)psDroid		// in case friendly unit had me as target
+		    && targetInQuestion != psDroid  // in case friendly unit had me as target
 		    && (targetInQuestion->type == OBJ_DROID || targetInQuestion->type == OBJ_STRUCTURE || targetInQuestion->type == OBJ_FEATURE)
-		    && targetInQuestion->visible[psDroid->player]
+		    && targetInQuestion->visible[psDroid->player] == UBYTE_MAX
 		    && !aiCheckAlliances(targetInQuestion->player,psDroid->player)
-		    && validTarget((BASE_OBJECT *)psDroid, targetInQuestion, weapon_slot)
+		    && validTarget(psDroid, targetInQuestion, weapon_slot)
 		    && aiDroidHasRange(psDroid, targetInQuestion, weapon_slot))
 		{
 			if (targetInQuestion->type == OBJ_DROID)
@@ -641,7 +615,7 @@ SDWORD aiBestNearestTarget(DROID *psDroid, BASE_OBJECT **ppsObj, int weapon_slot
 			else if (targetInQuestion->type == OBJ_FEATURE
 			         && gameTime - psDroid->lastFrustratedTime < FRUSTRATED_TIME
 			         && ((FEATURE *)targetInQuestion)->psStats->damageable
-			         && !(game.scavengers && psDroid->player == 7))			// hack to avoid scavs blowing up their nice feature walls
+			         && psDroid->player != scavengerPlayer())  // hack to avoid scavs blowing up their nice feature walls
 			{
 				psTarget = targetInQuestion;
 			}
@@ -831,13 +805,12 @@ BOOL aiChooseTarget(BASE_OBJECT *psObj, BASE_OBJECT **ppsTarget, int weapon_slot
 	else if (psObj->type == OBJ_STRUCTURE)
 	{
 		WEAPON_STATS	*psWStats = NULL;
-		int	tarDist, longRange = 0;
 		BOOL	bCommanderBlock = false;
 
 		ASSERT(((STRUCTURE *)psObj)->asWeaps[weapon_slot].nStat > 0, "no weapons on structure");
 
 		psWStats = ((STRUCTURE *)psObj)->asWeaps[weapon_slot].nStat + asWeaponStats;
-		longRange = proj_GetLongRange(psWStats);
+		int longRange = proj_GetLongRange(psWStats);
 
 		// see if there is a target from the command droids
 		psTarget = NULL;
@@ -873,7 +846,6 @@ BOOL aiChooseTarget(BASE_OBJECT *psObj, BASE_OBJECT **ppsTarget, int weapon_slot
 		}
 
 		// indirect fire structures use sensor towers first
-		tarDist = longRange * longRange;
 		if (psTarget == NULL && !bCommanderBlock && !proj_Direct(psWStats))
 		{
 			psTarget = aiSearchSensorTargets(psObj, weapon_slot, psWStats, &tmpOrigin);
@@ -881,30 +853,34 @@ BOOL aiChooseTarget(BASE_OBJECT *psObj, BASE_OBJECT **ppsTarget, int weapon_slot
 
 		if (psTarget == NULL && !bCommanderBlock)
 		{
-			BASE_OBJECT *psCurr;
+			int targetValue = -1;
+			int tarDist = INT32_MAX;
 
-			gridStartIterate(psObj->pos.x, psObj->pos.y, PREVIOUS_DEFAULT_GRID_SEARCH_RADIUS);
-			psCurr = gridIterate();
-			while (psCurr != NULL)
+			gridStartIterate(psObj->pos.x, psObj->pos.y, std::min(longRange, PREVIOUS_DEFAULT_GRID_SEARCH_RADIUS));
+			for (BASE_OBJECT *psCurr = gridIterate(); psCurr != NULL; psCurr = gridIterate())
 			{
-				/* Check that it is a valid target */
-				if (psCurr->type != OBJ_FEATURE && !aiObjectIsProbablyDoomed(psCurr) && aiStructHasRange((STRUCTURE *)psObj, psCurr, weapon_slot)
-				    && !aiCheckAlliances(psCurr->player, psObj->player)
-				    && validTarget(psObj, psCurr, weapon_slot) && psCurr->visible[psObj->player])
+				// Prefer targets that aren't walls, then prefer finished targets to unfinished targets.
+				int newTargetValue = 1*!(isStructure(psCurr) && castStructure(psCurr)->status != SS_BUILT)
+				                   + 2*!aiObjIsWall(psCurr);
+				// See if in sensor range and visible
+				int distSq = objPosDiffSq(psCurr->pos, psObj->pos);
+				if (newTargetValue < targetValue || (newTargetValue == targetValue && distSq >= tarDist))
 				{
-					// See if in sensor range and visible
-					int distSq = objPosDiffSq(psCurr->pos, psObj->pos);
-
-					if (distSq < tarDist
-					    || (psTarget && psTarget->type == OBJ_STRUCTURE && ((STRUCTURE *)psTarget)->status != SS_BUILT)
-					    || (psTarget && aiObjIsWall(psTarget) && !aiObjIsWall(psCurr)))
-					{
-						tmpOrigin = ORIGIN_VISUAL;
-						psTarget = psCurr;
-						tarDist = distSq;
-					}
+					continue;
 				}
-				psCurr = gridIterate();
+
+				/* Check that it is a valid target */
+				if (psCurr->type != OBJ_FEATURE && !aiObjectIsProbablyDoomed(psCurr)
+				    && !aiCheckAlliances(psCurr->player, psObj->player)
+				    && validTarget(psObj, psCurr, weapon_slot) && psCurr->visible[psObj->player] == UBYTE_MAX
+				    && aiStructHasRange((STRUCTURE *)psObj, psCurr, weapon_slot))
+				{
+
+					tmpOrigin = ORIGIN_VISUAL;
+					psTarget = psCurr;
+					tarDist = distSq;
+					targetValue = newTargetValue;
+				}
 			}
 		}
 
@@ -1019,7 +995,7 @@ BOOL aiChooseSensorTarget(BASE_OBJECT *psObj, BASE_OBJECT **ppsTarget)
 					const int ydiff = psCurr->pos.y - psObj->pos.y;
 					const unsigned int distSq = xdiff * xdiff + ydiff * ydiff;
 
-					if (distSq < radSquared && psCurr->visible[psObj->player] && distSq < tarDist)
+					if (distSq < radSquared && psCurr->visible[psObj->player] == UBYTE_MAX && distSq < tarDist)
 					{
 						psTemp = psCurr;
 						tarDist = distSq;

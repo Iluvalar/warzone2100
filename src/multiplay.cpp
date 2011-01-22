@@ -314,7 +314,7 @@ BOOL IdToDroid(UDWORD id, UDWORD player, DROID **psDroid)
 		if (player >= MAX_PLAYERS)
 		{
 			debug(LOG_FEATURE, "Feature detected");
-			// feature hack, player = 9 are features
+			// feature hack, player = PLAYER_FEATURE are features
 			return false;
 		}
 		d = apsDroidLists[player];
@@ -351,7 +351,7 @@ STRUCTURE *IdToStruct(UDWORD id,UDWORD player)
 		if (player >= MAX_PLAYERS)
 		{
 			debug(LOG_FEATURE, "Feature detected");
-			// feature hack, player = 9 are features
+			// feature hack, player = PLAYER_FEATURE are features
 			return NULL;
 		}
 		for (psStr=apsStructLists[player];((psStr != NULL )&&(psStr->id != id) );psStr=psStr->psNext) {}
@@ -366,6 +366,7 @@ FEATURE *IdToFeature(UDWORD id,UDWORD player)
 	FEATURE	*psF =NULL;
 	UDWORD	i;
 
+	STATIC_ASSERT(MAX_PLAYERS + 2 < ANYPLAYER);
 	if(player == ANYPLAYER)
 	{
 		for(i=0;i<MAX_PLAYERS;i++)
@@ -382,7 +383,7 @@ FEATURE *IdToFeature(UDWORD id,UDWORD player)
 		if (player >= MAX_PLAYERS)
 		{
 			debug(LOG_FEATURE, "Feature detected");
-			// feature hack, player = 9 are features
+			// feature hack, player = PLAYER_FEATURE are features - but we're in a function called IdTo **Feature**...
 			return NULL;
 		}
 		for(psF=apsFeatureLists[player];((psF != NULL )&&(psF->id != id) );psF=psF->psNext) {}
@@ -520,6 +521,17 @@ BOOL responsibleFor(UDWORD player, UDWORD playerinquestion)
 	return whosResponsible(playerinquestion) == player;
 }
 
+int scavengerSlot()
+{
+	// Scavengers used to always be in position 7, when scavengers were only supported in less than 8 player maps.
+	// Scavengers should be in position N in N-player maps, where N ≥ 8.
+	return MAX(game.maxPlayers, 7);
+}
+
+int scavengerPlayer()
+{
+	return game.scavengers? scavengerSlot() : -1;
+}
 
 // ////////////////////////////////////////////////////////////////////////////
 // probably temporary. Places the camera on the players 1st droid or struct.
@@ -1438,16 +1450,14 @@ BOOL recvTextMessageAI(NETQUEUE queue)
 // Templates
 
 // send a newly created template to other players
-BOOL sendTemplate(DROID_TEMPLATE *pTempl)
+bool sendTemplate(uint32_t player, DROID_TEMPLATE *pTempl)
 {
 	int i;
-	uint8_t player = selectedPlayer;
 
-	ASSERT(pTempl != NULL, "sendTemplate: Old Pumpkin bug");
-	if (!pTempl) return true; /* hack */
+	ASSERT_OR_RETURN(true /* hack */, pTempl != NULL, "Old Pumpkin bug");
 
 	NETbeginEncode(NETgameQueue(selectedPlayer), GAME_TEMPLATE);
-		NETuint8_t(&player);
+		NETuint32_t(&player);
 		NETuint32_t(&pTempl->ref);
 		NETstring(pTempl->aName, sizeof(pTempl->aName));
 
@@ -1476,14 +1486,14 @@ BOOL sendTemplate(DROID_TEMPLATE *pTempl)
 // receive a template created by another player
 BOOL recvTemplate(NETQUEUE queue)
 {
-	uint8_t			player;
+	uint32_t player;
 	DROID_TEMPLATE	*psTempl;
 	DROID_TEMPLATE	t, *pT = &t;
 	int				i;
 
 	NETbeginDecode(queue, GAME_TEMPLATE);
-		NETuint8_t(&player);
-		ASSERT(player < MAX_PLAYERS, "recvtemplate: invalid player size: %d", player);
+		NETuint32_t(&player);
+		ASSERT_OR_RETURN(false, player < MAX_PLAYERS, "invalid player size: %d", player);
 
 		NETuint32_t(&pT->ref);
 		NETstring(pT->aName, sizeof(pT->aName));
@@ -1558,6 +1568,8 @@ static BOOL recvDestroyTemplate(NETQUEUE queue)
 		NETuint8_t(&player);
 		NETuint32_t(&templateID);
 	NETend();
+
+	ASSERT_OR_RETURN(false, player < MAX_PLAYERS, "invalid player size: %d", player);
 
 	// Find the template in the list
 	for (psTempl = apsDroidTemplates[player]; psTempl; psTempl = psTempl->psNext)
@@ -2049,8 +2061,17 @@ const char* getPlayerColourName(unsigned int player)
 		N_("Red"),
 		N_("Blue"),
 		N_("Pink"),
-		N_("Cyan")
+		N_("Cyan"),
+		N_("Yellow"),
+		N_("Purple"),
+		N_("White"),
+		N_("Bright blue"),
+		N_("Neon green"),
+		N_("Infrared"),
+		N_("Ultraviolet"),
+		N_("Brown"),
 	};
+	STATIC_ASSERT(MAX_PLAYERS <= ARRAY_SIZE(playerColors));
 
 	ASSERT(player < ARRAY_SIZE(playerColors), "player number (%d) exceeds maximum (%lu)", player, (unsigned long) ARRAY_SIZE(playerColors));
 

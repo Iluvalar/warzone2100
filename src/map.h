@@ -90,11 +90,11 @@ typedef struct _ground_type
 } GROUND_TYPE;
 
 /* Information stored with each tile */
-typedef struct _maptile
+struct MAPTILE
 {
 	uint8_t			tileInfoBits;
-	uint8_t			tileExploredBits;
-	uint8_t			sensorBits;		// bit per player, who can see tile with sensor
+	PlayerMask              tileExploredBits;
+	PlayerMask              sensorBits;             ///< bit per player, who can see tile with sensor
 	uint8_t			illumination;	// How bright is this tile?
 	uint8_t			watchers[MAX_PLAYERS];		// player sees through fog of war here with this many objects
 	uint16_t		texture;		// Which graphics texture is on this tile
@@ -107,7 +107,7 @@ typedef struct _maptile
 	uint8_t			ground;			///< The ground type used for the terrain renderer
 	uint16_t                fireEndTime;            ///< The (uint16_t)(gameTime / GAME_TICKS_PER_UPDATE) that BITS_ON_FIRE should be cleared.
 	int32_t                 waterLevel;             ///< At what height is the water for this tile
-} MAPTILE;
+};
 
 /* The size and contents of the map */
 extern SDWORD	mapWidth, mapHeight;
@@ -515,6 +515,9 @@ typedef struct _tile_coord
 	UDWORD	x,y;
 	MAPTILE	*psTile;
 } TILE_COORD;
+
+/* Intersect a line with the map and report tile intersection points */
+bool map_Intersect(int *Cx, int *Cy, int *Vx, int* Vy, int *Sx, int *Sy);
 
 /// The max height of the terrain and water at the specified world coordinates
 extern int32_t map_Height(int x, int y);

@@ -80,7 +80,7 @@ BOOL scrGroupAddDroid(void)
 		return false;
 	}
 
-	grpJoin(psGroup, psDroid);
+	psGroup->add(psDroid);
 
 	return true;
 }
@@ -118,7 +118,7 @@ BOOL scrGroupAddArea(void)
 			psDroid->droidType != DROID_TRANSPORTER )
 
 		{
-			grpJoin(psGroup, psDroid);
+			psGroup->add(psDroid);
 		}
 	}
 
@@ -156,7 +156,7 @@ BOOL scrGroupAddAreaNoGroup(void)
 			psDroid->droidType != DROID_TRANSPORTER &&
 			psDroid->psGroup   == NULL)
 		{
-			grpJoin(psGroup, psDroid);
+			psGroup->add(psDroid);
 		}
 	}
 
@@ -183,7 +183,7 @@ BOOL scrGroupAddGroup(void)
 	for(psDroid=psFrom->psList; psDroid; psDroid=psNext)
 	{
 		psNext = psDroid->psGrpNext;
-		grpJoin(psTo, psDroid);
+		psTo->add(psDroid);
 	}
 
 	return true;
@@ -365,7 +365,7 @@ BOOL scrDroidLeaveGroup(void)
 
 	if (psDroid->psGroup != NULL)
 	{
-		grpLeave(psDroid->psGroup, psDroid);
+		psDroid->psGroup->remove(psDroid);
 	}
 
 	return true;
@@ -398,8 +398,8 @@ BOOL scrOrderGroup(void)
 		return false;
 	}
 
-	debug(LOG_NEVER, "group %p (%u) order %d", psGroup, grpNumMembers(psGroup), order);
-	orderGroup(psGroup, order);
+	debug(LOG_NEVER, "group %p (%u) order %d", psGroup, psGroup->getNumMembers(), order);
+	psGroup->orderGroup(order);
 
 	return true;
 }
@@ -437,8 +437,8 @@ BOOL scrOrderGroupLoc(void)
 	}
 
 	debug(LOG_NEVER, "group %p (%u) order %d (%d,%d)",
-		psGroup, grpNumMembers(psGroup), order, x,y);
-	orderGroupLoc(psGroup, order, (UDWORD)x,(UDWORD)y);
+		psGroup, psGroup->getNumMembers(), order, x,y);
+	psGroup->orderGroup(order, (UDWORD)x,(UDWORD)y);
 
 	return true;
 }
@@ -476,9 +476,9 @@ BOOL scrOrderGroupObj(void)
 	}
 
 	debug(LOG_NEVER, "group %p (%u) order %d,  obj type %d player %d id %d",
-		psGroup, grpNumMembers(psGroup), order, psObj->type, psObj->player, psObj->id);
+		psGroup, psGroup->getNumMembers(), order, psObj->type, psObj->player, psObj->id);
 
-	orderGroupObj(psGroup, order, psObj);
+	psGroup->orderGroup(order, psObj);
 
 	return true;
 }
@@ -623,7 +623,7 @@ BOOL scrOrderDroidStatsLoc(void)
 	}
 
 	ASSERT_OR_RETURN( false, statIndex < numStructureStats, "Invalid range referenced for numStructureStats, %d > %d", statIndex, numStructureStats);
-	psStats = (BASE_STATS *)(asStructureStats + statIndex);
+	psStats = (asStructureStats + statIndex);
 
 	ASSERT_OR_RETURN( false, psDroid != NULL, "Invalid Unit pointer" );
 	ASSERT_OR_RETURN( false, psStats != NULL, "Invalid object pointer" );
@@ -704,7 +704,7 @@ BOOL scrSetGroupSecondary(void)
 	ASSERT( psGroup != NULL,
 		"scrSetGroupSecondary: invalid group pointer" );
 
-	grpSetSecondary(psGroup, sec, state);
+	psGroup->setSecondary(sec, state);
 
 	return true;
 }
@@ -1214,14 +1214,14 @@ static BASE_OBJECT *scrTargetInArea(SDWORD tarPlayer, SDWORD visPlayer, SDWORD t
 		targetPriority = (TARGET_PREF)scrStructTargetPriority;
 		prefer = scrStructPref;
 		ignore = scrStructIgnore;
-		psCurr = (BASE_OBJECT *)apsStructLists[tarPlayer];
+		psCurr = apsStructLists[tarPlayer];
 		break;
 	case SCR_TAR_DROID:
 		getTargetMask = (TARGET_MASK)scrDroidTargetMask;
 		targetPriority = (TARGET_PREF)scrDroidTargetPriority;
 		prefer = scrDroidPref;
 		ignore = scrDroidIgnore;
-		psCurr = (BASE_OBJECT *)apsDroidLists[tarPlayer];
+		psCurr = apsDroidLists[tarPlayer];
 		break;
 	default:
 		ASSERT( false, "scrTargetInArea: invalid target type" );
@@ -1819,7 +1819,7 @@ static BOOL defenseLocation(BOOL variantB)
 	ASSERT_OR_RETURN( false, statIndex < numStructureStats, "Invalid range referenced for numStructureStats, %d > %d", statIndex, numStructureStats);
 
 	ASSERT_OR_RETURN( false, statIndex2 < numStructureStats, "Invalid range referenced for numStructureStats, %d > %d", statIndex2, numStructureStats);
-	psWStats = (BASE_STATS *)(asStructureStats + statIndex2);
+	psWStats = (asStructureStats + statIndex2);
 
     // check for wacky coords.
 	if(		*pX < 0
@@ -2083,7 +2083,7 @@ BOOL scrActionDroidObj(void)
 	}
 
 	syncDebug("TODO: Synchronise this!");
-	actionDroidObj(psDroid, action, (BASE_OBJECT *)psObj);
+	actionDroid(psDroid, action, psObj);
 
 	return true;
 }

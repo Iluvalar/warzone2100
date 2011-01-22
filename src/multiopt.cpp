@@ -265,6 +265,10 @@ BOOL hostCampaign(char *sGame, char *sPlayer)
 
 	for (i = 0; i < MAX_PLAYERS; i++)
 	{
+		if (NetPlay.bComms)
+		{
+			game.skDiff[i] = 0;     	// disable AI
+		}
 		setPlayerName(i, ""); //Clear custom names (use default ones instead)
 	}
 
@@ -547,7 +551,7 @@ static BOOL gameInit(void)
 	for (player = 1; player < MAX_PLAYERS; player++)
 	{
 		// we want to remove disabled AI & all the other players that don't belong
-		if ((game.skDiff[player] == 0 || player >= game.maxPlayers) && (!game.scavengers || player != 7))
+		if ((game.skDiff[player] == 0 || player >= game.maxPlayers) && player != scavengerPlayer())
 		{
 			clearPlayer(player, true);			// do this quietly
 			debug(LOG_NET, "removing disabled AI (%d) from map.", player);
@@ -557,7 +561,7 @@ static BOOL gameInit(void)
 	if (game.scavengers)	// FIXME - not sure if we still need this hack - Per
 	{
 		// ugly hack for now
-		game.skDiff[7] = DIFF_SLIDER_STOPS / 2;
+		game.skDiff[scavengerPlayer()] = DIFF_SLIDER_STOPS / 2;
 	}
 
 	if (NetPlay.isHost)	// add oil drums
