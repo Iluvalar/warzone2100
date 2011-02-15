@@ -83,7 +83,7 @@ static void queue(const Q &q, uint8_t &v)
 template<class Q>
 static void queue(const Q &q, uint16_t &v)
 {
-	uint8_t b[2] = {v>>8, v};
+	uint8_t b[2] = {uint8_t(v>>8), uint8_t(v)};
 	queue(q, b[0]);
 	queue(q, b[1]);
 	if (Q::Direction == Q::Read)
@@ -124,7 +124,7 @@ static void queue(const Q &q, uint32_t &vOrig)
 template<class Q>
 static void queueLarge(const Q &q, uint32_t &v)
 {
-	uint16_t b[2] = {v>>16, v};
+	uint16_t b[2] = {uint16_t(v>>16), uint16_t(v)};
 	queue(q, b[0]);
 	queue(q, b[1]);
 	if (Q::Direction == Q::Read)
@@ -136,7 +136,7 @@ static void queueLarge(const Q &q, uint32_t &v)
 template<class Q>
 static void queue(const Q &q, uint64_t &v)
 {
-	uint32_t b[2] = {v>>32, v};
+	uint32_t b[2] = {uint32_t(v>>32), uint32_t(v)};
 	queue(q, b[0]);
 	queue(q, b[1]);
 	if (Q::Direction == Q::Read)
@@ -665,57 +665,4 @@ void NETnetMessage(NetMessage const **message)
 		*message = m;
 		return;
 	}
-}
-
-/*typedef enum
-{
-	test_a,
-	test_b,
-} test_enum;*/
-
-static void NETcoder(PACKETDIR dir)
-{
-	(void)dir;
-/*	static const char original[] = "THIS IS A TEST STRING";
-	char str[sizeof(original)];
-	BOOL b = true;
-	uint32_t u32 = 32;
-	uint16_t u16 = 16;
-	uint8_t u8 = 8;
-	int32_t i32 = -32;
-	int16_t i16 = -16;
-	int8_t i8 = -8;
-	test_enum te = test_b;
-
-	sstrcpy(str, original);
-
-	if (dir == PACKET_ENCODE)
-		NETbeginEncode(0, 0);
-	else
-		NETbeginDecode(0, 0);
-	NETbool(&b);			assert(b == true);
-	NETuint32_t(&u32);  assert(u32 == 32);
-	NETuint16_t(&u16);  assert(u16 == 16);
-	NETuint8_t(&u8);    assert(u8 == 8);
-	NETint32_t(&i32);   assert(i32 == -32);
-	NETint16_t(&i16);   assert(i16 == -16);
-	NETint8_t(&i8);     assert(i8 == -8);
-	NETstring(str, sizeof(str)); assert(strncmp(str, original, sizeof(str) - 1) == 0);
-	NETenum(&te);       assert(te == test_b);*/
-}
-
-void NETtest()
-{
-	/*NETMSG cmp;
-
-	memset(&cmp, 0, sizeof(cmp));
-	memset(&NetMsg, 0, sizeof(NetMsg));
-	*/
-	NETcoder(PACKET_ENCODE);
-	/*
-	memcpy(&cmp, &NetMsg, sizeof(cmp));
-	NETcoder(PACKET_DECODE);
-	ASSERT(memcmp(&cmp, &NetMsg, sizeof(cmp)) == 0, "nettypes unit test failed");
-	fprintf(stdout, "\tNETtypes self-test: PASSED\n");*/
-	ASSERT(false, "nettypes test disabled, since it doesn't compile anymore.");
 }

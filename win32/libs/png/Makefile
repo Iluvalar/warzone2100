@@ -5,14 +5,14 @@ PKG_SOURCEBASE:=$(PKG_NAME)-$(PKG_VERSION)
 PKG_SOURCE:=$(PKG_SOURCEBASE).tar.bz2
 PKG_SOURCE_URL:= \
 	@SF/libpng \
-	http://www.il.fontys.nl/~giel/warzone/devpkg/
+	http://wzhost.wz2100.net/~buildbot/dev/
 PKG_MD5SUM:=d500e117e4a08d5ca3bd51dca0a0bc5f
 
 TARGET:=$(TOPDIR)/build/libs/lib/libpng14.la
 
 include $(TOPDIR)/rules.mk
 
-extract-stamp: $(TOPDIR)/downloads/$(PKG_SOURCE)
+extract-stamp: $(DOWNLOADS)/$(PKG_SOURCE)
 	tar xjf $^
 	touch extract-stamp
 

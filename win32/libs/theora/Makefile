@@ -5,7 +5,7 @@ PKG_SOURCEBASE=$(PKG_NAME)-$(PKG_VERSION)
 PKG_SOURCE:=$(PKG_SOURCEBASE).tar.bz2
 PKG_SOURCE_URL:= \
 	http://downloads.xiph.org/releases/theora/ \
-	http://www.il.fontys.nl/~giel/warzone/devpkg/
+	http://wzhost.wz2100.net/~buildbot/dev/
 PKG_MD5SUM:=292ab65cedd5021d6b7ddd117e07cd8e
 
 TARGETS:= \
@@ -14,7 +14,7 @@ TARGETS:= \
 
 include $(TOPDIR)/rules.mk
 
-$(PKG_SOURCEBASE) extract-stamp: $(TOPDIR)/downloads/$(PKG_SOURCE)
+$(PKG_SOURCEBASE) extract-stamp: $(DOWNLOADS)/$(PKG_SOURCE)
 	tar xjf $^
 	touch extract-stamp
 

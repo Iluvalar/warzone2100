@@ -109,8 +109,8 @@ void sendOptions()
 	// Send the structures changed
 	for (i = 0; i < ingame.numStructureLimits; i++)
 	{
-		NETuint8_t(&ingame.pStructureLimits[i].id);
-		NETuint8_t(&ingame.pStructureLimits[i].limit);
+		NETuint32_t(&ingame.pStructureLimits[i].id);
+		NETuint32_t(&ingame.pStructureLimits[i].limit);
 	}
 	updateLimitFlags();
 	NETuint8_t(&ingame.flags);
@@ -199,8 +199,8 @@ void recvOptions(NETQUEUE queue)
 
 	for (i = 0; i < ingame.numStructureLimits; i++)
 	{
-		NETuint8_t(&ingame.pStructureLimits[i].id);
-		NETuint8_t(&ingame.pStructureLimits[i].limit);
+		NETuint32_t(&ingame.pStructureLimits[i].id);
+		NETuint32_t(&ingame.pStructureLimits[i].limit);
 	}
 	NETuint8_t(&ingame.flags);
 
@@ -376,6 +376,16 @@ BOOL addTemplateToList(DROID_TEMPLATE *psNew, DROID_TEMPLATE **ppList)
 BOOL addTemplate(UDWORD player, DROID_TEMPLATE *psNew)
 {
 	return addTemplateToList(psNew, &apsDroidTemplates[player]);
+}
+
+void addTemplateBack(unsigned player, DROID_TEMPLATE *psNew)
+{
+	DROID_TEMPLATE **ppList = &apsDroidTemplates[player];
+	while (*ppList != NULL)
+	{
+		ppList = &(*ppList)->psNext;
+	}
+	addTemplateToList(psNew, ppList);
 }
 
 // ////////////////////////////////////////////////////////////////////////////

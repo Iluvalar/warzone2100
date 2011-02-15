@@ -3177,6 +3177,7 @@ static void aiUpdateStructure(STRUCTURE *psStructure, bool isMission)
 					pPlayerRes->currentPoints += requestPrecisePowerFor(psStructure->player, powerNeeded, pointsToAdd);
 					psResFacility->timeStarted = gameTime;
 				}
+				syncDebug("Research at %u/%u.", pPlayerRes->currentPoints, pResearch->researchPoints);
 
 				//check if Research is complete
 				if (pPlayerRes->currentPoints >= pResearch->researchPoints)
@@ -3215,6 +3216,7 @@ static void aiUpdateStructure(STRUCTURE *psStructure, bool isMission)
 				//cancel this Structure's research since now complete
 				psResFacility->psSubject = NULL;
 				intResearchFinished(psStructure);
+				syncDebug("Research completed elsewhere.");
 			}
 		}
 		//check for manufacture
@@ -3585,7 +3587,7 @@ void _syncDebugStructure(const char *function, STRUCTURE *psStruct, char ch)
 		case REF_VTOL_FACTORY:
 			if (psStruct->pFunctionality->factory.psSubject != NULL)
 			{
-				ref = psStruct->pFunctionality->factory.psSubject->ref;
+				ref = psStruct->pFunctionality->factory.psSubject->multiPlayerID;
 				refStr = ",production";
 			}
 			break;
@@ -4772,6 +4774,7 @@ BOOL removeStruct(STRUCTURE *psDel, BOOL bDestroy)
 
 	if (bDestroy)
 	{
+		debug(LOG_DEATH, "Killing off %s id %d (%p)", objInfo(psDel), psDel->id, psDel);
 		killStruct(psDel);
 	}
 
@@ -5343,14 +5346,6 @@ bool calcStructureMuzzleBaseLocation(STRUCTURE *psStructure, Vector3i *muzzle, i
 	if(psShape && psShape->nconnectors)
 	{
 		Vector3i barrel(0, 0, 0);
-		unsigned int nWeaponStat = psStructure->asWeaps[weapon_slot].nStat;
-		iIMDShape *psWeaponImd = 0, *psMountImd = 0;
-
-		if (nWeaponStat)
-		{
-			psWeaponImd = asWeaponStats[nWeaponStat].pIMD;
-			psMountImd = asWeaponStats[nWeaponStat].pMountGraphic;
-		}
 
 		pie_MatBegin();
 

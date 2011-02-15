@@ -674,8 +674,8 @@ void	kf_TileInfo(void)
 {
 	MAPTILE	*psTile = mapTile(mouseTileX, mouseTileY);
 
-	debug(LOG_ERROR, "Tile position=(%d, %d) Terrain=%hhu Texture=%u Height=%d Illumination=%hhu",
-	      mouseTileX, mouseTileY, terrainType(psTile), TileNumber_tile(psTile->texture), psTile->height,
+	debug(LOG_ERROR, "Tile position=(%d, %d) Terrain=%d Texture=%u Height=%d Illumination=%hhu",
+	      mouseTileX, mouseTileY, (int)terrainType(psTile), TileNumber_tile(psTile->texture), psTile->height,
 	      psTile->illumination);
 	addConsoleMessage("Tile info dumped into log", DEFAULT_JUSTIFY, SYSTEM_MESSAGE);
 }
@@ -2575,6 +2575,7 @@ void	kf_ToggleShadows( void )
 float available_speed[] = {
 // p = pumpkin allowed, n = new entries allowed in debug mode only.
 // Since some of these values can ruin a SP game, we disallow them in normal mode.
+	0.f,            // n
 	1.f / 8.f,	// n
 	1.f / 5.f,	// n
 	1.f / 3.f,	// p

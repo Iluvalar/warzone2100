@@ -203,7 +203,7 @@ extern DROID_TYPE droidType(DROID *psDroid);
 extern DROID_TYPE droidTemplateType(DROID_TEMPLATE *psTemplate);
 
 //fills the list with Templates that can be manufactured in the Factory - based on size
-extern UDWORD fillTemplateList(DROID_TEMPLATE **pList, STRUCTURE *psFactory, UDWORD limit);
+void fillTemplateList(std::vector<DROID_TEMPLATE *> &pList, STRUCTURE *psFactory);
 
 extern void assignDroidsToGroup(UDWORD	playerNumber, UDWORD groupNumber);
 
@@ -218,8 +218,8 @@ bool calcDroidMuzzleLocation(DROID *psDroid, Vector3i *muzzle, int weapon_slot);
 bool calcDroidMuzzleBaseLocation(DROID *psDroid, Vector3i *muzzle, int weapon_slot);
 
 /* gets a template from its aName (when pName is unknown) */ 
-extern DROID_TEMPLATE	*GetHumanDroidTemplate(char *aName);
-extern DROID_TEMPLATE	*GetAIDroidTemplate(char *aName);
+extern DROID_TEMPLATE	*GetHumanDroidTemplate(const char *aName);
+extern DROID_TEMPLATE	*GetAIDroidTemplate(const char *aName);
 /* gets a template from its name - relies on the name being unique */
 extern DROID_TEMPLATE * getTemplateFromUniqueName(const char *pName, unsigned int player);
 /* gets a template from its name - relies on the name being unique */
@@ -240,9 +240,6 @@ extern const char *droidGetName(const DROID *psDroid);
 
 // Set a droid's name.
 extern void droidSetName(DROID *psDroid, const char *pName);
-
-// Set a templates name.
-extern void templateSetName(DROID_TEMPLATE *psTemplate,char *pName);
 
 // returns true when no droid on x,y square.
 extern BOOL	noDroid					(UDWORD x, UDWORD y);				// true if no droid at x,y
@@ -364,7 +361,7 @@ extern BOOL checkValidWeaponForProp(DROID_TEMPLATE *psTemplate);
 extern const char *getDroidNameForRank(UDWORD rank);
 
 /*called when a Template is deleted in the Design screen*/
-extern void deleteTemplateFromProduction(DROID_TEMPLATE *psTemplate, UBYTE player, QUEUE_MODE mode);
+void deleteTemplateFromProduction(DROID_TEMPLATE *psTemplate, unsigned player, QUEUE_MODE mode);  // ModeQueue deletes from production queues, which are not yet synchronised. ModeImmediate deletes from current production which is synchronised.
 
 // Select a droid and do any necessary housekeeping.
 extern void SelectDroid(DROID *psDroid);

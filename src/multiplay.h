@@ -31,7 +31,8 @@
 
 // /////////////////////////////////////////////////////////////////////////////////////////////////
 // Game Options Structure. Enough info to completely describe the static stuff in amultiplay game.
-typedef struct {
+struct MULTIPLAYERGAME
+{
 	uint8_t		type;						// DMATCH/CAMPAIGN/SKIRMISH/TEAMPLAY etc...
 	BOOL		scavengers;					// whether scavengers are on or off
 	char		map[128];					// name of multiplayer map being used.
@@ -42,16 +43,17 @@ typedef struct {
 	uint8_t		base;						// clean/base/base&defence
 	uint8_t		alliance;					// no/yes/AIs vs Humans
 	uint8_t		skDiff[MAX_PLAYERS];		// skirmish game difficulty settings. 0x0=OFF 0xff=HUMAN
-} MULTIPLAYERGAME;
+};
 
-typedef struct
+struct MULTISTRUCTLIMITS
 {
-	UBYTE		id;
-	UBYTE		limit;
-} MULTISTRUCTLIMITS;
+	uint32_t        id;
+	uint32_t        limit;
+};
 
 // info used inside games.
-typedef struct {
+struct MULTIPLAYERINGAME
+{
 	UDWORD				PingTimes[MAX_PLAYERS];				// store for pings.
 	BOOL				localOptionsReceived;				// used to show if we have game options yet..
 	BOOL				localJoiningInProgress;				// used before we know our player number.
@@ -67,9 +69,9 @@ typedef struct {
 	uint8_t				SPcolor;	//
 	UDWORD		skScores[MAX_PLAYERS][2];			// score+kills for local skirmish players.
 	char		phrases[5][255];					// 5 favourite text messages.
-} MULTIPLAYERINGAME;
+};
 
-typedef enum
+enum STRUCTURE_INFO
 {
 	STRUCTUREINFO_MANUFACTURE,
 	STRUCTUREINFO_CANCELPRODUCTION,
@@ -77,7 +79,7 @@ typedef enum
 	STRUCTUREINFO_RELEASEPRODUCTION,
 	STRUCTUREINFO_HOLDRESEARCH,
 	STRUCTUREINFO_RELEASERESEARCH
-} STRUCTURE_INFO;
+};
 
 struct PACKAGED_CHECK
 {
@@ -149,17 +151,17 @@ extern UBYTE				bDisplayMultiJoiningStatus;	// draw load progress?
 
 extern WZ_DECL_WARN_UNUSED_RESULT BASE_OBJECT		*IdToPointer(UDWORD id,UDWORD player);
 extern WZ_DECL_WARN_UNUSED_RESULT STRUCTURE		*IdToStruct(UDWORD id,UDWORD player);
-extern WZ_DECL_WARN_UNUSED_RESULT BOOL			IdToDroid(UDWORD id, UDWORD player, DROID **psDroid);
+extern WZ_DECL_WARN_UNUSED_RESULT DROID			*IdToDroid(UDWORD id, UDWORD player);
 extern WZ_DECL_WARN_UNUSED_RESULT FEATURE		*IdToFeature(UDWORD id,UDWORD player);
 extern WZ_DECL_WARN_UNUSED_RESULT DROID_TEMPLATE	*IdToTemplate(UDWORD tempId,UDWORD player);
 
-extern const char* getPlayerName(unsigned int player);
-extern BOOL setPlayerName		(UDWORD player, const char *sName);
-extern const char* getPlayerColourName(unsigned int player);
-extern BOOL isHumanPlayer		(UDWORD player);				//to tell if the player is a computer or not.
-extern BOOL myResponsibility	(UDWORD player);
-extern BOOL responsibleFor		(UDWORD player, UDWORD playerinquestion);
-extern UDWORD whosResponsible	(UDWORD player);
+extern const char* getPlayerName(int player);
+extern BOOL setPlayerName(int player, const char *sName);
+extern const char* getPlayerColourName(int player);
+extern BOOL isHumanPlayer(int player);				//to tell if the player is a computer or not.
+extern BOOL myResponsibility(int player);
+extern BOOL responsibleFor(int player, int playerinquestion);
+extern int whosResponsible(int player);
 int scavengerSlot();    // Returns the player number that scavengers would have if they were enabled.
 int scavengerPlayer();  // Returns the player number that the scavengers have, or -1 if disabled.
 extern Vector3i cameraToHome		(UDWORD player,BOOL scroll);
@@ -215,6 +217,7 @@ extern BOOL multiGameInit		(void);
 extern BOOL multiGameShutdown	(void);
 extern BOOL addTemplate			(UDWORD	player,DROID_TEMPLATE *psNew);
 extern BOOL addTemplateToList(DROID_TEMPLATE *psNew, DROID_TEMPLATE **ppList);
+void addTemplateBack(unsigned player, DROID_TEMPLATE *psNew);
 
 // syncing.
 extern BOOL sendCheck			(void);							//send/recv  check info

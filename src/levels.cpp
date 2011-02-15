@@ -945,8 +945,6 @@ BOOL levLoadData(const char* name, char *pSaveName, GAME_TYPE saveType)
 		}
 	}
 
-	dataClearSaveFlag();
-
 	if (pSaveName != NULL)
 	{
 		//load MidMission Extras
@@ -971,6 +969,8 @@ BOOL levLoadData(const char* name, char *pSaveName, GAME_TYPE saveType)
 	{
 		return false;
 	}
+
+	dataClearSaveFlag();
 
 	//this enables us to to start cam2/cam3 without going via a save game and get the extra droids
 	//in from the script-controlled Transporters
@@ -1032,7 +1032,7 @@ void levTest(void)
 	levTestLoad("CAM_2A");
 	levTestLoad("CAM_3A");
 	levTestLoad("FASTPLAY");
-	levTestLoad("TUTORIAL3");
+	//levTestLoad("TUTORIAL3");
 	levTestLoad("Sk-BeggarsKanyon-T1");
 	fprintf(stdout, "\tLevels self-test: PASSED\n");
 }

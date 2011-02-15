@@ -178,6 +178,7 @@ static BOOL addSlideOptions(void)
 	addFESlider(INTINGAMEOP_CDVOL_S, INTINGAMEOP, INTINGAMEOP_MID, INTINGAMEOP_3_Y-5,
 				AUDIO_VOL_MAX, (int)(sound_GetMusicVolume() * 100));
 
+#ifdef DEBUG
 	// Tactical UI: Target Origin
 	if(tuiTargetOrigin)
 	{
@@ -189,6 +190,7 @@ static BOOL addSlideOptions(void)
 		addIGTextButton(INTINGAMEOP_TUI_TARGET_ORIGIN_SW, INTINGAMEOP_4_Y, INTINGAMEOP_SW_W,
 			_("Tactical UI (Target Origin Icon): Hide"), WBUT_PLAIN);
 	}
+#endif
 
 	addIGTextButton(INTINGAMEOP_RESUME, INTINGAMEOP_5_Y, INTINGAMEOP_SW_W, _("Resume Game"), OPALIGN);
 
@@ -235,8 +237,7 @@ static BOOL _intAddInGameOptions(void)
 	sFormInit.y			= (SWORD)INTINGAMEOP_Y;
 	sFormInit.height	= INTINGAMEOP_H;
 
-
-    if ( (!bMultiPlayer || (NetPlay.bComms==0) )  && !bInTutorial)
+	if ((!bMultiPlayer || (NetPlay.bComms == 0)) && !bInTutorial)
 	{
 	}
 	else
@@ -244,19 +245,15 @@ static BOOL _intAddInGameOptions(void)
 		sFormInit.height	= INTINGAMEOP_HS;
 	}
 
-
-
 	sFormInit.pDisplay	= intOpenPlainForm;
 	sFormInit.disableChildren= true;
 
 	widgAddForm(psWScreen, &sFormInit);
 
 	// add 'quit' text
-
-    if ( (!bMultiPlayer || (NetPlay.bComms==0) )  && !bInTutorial)
+	if ((!bMultiPlayer || (NetPlay.bComms == 0)) && !bInTutorial)
 	{
 		addIGTextButton(INTINGAMEOP_QUIT, INTINGAMEOP_5_Y, INTINGAMEOP_OP_W, _("Quit"), OPALIGN);
-
 	}
 	else
 	{
@@ -269,14 +266,13 @@ static BOOL _intAddInGameOptions(void)
 	// add 'options'
 	addIGTextButton(INTINGAMEOP_OPTIONS, INTINGAMEOP_2_Y, INTINGAMEOP_OP_W, _("Audio Options"), OPALIGN);
 
-
-	if ( (!bMultiPlayer || (NetPlay.bComms==0) )  && !bInTutorial)
-	{		// add 'load'
+	if ((!bMultiPlayer || (NetPlay.bComms == 0)) && !bInTutorial)
+	{
+		// add 'load'
 		addIGTextButton(INTINGAMEOP_LOAD, INTINGAMEOP_3_Y, INTINGAMEOP_OP_W, _("Load Game"), OPALIGN);
 		// add 'save'
 		addIGTextButton(INTINGAMEOP_SAVE, INTINGAMEOP_4_Y, INTINGAMEOP_OP_W, _("Save Game"), OPALIGN);
 	}
-
 
 	intMode		= INT_INGAMEOP;			// change interface mode.
 	InGameOpUp	= true;					// inform interface.

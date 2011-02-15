@@ -5,7 +5,7 @@ PKG_SOURCEBASE:=$(PKG_NAME)-$(PKG_VERSION)
 PKG_SOURCE:=$(PKG_SOURCEBASE).tar.bz2
 PKG_SOURCE_URL:= \
 	@SF/dejavu \
-	http://www.il.fontys.nl/~giel/warzone/devpkg/
+	http://wzhost.wz2100.net/~buildbot/dev/
 PKG_MD5SUM:=63b1bf644cd54188a2ec43aff1846104
 
 TARGETS:= \
@@ -14,7 +14,7 @@ TARGETS:= \
 
 include $(TOPDIR)/rules.mk
 
-extract-stamp: $(TOPDIR)/downloads/$(PKG_SOURCE)
+extract-stamp: $(DOWNLOADS)/$(PKG_SOURCE)
 	tar xjf $^
 	touch extract-stamp
 

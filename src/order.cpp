@@ -97,9 +97,6 @@ static void orderCheckList(DROID *psDroid);
 // Clear all the orders from the list, up to listSize (without clearing pending (not yet synchronised) orders, that is).
 static void orderClearDroidList(DROID *psDroid);
 
-//Watermelon:add a timestamp to order circle
-static UDWORD orderStarted;
-
 // whether an order effect has been displayed
 static BOOL bOrderEffectDisplayed = false;
 // what the droid's action / order is currently
@@ -509,7 +506,7 @@ void orderUpdateDroid(DROID *psDroid)
 			{
 				// true if in condition to set actionDroid to attack/observe
 				bool attack = secondaryGetState(psDroid, DSO_ATTACK_LEVEL) == DSS_ALEV_ALWAYS &&
-				              aiBestNearestTarget(psDroid, &psObj, 0, NULL) >= 0;
+				              aiBestNearestTarget(psDroid, &psObj, 0, SCOUT_ATTACK_DIST) >= 0;
 				switch (psDroid->droidType)
 				{
 					case DROID_CONSTRUCT:
@@ -558,7 +555,6 @@ void orderUpdateDroid(DROID *psDroid)
 			{
 				if (psDroid->order == DORDER_PATROL)
 				{
-					UDWORD tempCoord;
 					// see if we have anything queued up
 					if (orderDroidList(psDroid))
 					{
@@ -571,12 +567,8 @@ void orderUpdateDroid(DROID *psDroid)
 						break;
 					}
 					// head back to the other point
-					tempCoord = psDroid->orderX;
-					psDroid->orderX = psDroid->orderX2;
-					psDroid->orderX2 = tempCoord;
-					tempCoord = psDroid->orderY;
-					psDroid->orderY = psDroid->orderY2;
-					psDroid->orderY2 = tempCoord;
+					std::swap(psDroid->orderX, psDroid->orderX2);
+					std::swap(psDroid->orderY, psDroid->orderY2);
 					actionDroid(psDroid, DACTION_MOVE, psDroid->orderX,psDroid->orderY);
 				}
 				else
@@ -595,10 +587,8 @@ void orderUpdateDroid(DROID *psDroid)
 				 (psDroid->action == DACTION_OBSERVE) ||
 				 (psDroid->action == DACTION_MOVETOOBSERVE))
 		{
-			// attacking something - see if the droid has gone too far
-			xdiff = (SDWORD)psDroid->pos.x - (SDWORD)psDroid->actionX;
-			ydiff = (SDWORD)psDroid->pos.y - (SDWORD)psDroid->actionY;
-			if (xdiff*xdiff + ydiff*ydiff > SCOUT_ATTACK_DIST*SCOUT_ATTACK_DIST)
+			// attacking something - see if the droid has gone too far, go up to twice the distance we want to go, so that we don't repeatedly turn back when the target is almost in range.
+			if (objPosDiffSq(psDroid->pos, Vector3i(psDroid->actionX, psDroid->actionY, 0)) > (SCOUT_ATTACK_DIST*2 * SCOUT_ATTACK_DIST*2))
 			{
 				actionDroid(psDroid, DACTION_RETURNTOPOS, psDroid->actionX,psDroid->actionY);
 			}
@@ -608,7 +598,7 @@ void orderUpdateDroid(DROID *psDroid)
 		// if there is an enemy around, attack it
 		if (psDroid->action == DACTION_MOVE &&
 		    secondaryGetState(psDroid, DSO_ATTACK_LEVEL) == DSS_ALEV_ALWAYS &&
-		    aiBestNearestTarget(psDroid, &psObj, 0, NULL) >= 0)
+		    aiBestNearestTarget(psDroid, &psObj, 0, SCOUT_ATTACK_DIST) >= 0)
 		{
 			switch (psDroid->droidType)
 			{
@@ -631,45 +621,27 @@ void orderUpdateDroid(DROID *psDroid)
 		{
 			if (psDroid->action == DACTION_MOVE)
 			{
-				if ( orderStarted && ((orderStarted + 500) > gameTime) )
-				{
-					break;
-				}
 				// see if we have anything queued up
 				if (orderDroidList(psDroid))
 				{
 					// started a new order, quit
 					break;
 				}
-				orderStarted = gameTime;
 			}
-			psDroid->action = DACTION_NONE;
 
-			xdiff = (SDWORD)psDroid->pos.x - (SDWORD)psDroid->orderX;
-			ydiff = (SDWORD)psDroid->pos.y - (SDWORD)psDroid->orderY;
-			if (xdiff*xdiff + ydiff*ydiff <= 2000 * 2000)
+			Vector2i edgeDiff = removeZ(psDroid->pos) - Vector2i(psDroid->actionX, psDroid->actionY);
+			if (psDroid->action != DACTION_MOVE || edgeDiff*edgeDiff <= TILE_UNITS*4 * TILE_UNITS*4)
 			{
-				if (psDroid->order == DORDER_CIRCLE)
+				//Watermelon:use orderX,orderY as local space origin and calculate droid direction in local space
+				Vector2i diff = removeZ(psDroid->pos) - Vector2i(psDroid->orderX, psDroid->orderY);
+				uint16_t angle = iAtan2(diff) - DEG(30);
+				do
 				{
-					//Watermelon:use orderX,orderY as local space origin and calculate droid direction in local space
-					uint16_t angle = iAtan2(xdiff, ydiff);
 					xoffset = iSinR(angle, 1500);
 					yoffset = iCosR(angle, 1500);
-					xdiff = psDroid->pos.x - (psDroid->orderX + xoffset);
-					ydiff = psDroid->pos.y - (psDroid->orderY + yoffset);
-					if (xdiff*xdiff + ydiff*ydiff < TILE_UNITS * TILE_UNITS)
-					{
-						//Watermelon:conter-clockwise 30 degree's per action
-						angle -= DEG(30);
-						xoffset = iSinR(angle, 1500);
-						yoffset = iCosR(angle, 1500);
-					}
-					actionDroid(psDroid, DACTION_MOVE, psDroid->orderX + xoffset, psDroid->orderY + yoffset);
-				}
-				else
-				{
-					psDroid->order = DORDER_NONE;
-				}
+					angle -= DEG(10);
+				} while (!worldOnMap(psDroid->orderX + xoffset, psDroid->orderY + yoffset));  // Don't try to fly off map.
+				actionDroid(psDroid, DACTION_MOVE, psDroid->orderX + xoffset, psDroid->orderY + yoffset);
 			}
 		}
 		else if ((psDroid->action == DACTION_ATTACK) ||
@@ -4209,52 +4181,49 @@ void orderStructureObj(UDWORD player, BASE_OBJECT *psObj)
 
 const char* getDroidOrderName(DROID_ORDER order)
 {
-	static const char* name[] =
+	switch (order)
 	{
-		"DORDER_NONE",				// no order set
-		"DORDER_STOP",				// stop the current order
-		"DORDER_MOVE",				// 2 - move to a location
-		"DORDER_ATTACK",				// attack an enemy
-		"DORDER_BUILD",				// 4 - build a structure
-		"DORDER_HELPBUILD",			// help to build a structure
-		"DORDER_LINEBUILD",			// 6 - build a number of structures in a row (walls + bridges)
-		"DORDER_DEMOLISH",			// demolish a structure
-		"DORDER_REPAIR",				// 8 - repair a structure
-		"DORDER_OBSERVE",				// keep a target in sensor view
-		"DORDER_FIRESUPPORT",			// 10 - attack whatever the linked sensor droid attacks
-		"DORDER_RETREAT",				// return to the players retreat position
-		"DORDER_DESTRUCT",			// 12 - self destruct
-		"DORDER_RTB",					// return to base
-		"DORDER_RTR",					// 14 - return to repair at any repair facility
-		"DORDER_RUN",					// run away after moral failure
-		"DORDER_EMBARK",				// 16 - board a transporter
-		"DORDER_DISEMBARK",			// get off a transporter
-		"DORDER_ATTACKTARGET",		// 18 - a suggestion to attack something
-									// i.e. the target was chosen because the droid could see it
-		"DORDER_COMMANDERSUPPORT",
-		"DORDER_BUILDMODULE",			// 20 - build a module (power, research or factory)
-		"DORDER_RECYCLE",				// return to factory to be recycled
-		"DORDER_TRANSPORTOUT",		// 22 - offworld transporter order
-		"DORDER_TRANSPORTIN",			// onworld transporter order
-		"DORDER_TRANSPORTRETURN",		// 24 - transporter return after unloading
-		"DORDER_GUARD",				// guard a structure
-		"DORDER_DROIDREPAIR",			// 26 - repair a droid
-		"DORDER_RESTORE",				// restore resistance points for a structure
-		"DORDER_SCOUT",				// 28 - same as move, but stop if an enemy is seen
-		"DORDER_RUNBURN",				// run away on fire
-		"DORDER_CLEARWRECK",			// 30 - constructor droid to clear up building wreckage
-		"DORDER_PATROL",				// move between two way points
-		"DORDER_REARM",				// 32 - order a vtol to rearming pad
-		"DORDER_RECOVER",				// pick up an artifact
-		"DORDER_LEAVEMAP",			// 36 - vtol flying off the map
-		"DORDER_RTR_SPECIFIED",		// return to repair at a specified repair center
-		"DORDER_UNDEFINED",
-		"DORDER_UNDEFINED2",
-		"DORDER_CIRCLE",				// circles target location and engage
-		"DORDER_TEMP_HOLD"				// do nothing until given next order
+		case DORDER_NONE:                     return "DORDER_NONE";
+		case DORDER_STOP:                     return "DORDER_STOP";
+		case DORDER_MOVE:                     return "DORDER_MOVE";
+		case DORDER_ATTACK:                   return "DORDER_ATTACK";
+		case DORDER_BUILD:                    return "DORDER_BUILD";
+		case DORDER_HELPBUILD:                return "DORDER_HELPBUILD";
+		case DORDER_LINEBUILD:                return "DORDER_LINEBUILD";
+		case DORDER_DEMOLISH:                 return "DORDER_DEMOLISH";
+		case DORDER_REPAIR:                   return "DORDER_REPAIR";
+		case DORDER_OBSERVE:                  return "DORDER_OBSERVE";
+		case DORDER_FIRESUPPORT:              return "DORDER_FIRESUPPORT";
+		case DORDER_RETREAT:                  return "DORDER_RETREAT";
+		case DORDER_DESTRUCT:                 return "DORDER_DESTRUCT";
+		case DORDER_RTB:                      return "DORDER_RTB";
+		case DORDER_RTR:                      return "DORDER_RTR";
+		case DORDER_RUN:                      return "DORDER_RUN";
+		case DORDER_EMBARK:                   return "DORDER_EMBARK";
+		case DORDER_DISEMBARK:                return "DORDER_DISEMBARK";
+		case DORDER_ATTACKTARGET:             return "DORDER_ATTACKTARGET";
+		case DORDER_COMMANDERSUPPORT:         return "DORDER_COMMANDERSUPPORT";
+		case DORDER_BUILDMODULE:              return "DORDER_BUILDMODULE";
+		case DORDER_RECYCLE:                  return "DORDER_RECYCLE";
+		case DORDER_TRANSPORTOUT:             return "DORDER_TRANSPORTOUT";
+		case DORDER_TRANSPORTIN:              return "DORDER_TRANSPORTIN";
+		case DORDER_TRANSPORTRETURN:          return "DORDER_TRANSPORTRETURN";
+		case DORDER_GUARD:                    return "DORDER_GUARD";
+		case DORDER_DROIDREPAIR:              return "DORDER_DROIDREPAIR";
+		case DORDER_RESTORE:                  return "DORDER_RESTORE";
+		case DORDER_SCOUT:                    return "DORDER_SCOUT";
+		case DORDER_RUNBURN:                  return "DORDER_RUNBURN";
+		case DORDER_CLEARWRECK:               return "DORDER_CLEARWRECK";
+		case DORDER_PATROL:                   return "DORDER_PATROL";
+		case DORDER_REARM:                    return "DORDER_REARM";
+		case DORDER_RECOVER:                  return "DORDER_RECOVER";
+		case DORDER_LEAVEMAP:                 return "DORDER_LEAVEMAP";
+		case DORDER_RTR_SPECIFIED:            return "DORDER_RTR_SPECIFIED";
+		case DORDER_CIRCLE:                   return "DORDER_CIRCLE";
+		case DORDER_TEMP_HOLD:                return "DORDER_TEMP_HOLD";
 	};
 
-	ASSERT(order < sizeof(name) / sizeof(name[0]), "DROID_ORDER out of range: %u", order);
+	ASSERT(false, "DROID_ORDER out of range: %u", order);
 
-	return name[order];
+	return "DORDER_#INVALID#";
 }

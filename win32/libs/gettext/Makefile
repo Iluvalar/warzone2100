@@ -5,7 +5,7 @@ PKG_SOURCEBASE=$(PKG_NAME)-$(PKG_VERSION)
 PKG_SOURCE:=$(PKG_SOURCEBASE).tar.gz
 PKG_SOURCE_URL:= \
 	http://ftp.gnu.org/pub/gnu/gettext/ \
-	http://www.il.fontys.nl/~giel/warzone/devpkg/
+	http://wzhost.wz2100.net/~buildbot/dev/
 PKG_MD5SUM:=3dd55b952826d2b32f51308f2f91aa89
 
 TARGET:=$(TOPDIR)/build/libs/lib/libintl.la
@@ -13,7 +13,7 @@ SHELL:=$(shell which bash)
 
 include $(TOPDIR)/rules.mk
 
-$(PKG_SOURCEBASE) extract-stamp: $(TOPDIR)/downloads/$(PKG_SOURCE)
+$(PKG_SOURCEBASE) extract-stamp: $(DOWNLOADS)/$(PKG_SOURCE)
 	tar xzf $^
 	touch extract-stamp
 
