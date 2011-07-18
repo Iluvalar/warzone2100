@@ -11,7 +11,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: warzone2100\n"
 "Report-Msgid-Bugs-To: warzone-dev@gna.org\n"
-"POT-Creation-Date: 2011-05-17 01:48+0200\n"
+"POT-Creation-Date: 2011-07-18 22:55+0200\n"
 "PO-Revision-Date: 2010-12-14 22:19+0100\n"
 "Last-Translator: Cristian Odorico <generalchris@hotmail.it>\n"
 "Language-Team: Italian <warzone-dev@gna.org>\n"
@@ -13198,7 +13198,7 @@ msgstr "Il gioco non può continuare senza l'host."
 msgid "-->  QUIT  <--"
 msgstr "--> ABBANDONA <--"
 
-#: src/init.c:390
+#: src/init.c:402
 #, c-format
 msgid ""
 "The required mod could not be loaded: %s\n"
@@ -14829,62 +14829,62 @@ msgstr "Impossibile localizzare alcuna Unità Sensoria!"
 msgid "Unable to locate any Commanders!"
 msgstr "Impossibile localizzare alcun Comandante!"
 
-#: src/structure.c:2743
+#: src/structure.c:2750
 msgid "Control Limit Reached - Production Halted"
 msgstr "Limite di Controllo Raggiunto - Produzione Arrestata"
 
-#: src/structure.c:5936
-#: src/structure.c:5961
+#: src/structure.c:5943
+#: src/structure.c:5968
 #, fuzzy, c-format
 msgid "%s - %u Unit assigned - Damage %3.0f%%"
 msgid_plural "%s - %u Units assigned - Damage %3.0f%%"
 msgstr[0] "%s - %u Unità Assegnata"
 msgstr[1] "%s - %u Unità Assegnate"
 
-#: src/structure.c:5966
-#: src/structure.c:5980
-#: src/structure.c:5993
-#: src/structure.c:6030
+#: src/structure.c:5973
+#: src/structure.c:5987
+#: src/structure.c:6000
+#: src/structure.c:6037
 #, c-format
 msgid "%s - Damage %3.0f%%"
 msgstr "%s - Danno %3.0f%%"
 
-#: src/structure.c:6016
+#: src/structure.c:6023
 #, fuzzy, c-format
 msgid "%s - Connected %u of %u - Damage %3.0f%%"
 msgstr "%s - Collegati %u di %u"
 
-#: src/structure.c:6151
-#: src/structure.c:6200
+#: src/structure.c:6158
+#: src/structure.c:6207
 #, c-format
 msgid "%s - Electronically Damaged"
 msgstr "%s - Danneggiato Elettronicamente"
 
-#: src/structure.c:6433
+#: src/structure.c:6440
 msgid "Electronic Reward - Visibility Report"
 msgstr "Premio Elettronico - Rapporto di Visibilità"
 
-#: src/structure.c:6473
+#: src/structure.c:6480
 msgid "Factory Reward - Propulsion"
 msgstr "Premio della Fabbrica - Propulsione"
 
-#: src/structure.c:6497
+#: src/structure.c:6504
 msgid "Factory Reward - Body"
 msgstr "Premio della Fabbrica - Corpo"
 
-#: src/structure.c:6521
+#: src/structure.c:6528
 msgid "Factory Reward - Weapon"
 msgstr "Premio della Fabbrica - Arma"
 
-#: src/structure.c:6530
+#: src/structure.c:6537
 msgid "Factory Reward - Nothing"
 msgstr "Premio della Fabbrica - Niente"
 
-#: src/structure.c:6558
+#: src/structure.c:6565
 msgid "Repair Facility Award - Repair"
 msgstr "Premio della Struttura di Riparazione - Ripara"
 
-#: src/structure.c:6565
+#: src/structure.c:6572
 msgid "Repair Facility Award - Nothing"
 msgstr "Premio della Struttura di Riparazione - Niente"
 

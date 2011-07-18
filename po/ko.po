@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: warzone2100 2.3_branch\n"
 "Report-Msgid-Bugs-To: warzone-dev@gna.org\n"
-"POT-Creation-Date: 2011-05-17 01:48+0200\n"
+"POT-Creation-Date: 2011-07-18 22:55+0200\n"
 "PO-Revision-Date: 2010-11-23 21:01+0900\n"
 "Last-Translator: Joshua Shin <urgood2@gmail.com>\n"
 "Language-Team: Korean Translation Team <urgood2@gmail.com>\n"
@@ -13256,7 +13256,7 @@ msgstr "이 게임은 호스트 없이 계속할 수 없습니다."
 msgid "-->  QUIT  <--"
 msgstr "-->  종료  <--"
 
-#: src/init.c:390
+#: src/init.c:402
 #, c-format
 msgid ""
 "The required mod could not be loaded: %s\n"
@@ -14889,61 +14889,61 @@ msgstr "센서 유닛을 찾을 수 없습니다!"
 msgid "Unable to locate any Commanders!"
 msgstr "사령관을 찾을 수 없습니다!"
 
-#: src/structure.c:2743
+#: src/structure.c:2750
 msgid "Control Limit Reached - Production Halted"
 msgstr "제어 한계에 도달하였습니다 - 생산이 중단되었습니다"
 
-#: src/structure.c:5936
-#: src/structure.c:5961
+#: src/structure.c:5943
+#: src/structure.c:5968
 #, fuzzy, c-format
 msgid "%s - %u Unit assigned - Damage %3.0f%%"
 msgid_plural "%s - %u Units assigned - Damage %3.0f%%"
 msgstr[0] "%s - 유닛 %u개 할당되었습니다"
 
-#: src/structure.c:5966
-#: src/structure.c:5980
-#: src/structure.c:5993
-#: src/structure.c:6030
+#: src/structure.c:5973
+#: src/structure.c:5987
+#: src/structure.c:6000
+#: src/structure.c:6037
 #, c-format
 msgid "%s - Damage %3.0f%%"
 msgstr "%s - 데미지 %3.0f%%"
 
-#: src/structure.c:6016
+#: src/structure.c:6023
 #, fuzzy, c-format
 msgid "%s - Connected %u of %u - Damage %3.0f%%"
 msgstr "%s - %u개 연결 되었습니다 (전체 %u개)"
 
-#: src/structure.c:6151
-#: src/structure.c:6200
+#: src/structure.c:6158
+#: src/structure.c:6207
 #, c-format
 msgid "%s - Electronically Damaged"
 msgstr "%s - 전자적으로 손상됨"
 
-#: src/structure.c:6433
+#: src/structure.c:6440
 msgid "Electronic Reward - Visibility Report"
 msgstr "전자적 보상 - 시계보고"
 
-#: src/structure.c:6473
+#: src/structure.c:6480
 msgid "Factory Reward - Propulsion"
 msgstr "공장 보상 - 추진력"
 
-#: src/structure.c:6497
+#: src/structure.c:6504
 msgid "Factory Reward - Body"
 msgstr "공장 보상 - 차체"
 
-#: src/structure.c:6521
+#: src/structure.c:6528
 msgid "Factory Reward - Weapon"
 msgstr "공장 보상 - 무기"
 
-#: src/structure.c:6530
+#: src/structure.c:6537
 msgid "Factory Reward - Nothing"
 msgstr "공장 보상 - 없음"
 
-#: src/structure.c:6558
+#: src/structure.c:6565
 msgid "Repair Facility Award - Repair"
 msgstr "수리 시설 상 - 수리"
 
-#: src/structure.c:6565
+#: src/structure.c:6572
 msgid "Repair Facility Award - Nothing"
 msgstr "수리 시설 상 - 없음"
 

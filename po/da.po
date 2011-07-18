@@ -9,7 +9,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: warzone2100\n"
 "Report-Msgid-Bugs-To: warzone-dev@gna.org\n"
-"POT-Creation-Date: 2011-05-17 01:48+0200\n"
+"POT-Creation-Date: 2011-07-18 22:55+0200\n"
 "PO-Revision-Date: 2008-05-09 16:08+0000\n"
 "Last-Translator: carson <Unknown>\n"
 "Language-Team: Dansk <da@li.org>\n"
@@ -13565,7 +13565,7 @@ msgstr ""
 msgid "-->  QUIT  <--"
 msgstr ""
 
-#: src/init.c:390
+#: src/init.c:402
 #, c-format
 msgid ""
 "The required mod could not be loaded: %s\n"
@@ -15243,63 +15243,63 @@ msgstr "Kan ikke finde nogle rekonniseringsenheder!"
 msgid "Unable to locate any Commanders!"
 msgstr "Kan ikke finde nogle kommandører!"
 
-#: src/structure.c:2743
+#: src/structure.c:2750
 #, fuzzy
 msgid "Control Limit Reached - Production Halted"
 msgstr "Kommandobegrænsning nået - indstiller produktion"
 
-#: src/structure.c:5936
-#: src/structure.c:5961
+#: src/structure.c:5943
+#: src/structure.c:5968
 #, fuzzy, c-format
 msgid "%s - %u Unit assigned - Damage %3.0f%%"
 msgid_plural "%s - %u Units assigned - Damage %3.0f%%"
 msgstr[0] "%s - Skade %3.0f%%"
 msgstr[1] "%s - Skade %3.0f%%"
 
-#: src/structure.c:5966
-#: src/structure.c:5980
-#: src/structure.c:5993
-#: src/structure.c:6030
+#: src/structure.c:5973
+#: src/structure.c:5987
+#: src/structure.c:6000
+#: src/structure.c:6037
 #, c-format
 msgid "%s - Damage %3.0f%%"
 msgstr "%s - Skade %3.0f%%"
 
-#: src/structure.c:6016
+#: src/structure.c:6023
 #, fuzzy, c-format
 msgid "%s - Connected %u of %u - Damage %3.0f%%"
 msgstr "%s - Forbundet %u af %u"
 
-#: src/structure.c:6151
-#: src/structure.c:6200
+#: src/structure.c:6158
+#: src/structure.c:6207
 #, c-format
 msgid "%s - Electronically Damaged"
 msgstr "%s - Elektronisk beskadiget"
 
-#: src/structure.c:6433
+#: src/structure.c:6440
 msgid "Electronic Reward - Visibility Report"
 msgstr "Elektronisk gevinst - Rekonniseringsrapport"
 
-#: src/structure.c:6473
+#: src/structure.c:6480
 msgid "Factory Reward - Propulsion"
 msgstr "Fabriksgevinst - Fremdrift"
 
-#: src/structure.c:6497
+#: src/structure.c:6504
 msgid "Factory Reward - Body"
 msgstr "Fabriksgevinst - Skrog"
 
-#: src/structure.c:6521
+#: src/structure.c:6528
 msgid "Factory Reward - Weapon"
 msgstr "Frabriskgevinst - Våben"
 
-#: src/structure.c:6530
+#: src/structure.c:6537
 msgid "Factory Reward - Nothing"
 msgstr "Fabriksgevinst - Ingen"
 
-#: src/structure.c:6558
+#: src/structure.c:6565
 msgid "Repair Facility Award - Repair"
 msgstr "Reperationsgevinst - Reperation"
 
-#: src/structure.c:6565
+#: src/structure.c:6572
 msgid "Repair Facility Award - Nothing"
 msgstr "Reperationsgevinst - Ingen"
 
