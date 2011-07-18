@@ -3723,7 +3723,6 @@ void displayPlayer(WIDGET *psWidget, UDWORD xOffset, UDWORD yOffset, PIELIGHT *p
 				iV_DrawImage(FrontImages,IMAGE_MULTIRANK3,x+37,y+13);
 			}
 
-
 			// star 3 games won.
 			eval = stat.wins;
 			if(eval >80)
@@ -3739,24 +3738,62 @@ void displayPlayer(WIDGET *psWidget, UDWORD xOffset, UDWORD yOffset, PIELIGHT *p
 				iV_DrawImage(FrontImages,IMAGE_MULTIRANK3,x+37,y+23);
 			}
 
-			// medals.
-			if ((stat.wins >= 6) && (stat.wins > (2 * stat.losses))) // bronze requirement.
+			// star 4 "ender"
+			//Those values are arbitrary; They count quitting, surender, game crashes, host quit all in same.
+			//So it might need more arbitrary changes according to game stability and player habits to be useful in the futur. -ilu
+			eval = (stat.played+1)*200/(stat.wins+stat.losses+1);
+			if(eval >800) //epic quitter
 			{
-				if ((stat.wins >= 12) && (stat.wins > (4 * stat.losses))) // silver requirement.
-				{
-					if ((stat.wins >= 24) && (stat.wins > (8 * stat.losses))) // gold requirement
-					{
-						iV_DrawImage(FrontImages,IMAGE_MEDAL_GOLD,x+49,y+11);
-					}
-					else
-					{
-						iV_DrawImage(FrontImages,IMAGE_MEDAL_SILVER,x+49,y+11);
-					}
-				}
-				else
-				{
-					iV_DrawImage(FrontImages,IMAGE_MEDAL_BRONZE,x+49,y+11);
-				}
+				iV_DrawImage(FrontImages,IMAGE_LAMP_RED,x+47,y+23);
+			}
+			if(eval >350) //quitter
+			{
+			}
+			else if(eval >250) //so so
+			{
+				iV_DrawImage(FrontImages,IMAGE_MULTIRANK3,x+47,y+23);
+			}
+			else if(eval >170) //nice player
+			{
+				iV_DrawImage(FrontImages,IMAGE_MULTIRANK2,x+47,y+23);
+			}
+			else if(eval >=100) //Top "ender" rank
+			{
+				iV_DrawImage(FrontImages,IMAGE_MULTIRANK1,x+47,y+23);
+			}
+			else{ //this should not happen (editor)
+				iV_DrawImage(FrontImages,IMAGE_PENCIL,x+47,y+23); 
+			}
+			
+			// medals.
+			if(stat.wins > (32 * stat.losses)) //Epic editor/quitter (or lucky noob)
+			{
+				iV_DrawImage(FrontImages,IMAGE_MEDAL_ORICHALCUM,x+49,y+6);
+			
+			}
+			else if(stat.wins > (16 * stat.losses)) //probable editor
+			{
+				iV_DrawImage(FrontImages,IMAGE_MEDAL_PLATINIUM,x+49,y+6);
+			}
+			else if((stat.wins >= 16) && stat.wins > (8 * stat.losses)) //Gold
+			{ 
+				iV_DrawImage(FrontImages,IMAGE_MEDAL_GOLD,x+49,y+6);
+			}
+			else if((stat.wins >= 8) &&stat.wins > (4 * stat.losses)) //Silver
+			{
+			 	iV_DrawImage(FrontImages,IMAGE_MEDAL_SILVER,x+49,y+6);
+			}
+			else if((stat.wins >= 4) &&stat.wins > (2 * stat.losses)) //bronze
+			{
+				iV_DrawImage(FrontImages,IMAGE_MEDAL_BRONZE,x+49,y+6);
+			}
+			else if((stat.wins >= 2) &&stat.wins > (1 * stat.losses)) //bronze star
+			{ 
+				iV_DrawImage(FrontImages,IMAGE_MEDAL_CHEVRON,x+49,y+11);
+			}
+			else if(stat.wins < (1/8 * stat.losses)) //Epic noob
+			{ 
+				iV_DrawImage(FrontImages,IMAGE_MEDAL_DUMMY,x+49,y+6);
 			}
 		}
 		game.skDiff[j] = UBYTE_MAX;	// set AI difficulty to 0xFF (i.e. not an AI)
