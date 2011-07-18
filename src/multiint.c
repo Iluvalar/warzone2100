@@ -3587,7 +3587,7 @@ void displayPlayer(WIDGET *psWidget, UDWORD xOffset, UDWORD yOffset, PIELIGHT *p
 
 		snprintf(mapProgressString, MAX_STR_LENGTH, _("Sending Map: %d%% "), progress);
 		iV_SetFont(font_regular); // font
-		iV_SetTextColour(WZCOL_TEXT_BRIGHT);
+		iV_SetTextColour(WZCOL_TEXT_BRIGHT); 
 		iV_DrawText(mapProgressString, x + 15, y + 22);
 	}
 	else if (mapDownloadProgress != 100 && j == selectedPlayer)
@@ -3789,7 +3789,7 @@ void displayPlayer(WIDGET *psWidget, UDWORD xOffset, UDWORD yOffset, PIELIGHT *p
 			}
 			else if((stat.wins >= 2) &&stat.wins > (1 * stat.losses)) //bronze star
 			{ 
-				iV_DrawImage(FrontImages,IMAGE_MEDAL_CHEVRON,x+49,y+11);
+				iV_DrawImage(FrontImages,IMAGE_MEDAL_CHEVRON,x+49,y+6);
 			}
 			else if(stat.wins < (1/8 * stat.losses)) //Epic noob
 			{ 
