@@ -255,9 +255,9 @@ extern LOBBY_ERROR_TYPES LobbyError;		// from src/multiint.c
  **			   ie ("trunk", "2.1.3", ...)
  ************************************************************************************
 **/
-char VersionString[VersionStringSize] = "2.3 git";   // used for display in the lobby, not the actual version check
-static int NETCODE_VERSION_MAJOR = 2;                // major netcode version, used for compatibility check
-static int NETCODE_VERSION_MINOR = 101;               // minor netcode version, used for compatibility check
+char VersionString[VersionStringSize] = "2.3.8 ilu";   // used for display in the lobby, not the actual version check
+static int NETCODE_VERSION_MAJOR = 330; //             // major netcode version, used for compatibility check
+static int NETCODE_VERSION_MINOR = 101;                // minor netcode version, used for compatibility check
 static int NETCODE_HASH = 0;			// unused for now
 
 static int checkSockets(const SocketSet* set, unsigned int timeout);
@@ -2033,14 +2033,14 @@ static bool NETrecvGAMESTRUCT(GAMESTRUCT* ourgamestruct)
 	ourgamestruct->Mods = ntohl(*(uint32_t*)buffer);
 	buffer += sizeof(uint32_t);
 	ourgamestruct->gameId = ntohl(*(uint32_t*)buffer);
-	buffer += sizeof(uint32_t);	
+	buffer += sizeof(uint32_t);
 	ourgamestruct->future2 = ntohl(*(uint32_t*)buffer);
-	buffer += sizeof(uint32_t);	
+	buffer += sizeof(uint32_t);
 	ourgamestruct->future3 = ntohl(*(uint32_t*)buffer);
-	buffer += sizeof(uint32_t);	
+	buffer += sizeof(uint32_t);
 	ourgamestruct->future4 = ntohl(*(uint32_t*)buffer);
-	buffer += sizeof(uint32_t);	
-	
+	buffer += sizeof(uint32_t);
+
 	// cat the modstring (if there is one) to the version string to display it for the end-user
 	if (ourgamestruct->modlist[0] != '\0')
 	{
@@ -2268,7 +2268,7 @@ int NETclose(void)
 {
 	unsigned int i;
 
-	// reset flag 
+	// reset flag
 	NetPlay.ShowedMOTD = false;
 	NEThaltJoining();
 
@@ -2517,7 +2517,7 @@ BOOL NETbcast(NETMSG *msg)
 				continue;
 			}
 			else
-			{	
+			{
 				if (writeAll(connected_bsocket[i]->socket, msg, size) == SOCKET_ERROR)
 				{
 					// Write error, most likely client disconnect.
@@ -2605,7 +2605,7 @@ static BOOL NETprocessSystemMessage(void)
 						error = true;
 						break;
 					}
-					
+
 					if (index != NetMsg.source && NetMsg.source != NET_HOST_ONLY)
 					{
 						HandleBadParam("NET_PLAYER_INFO given incorrect params.", index, NetMsg.source);
@@ -2764,7 +2764,7 @@ static BOOL NETprocessSystemMessage(void)
 /*
 *	Checks to see if a human player is still with us.
 *	@note: resuscitation isn't possible with current code, so once we lose
-*	the socket, then we have no way to connect with them again. Future 
+*	the socket, then we have no way to connect with them again. Future
 *	item to enhance.
 */
 static void NETcheckPlayers(void)
@@ -2862,7 +2862,7 @@ receive_message:
 					else if (connected_bsocket[i]->socket == NULL)
 					{
 						// If there is a error in NET_fillBuffer() then socket is already invalid.
-						// This means that the player dropped / disconnected for whatever reason. 
+						// This means that the player dropped / disconnected for whatever reason.
 						debug(LOG_INFO, "Player, (player %u) seems to have dropped/disconnected.", i);
 
 						// Send message type speciffically for dropped / disconnects
@@ -3045,10 +3045,10 @@ BOOL NETsetupTCPIP(const char *machine)
 
 // ////////////////////////////////////////////////////////////////////////
 // File Transfer programs.
-/** Send file. It returns % of file sent when 100 it's complete. Call until it returns 100. 
+/** Send file. It returns % of file sent when 100 it's complete. Call until it returns 100.
 *  @TODO: more error checking (?) different file types (?)
 *          Maybe should close file handle, and seek each time?
-*     
+*
 *  @NOTE: MAX_FILE_TRANSFER_PACKET is set to 2k per packet since 7*2 = 14K which is pretty
 *         much our limit.  Don't screw with that without having a bigger buffer!
 *         NET_BUFFER_SIZE is at 16k.  (also remember text chat, plus all the other cruff)
@@ -3161,7 +3161,7 @@ UBYTE NETrecvFile(void)
 				else
 				{
 					uint32_t reason = STUCK_IN_FILE_LOOP;
-	
+
 					NETend();
 					// we should never get here, it means, that the game can't detect the level, but we have the file.
 					// so we kick this player out.
@@ -3738,7 +3738,7 @@ BOOL NEThostGame(const char* SessionName, const char* PlayerName,
 	NetPlay.isHost = true;
 	NETlogEntry("Hosting game, resetting ban list.", SYNC_FLAG, 0);
 	if (IPlist)
-	{ 
+	{
 		free(IPlist);
 		IPlist = NULL;
 	}
@@ -3811,7 +3811,7 @@ BOOL NETfindGame(void)
 	unsigned int port = (hostname == masterserver_name) ? masterserver_port : gameserver_port;
 	int result = 0;
 	debug(LOG_NET, "Looking for games...");
-	
+
 	if (getLobbyError() == ERROR_CHEAT || getLobbyError() == ERROR_KICKED)
 	{
 		return false;
