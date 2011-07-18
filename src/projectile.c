@@ -514,7 +514,28 @@ BOOL proj_SendProjectile(WEAPON *psWeap, BASE_OBJECT *psAttacker, int player, Ve
 			/* chooselow pitch unless -ve */
 			if ( iPitchLow > 0 )
 			{
-				psProj->pitch = (SWORD)iPitchLow;
+				if (psAttacker->type == OBJ_DROID)
+				{
+					if(!lineOfFire(psAttacker,  ((DROID *)psAttacker)->psActionTarget[weapon_slot], true))
+					{
+						psProj->pitch = (SWORD)iPitchLow;
+					}
+					else
+					{
+						psProj->pitch = (SWORD)iPitchHigh;
+					}
+				}
+				else if (psAttacker->type == OBJ_STRUCTURE)
+				{
+					if(!lineOfFire(psAttacker,  ((STRUCTURE *)psAttacker)->psTarget[weapon_slot], true))
+					{
+						psProj->pitch = (SWORD)iPitchLow;
+					}
+					else
+					{
+						psProj->pitch = (SWORD)iPitchHigh;
+					}
+				}
 			}
 			else
 			{
@@ -954,7 +975,8 @@ static void proj_InFlightFunc(PROJECTILE *psProj, bool bIndirect)
 	ASSERT(distanceExtensionFactor != 0.f, "Unitialized variable used! distanceExtensionFactor is not initialized.");
 
 	if (distanceRatio > distanceExtensionFactor || /* We've traveled our maximum range */
-		!mapObjIsAboveGround((BASE_OBJECT*)psProj)) /* trying to travel through terrain */
+		((psProj->state==PROJ_INFLIGHTINDIRECT || !psProj->psDest) // Arty or missed shot...
+		&& currentDistance > world_coord(1) && !mapObjIsAboveGround((BASE_OBJECT*)psProj))) // AND through terrain and not straight on their feet
 	{
 		/* Miss due to range or height */
 		psProj->state = PROJ_IMPACT;

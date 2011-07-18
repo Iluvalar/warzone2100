@@ -294,7 +294,8 @@ SDWORD aiBestNearestTarget(DROID *psDroid, BASE_OBJECT **ppsObj, int weapon_slot
 		    && targetInQuestion->player != psDroid->player
 		    && !aiCheckAlliances(targetInQuestion->player,psDroid->player)
 		    && validTarget((BASE_OBJECT *)psDroid, targetInQuestion, weapon_slot)
-		    && aiDroidHasRange(psDroid, targetInQuestion, weapon_slot))
+		    && aiDroidHasRange(psDroid, targetInQuestion, weapon_slot)
+		    && lineOfFire(psDroid, targetInQuestion, true))
 		{
 			if (targetInQuestion->type == OBJ_DROID)
 			{
@@ -590,7 +591,7 @@ static SDWORD targetAttackWeight(BASE_OBJECT *psTarget, BASE_OBJECT *psAttacker,
 	}
 
 	/* We prefer objects we can see and can attack immediately */
-	if(!visibleObject((BASE_OBJECT *)psAttacker, psTarget, true))
+	if(!lineOfFire((BASE_OBJECT *)psAttacker, psTarget, true))
 	{
 		attackWeight /= WEIGHT_NOT_VISIBLE_F;
 	}

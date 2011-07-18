@@ -119,7 +119,6 @@ static int visObjHeight(const BASE_OBJECT * psObject)
 	switch (psObject->type)
 	{
 		case OBJ_DROID:
-	//		return psObject->sDisplay.imd->pos.max.y;
 			return 80;
 		case OBJ_STRUCTURE:
 		case OBJ_FEATURE:
@@ -129,7 +128,34 @@ static int visObjHeight(const BASE_OBJECT * psObject)
 			return 0;
 	}
 }
-
+static int LOFObjHeight(const BASE_OBJECT * psObject) //line of fire height
+{
+	switch (psObject->type)
+	{
+		case OBJ_DROID:
+			//return 20;
+		case OBJ_STRUCTURE:
+			//return 50;
+		case OBJ_FEATURE:
+			return psObject->sDisplay.imd->max.y/2;
+			//return 30;
+			
+		default:
+			ASSERT( false,"visObjHeight: unknown object type" );
+			return 0;
+	}
+}
+int switchObjHeight(const BASE_OBJECT * psObject, bool toFire)
+{
+	if(toFire)
+	{
+		LOFObjHeight(psObject);
+	}
+	else
+	{
+		visObjHeight(psObject);
+	}
+}
 /* Record all tiles that some object confers visibility to. Only record each tile
  * once. Note that there is both a limit to how many objects can watch any given
  * tile, and a limit to how many tiles each object can watch. Strange but non fatal
@@ -388,6 +414,15 @@ void visTilesUpdate(BASE_OBJECT *psObj, RAY_CALLBACK callback)
  */
 bool visibleObject(const BASE_OBJECT* psViewer, const BASE_OBJECT* psTarget, bool wallsBlock)
 {
+	return visibleObjectMain(psViewer,psTarget,wallsBlock,false);
+}
+bool lineOfFire(const BASE_OBJECT* psViewer, const BASE_OBJECT* psTarget, bool wallsBlock)
+{
+	return visibleObjectMain(psViewer,psTarget,wallsBlock,true);
+}
+
+bool visibleObjectMain(const BASE_OBJECT* psViewer, const BASE_OBJECT* psTarget, bool wallsBlock, bool toFire)
+{
 	Vector3i pos, dest, diff;
 	int range, distSq;
 
@@ -404,7 +439,7 @@ bool visibleObject(const BASE_OBJECT* psViewer, const BASE_OBJECT* psTarget, boo
 	dest = Vector3uw_To3i(psTarget->pos);
 	diff = Vector3i_Sub(dest, pos);
 	range = objSensorRange(psViewer);
-
+	
 	/* Get the sensor Range and power */
 	switch (psViewer->type)
 	{
@@ -488,7 +523,7 @@ bool visibleObject(const BASE_OBJECT* psViewer, const BASE_OBJECT* psTarget, boo
 
 	{
 		// initialise the callback variables
-		VisibleObjectHelp_t help = { true, wallsBlock, distSq, pos.z + visObjHeight(psViewer), { map_coord(dest.x), map_coord(dest.y) }, 0, 0, -UBYTE_MAX * GRAD_MUL * ELEVATION_SCALE, 0, { 0, 0 } };
+		VisibleObjectHelp_t help = { true, wallsBlock, distSq, pos.z + switchObjHeight(psViewer,toFire), { map_coord(dest.x), map_coord(dest.y) }, 0, 0, -UBYTE_MAX * GRAD_MUL * ELEVATION_SCALE, 0, { 0, 0 } };
 		int targetGrad, top;
 
 		// Cast a ray from the viewer to the target
@@ -501,7 +536,7 @@ bool visibleObject(const BASE_OBJECT* psViewer, const BASE_OBJECT* psTarget, boo
 		}
 
 		// See if the target can be seen
-		top = dest.z + visObjHeight(psTarget) - help.startHeight;
+		top = dest.z + switchObjHeight(psTarget,toFire) - help.startHeight;
 		targetGrad = top * GRAD_MUL / MAX(1, help.lastDist);
 
 		return targetGrad >= help.currGrad;
@@ -845,52 +880,3 @@ bool scrTileIsVisible(SDWORD player, SDWORD x, SDWORD y)
 	return scrTileVisible[player][x][y];
 }
 
-/* Check whether psViewer can fire directly at psTarget.
- * psTarget can be any type of BASE_OBJECT (e.g. a tree).
- */
-bool lineOfFire(const BASE_OBJECT* psViewer, const BASE_OBJECT* psTarget, bool wallsBlock)
-{
-	Vector3i pos, dest, diff;
-	int range, distSq;
-
-	ASSERT(psViewer != NULL, "Invalid shooter pointer!");
-	ASSERT(psTarget != NULL, "Invalid target pointer!");
-	if (!psViewer || !psTarget)
-	{
-		return false;
-	}
-
-	// FIXME HACK Needed since we got those ugly Vector3uw floating around in BASE_OBJECT...
-	pos = Vector3uw_To3i(psViewer->pos);
-	dest = Vector3uw_To3i(psTarget->pos);
-	diff = Vector3i_Sub(dest, pos);
-	range = objSensorRange(psViewer);
-
-	distSq = Vector3i_ScalarP(diff, diff);
-	if (distSq == 0)
-	{
-		// Should never be on top of each other, but ...
-		return true;
-	}
-
-	// initialise the callback variables
-	{
-		VisibleObjectHelp_t help = { true, wallsBlock, distSq, pos.z + visObjHeight(psViewer), { map_coord(dest.x), map_coord(dest.y) }, 0, 0, -UBYTE_MAX * GRAD_MUL * ELEVATION_SCALE, 0, { 0, 0 } };
-		int targetGrad, top;
-
-		// Cast a ray from the viewer to the target
-		rayCast(pos, diff, range, rayLOSCallback, &help);
-
-		if (gWall != NULL && gNumWalls != NULL) // Out globals are set
-		{
-			*gWall = help.wall;
-			*gNumWalls = help.numWalls;
-		}
-
-		// See if the target can be seen
-		top = dest.z + visObjHeight(psTarget) - help.startHeight;
-		targetGrad = top * GRAD_MUL / MAX(1, help.lastDist);
-
-		return targetGrad >= help.currGrad;
-	}
-}

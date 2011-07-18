@@ -676,7 +676,7 @@ BOOL actionVisibleTarget(DROID *psDroid, BASE_OBJECT *psTarget, int weapon_slot)
 
 	if (proj_Direct(psStats))
 	{
-		if (visibleObject((BASE_OBJECT*)psDroid, psTarget, true))
+		if (lineOfFire((BASE_OBJECT*)psDroid, psTarget, true))
 		{
 			return true;
 		}
@@ -1260,7 +1260,7 @@ void actionUpdateDroid(DROID *psDroid)
 			}
 
 			if (psDroid->psActionTarget[i]
-			 && visibleObject((BASE_OBJECT*)psDroid, psDroid->psActionTarget[i], false))
+			 && lineOfFire((BASE_OBJECT*)psDroid, psDroid->psActionTarget[i], false))
 			{
 				hasVisibleTarget = true;
 				targetVisibile[i] = true;

@@ -43,10 +43,12 @@ extern void visTilesUpdate(BASE_OBJECT *psObj, RAY_CALLBACK callback);
  * currently droids and structures.
  * psTarget can be any type of BASE_OBJECT (e.g. a tree).
  */
-extern bool visibleObject(const BASE_OBJECT* psViewer, const BASE_OBJECT* psTarget, bool wallsBlock);
+extern bool visibleObject(const BASE_OBJECT* psViewer, const BASE_OBJECT* psTarget, bool wallsBlock); //tofire=false
+extern bool lineOfFire(const BASE_OBJECT* psViewer, const BASE_OBJECT* psTarget, bool wallsBlock); //tofire=true
+extern bool visibleObjectMain(const BASE_OBJECT* psViewer, const BASE_OBJECT* psTarget, bool wallsBlock, bool toFire);
 
 /** Can shooter hit target with direct fire weapon? */
-bool lineOfFire(const BASE_OBJECT* psViewer, const BASE_OBJECT* psTarget, bool wallsBlock);
+bool lineOfFireOld(const BASE_OBJECT* psViewer, const BASE_OBJECT* psTarget, bool wallsBlock);
 
 // Find the wall that is blocking LOS to a target (if any)
 extern STRUCTURE* visGetBlockingWall(const BASE_OBJECT* psViewer, const BASE_OBJECT* psTarget);
