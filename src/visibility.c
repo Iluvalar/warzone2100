@@ -149,15 +149,15 @@ int switchObjHeight(const BASE_OBJECT * psObject, bool toFire)
 {
 	if(toFire)
 	{
-		LOFObjHeight(psObject);
+		return LOFObjHeight(psObject);
 	}
 	else
 	{
-		visObjHeight(psObject);
+		return visObjHeight(psObject);
 	}
 }
-/* Record all tiles that some object confers visibility to. Only record each tile
- * once. Note that there is both a limit to how many objects can watch any given
+/* Record all tiles that some object confers visibility to. Only record each tile 
+ * once. Note that there is both a limit to how many objects can watch any given 
  * tile, and a limit to how many tiles each object can watch. Strange but non fatal
  * things will happen if these limits are exceeded. This function uses icky globals. */
 static inline void visMarkTile(int mapX, int mapY, MAPTILE *psTile)
