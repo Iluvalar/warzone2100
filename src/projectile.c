@@ -888,10 +888,12 @@ static void proj_InFlightFunc(PROJECTILE *psProj, bool bIndirect)
 			continue;
 		}
 
-		if (aiCheckAlliances(psTempObj->player, psProj->player)
+		if ((aiCheckAlliances(psTempObj->player, psProj->player)
+			|| (psTempObj->type == OBJ_STRUCTURE &&
+				((STRUCTURE*)psTempObj)->status != SS_BUILT))
 			&& psTempObj != psProj->psDest)
 		{
-			// No friendly fire unless intentional
+			// No friendly or unfinished building fire unless intentional 
 			continue;
 		}
 

@@ -295,7 +295,7 @@ SDWORD aiBestNearestTarget(DROID *psDroid, BASE_OBJECT **ppsObj, int weapon_slot
 		    && !aiCheckAlliances(targetInQuestion->player,psDroid->player)
 		    && validTarget((BASE_OBJECT *)psDroid, targetInQuestion, weapon_slot)
 		    && aiDroidHasRange(psDroid, targetInQuestion, weapon_slot)
-		    && lineOfFire(psDroid, targetInQuestion, true))
+		    && lineOfFire((BASE_OBJECT *)psDroid, targetInQuestion, true))
 		{
 			if (targetInQuestion->type == OBJ_DROID)
 			{
