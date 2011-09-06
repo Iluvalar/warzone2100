@@ -59,17 +59,18 @@ STRUCTURE				*psCBLastResStructure;
 SDWORD					CBResFacilityOwner;
 
 //research is now loaded per campaign - this hopefully is the max there will be in any one campaign!
-#define MAX_RESEARCH        (450 + 50)
+#define MAX_RESEARCH        ((450 + 50)*3)
 
 //need to define max's for each of the lists associated with the research - these
 //values have been chosen based on the current research stats - 21/12/98
-#define MAX_RESEARCH_PR             (650 + 50)
-#define MAX_RESEARCH_STRUCT_PR      (44 + 50)
-#define MAX_RESEARCH_FUNC           (250 + 25)
-#define MAX_RESEARCH_STRUCT_RED     (30 + 25)
-#define MAX_RESEARCH_ARTE_RED       (40 + 5)
-#define MAX_RESEARCH_STRUCT_RES     (84 + 50)
-#define MAX_RESEARCH_ARTE_RES       (125 + 50)
+//the X3 is added so modders have full freedom in their creations -ilu 6/09/2011
+#define MAX_RESEARCH_PR             ((650 + 50)*3)
+#define MAX_RESEARCH_STRUCT_PR      ((44 + 50)*3)
+#define MAX_RESEARCH_FUNC           ((250 + 25)*3)
+#define MAX_RESEARCH_STRUCT_RED     ((30 + 25)*3)
+#define MAX_RESEARCH_ARTE_RED       ((40 + 5)*3)
+#define MAX_RESEARCH_STRUCT_RES     ((84 + 50)*3)
+#define MAX_RESEARCH_ARTE_RES       ((125 + 50)*3)
 
 //need corresponding arrays for the above
 static UWORD*            pResearchPR;
@@ -85,10 +86,10 @@ static UWORD numResearchPR;
 static UWORD numResearchStructPR;
 static UWORD numResearchFunc;
 static UWORD numResearchStructRed;
-static UBYTE numResearchArteRed;
+static UWORD numResearchArteRed;
 static UWORD numResearchStructRes;
-static UBYTE numResearchArteRes;
-static UBYTE numResearchArteRep;
+static UWORD numResearchArteRes;
+static UWORD numResearchArteRep;
 
 //List of pointers to arrays of PLAYER_RESEARCH[numResearch] for each player
 PLAYER_RESEARCH*		asPlayerResList[MAX_PLAYERS];
