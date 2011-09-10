@@ -68,11 +68,11 @@ static void highLevelDroidUpdate(DROID *psDroid,
 								 BASE_OBJECT *psTarget,
 								 float experience);
 
-
+/*
 static void onscreenUpdate		(DROID *pDroid,UDWORD dam,		// the droid and its damage
 								 UWORD dir,					// direction it should facing
 								 DROID_ORDER order);			// what it should be doing
-
+*/
 static void offscreenUpdate		(DROID *pDroid,UDWORD dam,
 								 float fx,float fy,
 								 UWORD dir,
@@ -354,20 +354,23 @@ static void packageCheck(const DROID* pD)
 
 	NETfloat(&sMoveX);
 	NETfloat(&sMoveY);
-
-	if (pD->order == DORDER_ATTACK)
-	{
-		uint32_t targetID = pD->psTarget->id;
-
-		NETuint32_t(&targetID);
-	}
-	else if (pD->order == DORDER_MOVE)
-	{
-		uint16_t orderX = pD->orderX;
-		uint16_t orderY = pD->orderY;
-
-		NETuint16_t(&orderX);
-		NETuint16_t(&orderY);
+	if(order!=DORDER_NONE){
+		if (validOrderForObj(pD->order))
+		{
+			uint32_t targetID = 0;
+			if(pD->psTarget){
+				targetID = pD->psTarget->id;
+			}
+			NETuint32_t(&targetID);
+		}
+		else if (validOrderForLoc(pD->order))
+		{
+			uint16_t orderX = pD->orderX;
+			uint16_t orderY = pD->orderY;
+	
+			NETuint16_t(&orderX);
+			NETuint16_t(&orderY);
+		}
 	}
 
 	// Last send the droid's experience
@@ -393,7 +396,7 @@ BOOL recvDroidCheck()
 			BASE_OBJECT	*psTarget = NULL;
 			float		fx = 0, fy = 0;
 			DROID_ORDER	order = 0;
-			BOOL		onscreen;
+			//BOOL		onscreen;
 			uint8_t		player;
 			float		direction, experience;
 			uint16_t	tx, ty;
@@ -422,15 +425,17 @@ BOOL recvDroidCheck()
 			NETfloat(&fy);
 
 			// Find out what the droid is aiming at
-			if (order == DORDER_ATTACK)
-			{
-				NETuint32_t(&target);
-			}
-			// Else if the droid is moving where to
-			else if (order == DORDER_MOVE)
-			{
-				NETuint16_t(&tx);
-				NETuint16_t(&ty);
+			if(order!=DORDER_NONE){
+				if (validOrderForObj(order))
+				{
+					NETuint32_t(&target);
+				}
+				// Else if the droid is moving where to
+				else if (validOrderForLoc(order))
+				{
+					NETuint16_t(&tx);
+					NETuint16_t(&ty);
+				}
 			}
 
 			// Get the droid's experience
@@ -462,22 +467,19 @@ BOOL recvDroidCheck()
 			if (droidOnScreen(pD, 0)
 			 && ingame.PingTimes[player] < PING_LIMIT)
 			{
-				onscreen = true;
+				//onscreen = true;
 			}
 			else
 			{
-				onscreen = false;
+				//onscreen = false;
 			}
 
 			// Update the droid
-			if (onscreen || isVtolDroid(pD))
-			{
-				onscreenUpdate(pD, body, direction, order);
-			}
-			else
-			{
+			/* Stop hidding synch.. it just get worst
+			if (onscreen || isVtolDroid(pD)) { onscreenUpdate(pD, body, direction, order); } else
+			{ */
 				offscreenUpdate(pD, body, fx, fy, direction, order);
-			}
+			//}
 
 //			debug(LOG_SYNC, "difference in position for droid %d; was (%g, %g); did %s update", (int)pD->id, 
 //			      fx - pD->sMove.fx, fy - pD->sMove.fy, onscreen ? "onscreen" : "offscreen");
@@ -507,22 +509,27 @@ static void highLevelDroidUpdate(DROID *psDroid, float fx, float fy,
 	// update kill rating.
 	psDroid->experience = experience;
 
-	// remote droid is attacking, not here tho!
-	if(order == DORDER_ATTACK && psDroid->order != DORDER_ATTACK && psTarget)
-	{
-		turnOffMultiMsg(true);
-		orderDroidObj(psDroid, DORDER_ATTACK, psTarget);
-		turnOffMultiMsg(false);
+	//just synch the order... dont ask to ask -ilu
+	turnOffMultiMsg(true);
+	if(order!=DORDER_NONE){
+		if (validOrderForObj(order))
+		{
+			if(psTarget!=0){
+				orderDroidObj(psDroid, order, psTarget);
+			}
+		}
+		else if (validOrderForLoc(order))
+		{
+			orderDroidLoc(psDroid, order, fx, fy);
+		}
 	}
+	psDroid->secondaryOrder = state;
+	turnOffMultiMsg(false);
 
-	// secondary orders.
-	if(psDroid->secondaryOrder != state)
-	{
-		psDroid->secondaryOrder = state;
-	}
 
 	// see how well the sync worked, optionally update.
 	// offscreen updates will make this ok each time.
+	// -ilu : this should be obsolete since I always use offscreen
 	if (psDroid->order == DORDER_NONE && order == DORDER_NONE)
 	{
 		if(  (fabs(fx - psDroid->sMove.fx)>(TILE_UNITS*2))		// if more than 2 tiles wrong.
@@ -538,6 +545,7 @@ static void highLevelDroidUpdate(DROID *psDroid, float fx, float fy,
 
 // ////////////////////////////////////////////////////////////////////////////
 // droid on screen needs modifying
+/*
 static void onscreenUpdate(DROID *psDroid,
 						   UDWORD dam,
 						   UWORD dir,
@@ -567,7 +575,7 @@ static void onscreenUpdate(DROID *psDroid,
 
 	return;
 }
-
+*/
 // ////////////////////////////////////////////////////////////////////////////
 // droid offscreen needs modyfying.
 static void offscreenUpdate(DROID *psDroid,
