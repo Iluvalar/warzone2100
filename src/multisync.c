@@ -76,7 +76,9 @@ static void onscreenUpdate		(DROID *pDroid,UDWORD dam,		// the droid and its dam
 static void offscreenUpdate		(DROID *pDroid,UDWORD dam,
 								 float fx,float fy,
 								 UWORD dir,
-								 DROID_ORDER order);
+								 DROID_ORDER order,
+								bool onScreen
+								);
 
 static BOOL sendPowerCheck(void);
 static UDWORD averagePing(void);
@@ -378,7 +380,7 @@ static void packageCheck(const DROID* pD)
 }
 
 
-// ////////////////////////////////////////////////////////////////////////////
+// ///////////////////////////////////////////////////////////////////////////
 // receive a check and update the local world state accordingly
 BOOL recvDroidCheck()
 {
@@ -396,7 +398,7 @@ BOOL recvDroidCheck()
 			BASE_OBJECT	*psTarget = NULL;
 			float		fx = 0, fy = 0;
 			DROID_ORDER	order = 0;
-			//BOOL		onscreen;
+			BOOL		onscreen;
 			uint8_t		player;
 			float		direction, experience;
 			uint16_t	tx, ty;
@@ -467,19 +469,21 @@ BOOL recvDroidCheck()
 			if (droidOnScreen(pD, 0)
 			 && ingame.PingTimes[player] < PING_LIMIT)
 			{
-				//onscreen = true;
+				onscreen = true;
 			}
 			else
 			{
-				//onscreen = false;
+				onscreen = false;
 			}
 
 			// Update the droid
-			/* Stop hidding synch.. it just get worst
-			if (onscreen || isVtolDroid(pD)) { onscreenUpdate(pD, body, direction, order); } else
-			{ */
-				offscreenUpdate(pD, body, fx, fy, direction, order);
-			//}
+			if (onscreen || isVtolDroid(pD)) 
+			{ 
+				offscreenUpdate(pD, body, fx, fy, direction, order, true); 
+			} else
+			{ 
+				offscreenUpdate(pD, body, fx, fy, direction, order, false);
+			}
 
 //			debug(LOG_SYNC, "difference in position for droid %d; was (%g, %g); did %s update", (int)pD->id, 
 //			      fx - pD->sMove.fx, fy - pD->sMove.fy, onscreen ? "onscreen" : "offscreen");
@@ -547,9 +551,11 @@ static void highLevelDroidUpdate(DROID *psDroid, float fx, float fy,
 // droid on screen needs modifying
 /*
 static void onscreenUpdate(DROID *psDroid,
-						   UDWORD dam,
-						   UWORD dir,
-						   DROID_ORDER order)
+						UDWORD dam,
+						float fx,
+						float fy,
+						UWORD dir,
+						DROID_ORDER order)
 {
 	BASE_OBJECT *psClickedOn;
 	BOOL		bMouseOver = false;
@@ -583,7 +589,8 @@ static void offscreenUpdate(DROID *psDroid,
 							float fx,
 							float fy,
 							UWORD dir,
-							DROID_ORDER order)
+							DROID_ORDER order,
+							bool onScreen)
 {
 	PROPULSION_STATS	*psPropStats;
 	int			oldX, oldY;
@@ -596,8 +603,16 @@ static void offscreenUpdate(DROID *psDroid,
 
 	oldX			= psDroid->pos.x;
 	oldY			= psDroid->pos.y;
-	psDroid->pos.x		= fx;				// update x
-	psDroid->pos.y		= fy;				// update y
+	if(	!onScreen 
+		||(
+			(fabs(fx - psDroid->sMove.fx)>(TILE_UNITS*2))		// if more than 2 tiles wrong.
+		   	||(fabs(fy - psDroid->sMove.fy)>(TILE_UNITS*2)) 
+		)
+	)
+	{
+		psDroid->pos.x		= fx;				// update x
+		psDroid->pos.y		= fy;				// update y
+	}
 	psDroid->sMove.fx	= fx;
 	psDroid->sMove.fy	= fy;
 	psDroid->direction	= dir % 360;			// update rotation
