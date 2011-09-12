@@ -477,13 +477,13 @@ BOOL recvDroidCheck()
 			}
 
 			// Update the droid
-			if (onscreen || isVtolDroid(pD)) 
-			{ 
-				offscreenUpdate(pD, body, fx, fy, direction, order, true); 
-			} else
-			{ 
-				offscreenUpdate(pD, body, fx, fy, direction, order, false);
-			}
+			//if (onscreen || isVtolDroid(pD)) 
+			//{ 
+			offscreenUpdate(pD, body, fx, fy, direction, order, onscreen); 
+			//} else
+			//{ 
+			//	offscreenUpdate(pD, body, fx, fy, direction, order, false);
+			//}
 
 //			debug(LOG_SYNC, "difference in position for droid %d; was (%g, %g); did %s update", (int)pD->id, 
 //			      fx - pD->sMove.fx, fy - pD->sMove.fy, onscreen ? "onscreen" : "offscreen");
@@ -612,10 +612,10 @@ static void offscreenUpdate(DROID *psDroid,
 	{
 		psDroid->pos.x		= fx;				// update x
 		psDroid->pos.y		= fy;				// update y
+		psDroid->sMove.fx	= fx;
+		psDroid->sMove.fy	= fy;
+		psDroid->direction	= dir % 360;			// update rotation
 	}
-	psDroid->sMove.fx	= fx;
-	psDroid->sMove.fy	= fy;
-	psDroid->direction	= dir % 360;			// update rotation
 	psDroid->body		= dam;								// update damage
 	if (oldX != psDroid->pos.x || oldY != psDroid->pos.y)
 	{
