@@ -614,8 +614,8 @@ static void offscreenUpdate(DROID *psDroid,
 		psDroid->pos.y		= fy;				// update y
 		psDroid->sMove.fx	= fx;
 		psDroid->sMove.fy	= fy;
-		psDroid->direction	= dir % 360;			// update rotation
 	}
+	psDroid->direction	= dir % 360;			// update rotation
 	psDroid->body		= dam;								// update damage
 	if (oldX != psDroid->pos.x || oldY != psDroid->pos.y)
 	{
