@@ -198,7 +198,7 @@ extern void resetFactoryNumFlag(void);
 extern STRUCTURE_STATS * structGetDemolishStat( void );
 
 /*find a location near to the factory to start the droid of*/
-extern BOOL placeDroid(STRUCTURE *psStructure, UDWORD *droidX, UDWORD *droidY);
+extern BOOL placeDroid(STRUCTURE *psStructure, UDWORD *droidX, UDWORD *droidY, PROPULSION_TYPE propulsion);
 
 /*sets the flag to indicate a Power Generator Exists - so do Oil Derrick anim*/
 //extern void setPowerGenExists(BOOL state, UDWORD player);

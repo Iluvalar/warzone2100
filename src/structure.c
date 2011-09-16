@@ -1148,6 +1148,8 @@ float structureDamage(STRUCTURE *psStructure, UDWORD damage, UDWORD weaponClass,
 					   UDWORD weaponSubClass, HIT_SIDE impactSide)
 {
 	float		relativeDamage;
+	float constructMod;
+	const STRUCTURE_STATS *psStats = psStructure->pStructureType;
 
 	CHECK_STRUCTURE(psStructure);
 
@@ -1155,9 +1157,14 @@ float structureDamage(STRUCTURE *psStructure, UDWORD damage, UDWORD weaponClass,
 		  psStructure->id, psStructure->body, psStructure->armour[impactSide][weaponClass], damage);
 
 	relativeDamage = objDamage((BASE_OBJECT *)psStructure, damage, structureBody(psStructure), weaponClass, weaponSubClass, impactSide);
+	constructMod = 		(
+					((float)psStructure->currentBuildPts+1.0f)/((float)psStats->buildPoints+1.0f)*4
+					+((float)psStructure->currentPowerAccrued+1.0f)/((float)psStats->powerToBuild+1.0f)
+				)/5; //fraction of the building built 1/5 $ + 4/5 points
 
 	// If the shell did sufficient damage to destroy the structure
-	if (relativeDamage < 0.0f)
+	//Ilu - Or if the body point fraction is under the contructed fraction (can't think of a better spot or way to do this)
+	if (relativeDamage < 0.0f || (float)psStructure->body/(float)structureBody(psStructure) < 1.0f-constructMod)
 	{
 		debug(LOG_ATTACK, "Structure (id %d) DESTROYED", psStructure->id);
 		destroyStruct(psStructure);
@@ -1482,13 +1489,13 @@ STRUCTURE* buildStructure(STRUCTURE_STATS* pStructureType, UDWORD x, UDWORD y, U
 		//check not trying to build too near the edge
 		if (map_coord(x) < TOO_NEAR_EDGE || map_coord(x) > (mapWidth - TOO_NEAR_EDGE))
 		{
-			debug(LOG_ERROR, "attempting to build too closely to map-edge, "
+			debug(LOG_WARNING, "attempting to build too closely to map-edge, "
 				  "x coord (%u) too near edge (req. distance is %u)", x, TOO_NEAR_EDGE);
 			return NULL;
 		}
 		if (map_coord(y) < TOO_NEAR_EDGE || map_coord(y) > (mapHeight - TOO_NEAR_EDGE))
 		{
-			debug(LOG_ERROR, "attempting to build too closely to map-edge, "
+			debug(LOG_WARNING, "attempting to build too closely to map-edge, "
 				  "y coord (%u) too near edge (req. distance is %u)", y, TOO_NEAR_EDGE);
 			return NULL;
 		}
@@ -2339,13 +2346,13 @@ void clearCommandDroidFactory(DROID *psDroid)
 }
 
 /* Check that a tile is vacant for a droid to be placed */
-static BOOL structClearTile(UWORD x, UWORD y)
+static BOOL structClearTile(UWORD x, UWORD y,PROPULSION_TYPE propulsion)
 {
 	UDWORD	player;
 	DROID	*psCurr;
 
 	/* Check for a structure */
-	if (fpathBlockingTile(x, y, PROPULSION_TYPE_WHEELED))
+	if (fpathBlockingTile(x, y, propulsion))
 	{
 		debug(LOG_NEVER, "failed - blocked");
 		return false;
@@ -2370,7 +2377,7 @@ static BOOL structClearTile(UWORD x, UWORD y)
 }
 
 /*find a location near to a structure to start the droid of*/
-BOOL placeDroid(STRUCTURE *psStructure, UDWORD *droidX, UDWORD *droidY)
+BOOL placeDroid(STRUCTURE *psStructure, UDWORD *droidX, UDWORD *droidY,PROPULSION_TYPE propulsion)
 {
 	SWORD			sx,sy, xmin,xmax, ymin,ymax, x,y, xmid;
 	BOOL			placed;
@@ -2413,7 +2420,7 @@ BOOL placeDroid(STRUCTURE *psStructure, UDWORD *droidX, UDWORD *droidY)
 	/* middle to right */
 	for(x = xmid; x < xmax; x++)
 	{
-		if (structClearTile(x, y))
+		if (structClearTile(x, y, propulsion))
 		{
 			placed = true;
 			break;
@@ -2424,7 +2431,7 @@ BOOL placeDroid(STRUCTURE *psStructure, UDWORD *droidX, UDWORD *droidY)
 	{
 		for(x = xmin; x < xmid; x++)
 		{
-			if (structClearTile(x, y))
+			if (structClearTile(x, y, propulsion))
 			{
 				placed = true;
 				break;
@@ -2437,7 +2444,7 @@ BOOL placeDroid(STRUCTURE *psStructure, UDWORD *droidX, UDWORD *droidY)
 		y = ymin;
 		for(x = xmin; x < xmax; x++)
 		{
-			if (structClearTile(x, y))
+			if (structClearTile(x, y, propulsion))
 			{
 				placed = true;
 				break;
@@ -2450,7 +2457,7 @@ BOOL placeDroid(STRUCTURE *psStructure, UDWORD *droidX, UDWORD *droidY)
 		x = xmin;
 		for(y = ymin; y < ymax; y++)
 		{
-			if (structClearTile(x, y))
+			if (structClearTile(x, y, propulsion))
 			{
 				placed = true;
 				break;
@@ -2463,7 +2470,7 @@ BOOL placeDroid(STRUCTURE *psStructure, UDWORD *droidX, UDWORD *droidY)
 		x = xmax;
 		for(y = ymin; y < ymax; y++)
 		{
-			if (structClearTile(x, y))
+			if (structClearTile(x, y, propulsion))
 			{
 				placed = true;
 				break;
@@ -2490,8 +2497,8 @@ static BOOL structPlaceDroid(STRUCTURE *psStructure, DROID_TEMPLATE *psTempl,
 	BOOL			assignCommander;
 
 	CHECK_STRUCTURE(psStructure);
-
-	placed = placeDroid(psStructure, &x, &y);
+	
+	placed = placeDroid(psStructure, &x, &y,(asPropulsionStats + psTempl->asParts[COMP_PROPULSION])->propulsionType);
 
 	if (placed)
 	{
@@ -5933,8 +5940,8 @@ void printStructureInfo(STRUCTURE *psStructure)
 		{
 			unsigned int assigned_droids = countAssignedDroids(psStructure);
 
-			CONPRINTF(ConsoleString, (ConsoleString, ngettext("%s - %u Unit assigned", "%s - %u Units assigned", assigned_droids),
-					  getStatName(psStructure->pStructureType), assigned_droids));
+			CONPRINTF(ConsoleString, (ConsoleString, ngettext("%s - %u Unit assigned - Damage %3.0f%%", "%s - %u Units assigned - Damage %3.0f%%", assigned_droids),
+					  getStatName(psStructure->pStructureType), assigned_droids, getStructureDamage(psStructure) * 100.f));
 		}
 		break;
 	case REF_DEFENSE:
@@ -5958,8 +5965,8 @@ void printStructureInfo(STRUCTURE *psStructure)
 		{
 			unsigned int assigned_droids = countAssignedDroids(psStructure);
 
-			CONPRINTF(ConsoleString, (ConsoleString, ngettext("%s - %u Unit assigned", "%s - %u Units assigned", assigned_droids),
-				getStatName(psStructure->pStructureType), assigned_droids));
+			CONPRINTF(ConsoleString, (ConsoleString, ngettext("%s - %u Unit assigned - Damage %3.0f%%", "%s - %u Units assigned - Damage %3.0f%%", assigned_droids),
+				getStatName(psStructure->pStructureType), assigned_droids, getStructureDamage(psStructure) * 100.f));
 		}
 		else
 		{
@@ -6013,8 +6020,8 @@ void printStructureInfo(STRUCTURE *psStructure)
 		else
 #endif
 		{
-			CONPRINTF(ConsoleString, (ConsoleString, _("%s - Connected %u of %u"),
-					  getStatName(psStructure->pStructureType), numConnected, NUM_POWER_MODULES));
+			CONPRINTF(ConsoleString, (ConsoleString, _("%s - Connected %u of %u - Damage %3.0f%%"),
+					  getStatName(psStructure->pStructureType), numConnected, NUM_POWER_MODULES, getStructureDamage(psStructure) * 100.f));
 		}
 		break;
 	default:
