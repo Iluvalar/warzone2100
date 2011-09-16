@@ -1148,8 +1148,6 @@ float structureDamage(STRUCTURE *psStructure, UDWORD damage, UDWORD weaponClass,
 					   UDWORD weaponSubClass, HIT_SIDE impactSide)
 {
 	float		relativeDamage;
-	float constructMod;
-	const STRUCTURE_STATS *psStats = psStructure->pStructureType;
 
 	CHECK_STRUCTURE(psStructure);
 
@@ -1157,14 +1155,9 @@ float structureDamage(STRUCTURE *psStructure, UDWORD damage, UDWORD weaponClass,
 		  psStructure->id, psStructure->body, psStructure->armour[impactSide][weaponClass], damage);
 
 	relativeDamage = objDamage((BASE_OBJECT *)psStructure, damage, structureBody(psStructure), weaponClass, weaponSubClass, impactSide);
-	constructMod = 		(
-					((float)psStructure->currentBuildPts+1.0f)/((float)psStats->buildPoints+1.0f)*4
-					+((float)psStructure->currentPowerAccrued+1.0f)/((float)psStats->powerToBuild+1.0f)
-				)/5; //fraction of the building built 1/5 $ + 4/5 points
 
 	// If the shell did sufficient damage to destroy the structure
-	//Ilu - Or if the body point fraction is under the contructed fraction (can't think of a better spot or way to do this)
-	if (relativeDamage < 0.0f || (float)psStructure->body/(float)structureBody(psStructure) < 1.0f-constructMod)
+	if (relativeDamage < 0.0f)
 	{
 		debug(LOG_ATTACK, "Structure (id %d) DESTROYED", psStructure->id);
 		destroyStruct(psStructure);
@@ -1489,13 +1482,13 @@ STRUCTURE* buildStructure(STRUCTURE_STATS* pStructureType, UDWORD x, UDWORD y, U
 		//check not trying to build too near the edge
 		if (map_coord(x) < TOO_NEAR_EDGE || map_coord(x) > (mapWidth - TOO_NEAR_EDGE))
 		{
-			debug(LOG_WARNING, "attempting to build too closely to map-edge, "
+			debug(LOG_ERROR, "attempting to build too closely to map-edge, "
 				  "x coord (%u) too near edge (req. distance is %u)", x, TOO_NEAR_EDGE);
 			return NULL;
 		}
 		if (map_coord(y) < TOO_NEAR_EDGE || map_coord(y) > (mapHeight - TOO_NEAR_EDGE))
 		{
-			debug(LOG_WARNING, "attempting to build too closely to map-edge, "
+			debug(LOG_ERROR, "attempting to build too closely to map-edge, "
 				  "y coord (%u) too near edge (req. distance is %u)", y, TOO_NEAR_EDGE);
 			return NULL;
 		}
@@ -5940,8 +5933,8 @@ void printStructureInfo(STRUCTURE *psStructure)
 		{
 			unsigned int assigned_droids = countAssignedDroids(psStructure);
 
-			CONPRINTF(ConsoleString, (ConsoleString, ngettext("%s - %u Unit assigned - Damage %3.0f%%", "%s - %u Units assigned - Damage %3.0f%%", assigned_droids),
-					  getStatName(psStructure->pStructureType), assigned_droids, getStructureDamage(psStructure) * 100.f));
+			CONPRINTF(ConsoleString, (ConsoleString, ngettext("%s - %u Unit assigned", "%s - %u Units assigned", assigned_droids),
+					  getStatName(psStructure->pStructureType), assigned_droids));
 		}
 		break;
 	case REF_DEFENSE:
@@ -5965,8 +5958,8 @@ void printStructureInfo(STRUCTURE *psStructure)
 		{
 			unsigned int assigned_droids = countAssignedDroids(psStructure);
 
-			CONPRINTF(ConsoleString, (ConsoleString, ngettext("%s - %u Unit assigned - Damage %3.0f%%", "%s - %u Units assigned - Damage %3.0f%%", assigned_droids),
-				getStatName(psStructure->pStructureType), assigned_droids, getStructureDamage(psStructure) * 100.f));
+			CONPRINTF(ConsoleString, (ConsoleString, ngettext("%s - %u Unit assigned", "%s - %u Units assigned", assigned_droids),
+				getStatName(psStructure->pStructureType), assigned_droids));
 		}
 		else
 		{
@@ -6020,8 +6013,8 @@ void printStructureInfo(STRUCTURE *psStructure)
 		else
 #endif
 		{
-			CONPRINTF(ConsoleString, (ConsoleString, _("%s - Connected %u of %u - Damage %3.0f%%"),
-					  getStatName(psStructure->pStructureType), numConnected, NUM_POWER_MODULES, getStructureDamage(psStructure) * 100.f));
+			CONPRINTF(ConsoleString, (ConsoleString, _("%s - Connected %u of %u"),
+					  getStatName(psStructure->pStructureType), numConnected, NUM_POWER_MODULES));
 		}
 		break;
 	default:
