@@ -93,7 +93,7 @@ typedef enum WEAPON_SUBCLASS
 	WSC_ENERGY,
 	WSC_GAUSS,
 	WSC_FLAME,
-	//WSC_CLOSECOMBAT,
+	WSC_CLOSECOMBAT,
 	WSC_HOWITZERS,
 	WSC_ELECTRONIC,
 	WSC_AAGUN,
@@ -104,6 +104,16 @@ typedef enum WEAPON_SUBCLASS
 	WSC_COMMAND,
 	WSC_EMP,
 	WSC_COUNTER,				// Counter missile
+	WCS_FLAMESPIT,
+	WCS_DEMOLITION,
+	WCS_AAMISSILE,
+	WSC_ROCKET2,
+	WSC_QUARK,
+	WSC_ALPHA,				//A modder with a good idea should never be stucked just because he need one more spot -ilu
+	WSC_BETA,
+	WSC_GAMMA,
+	WSC_DELTA,
+	WSC_EPSILON,
 	WSC_NUM_WEAPON_SUBCLASSES,	/** The number of enumerators in this enum.	 */
 } WEAPON_SUBCLASS;
 

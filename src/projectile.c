@@ -731,6 +731,13 @@ static void proj_InFlightFunc(PROJECTILE *psProj, bool bIndirect)
 	switch (psStats->weaponSubClass)
 	{
 		case WSC_MGUN:
+		case WCS_FLAMESPIT:
+		case WSC_QUARK:
+		case WSC_ALPHA:
+		case WSC_BETA:
+		case WSC_GAMMA:
+		case WSC_DELTA:
+		case WSC_EPSILON:
 		case WSC_COMMAND:
 			distanceExtensionFactor = 1.2f;
 			break;
@@ -739,15 +746,19 @@ static void proj_InFlightFunc(PROJECTILE *psProj, bool bIndirect)
 		case WSC_ELECTRONIC:
 		case WSC_EMP:
 		case WSC_FLAME:
+		case WSC_ROCKET:
+		case WSC_ROCKET2:
 		case WSC_ENERGY:
 		case WSC_GAUSS:
 			distanceExtensionFactor = 1.5f;
 			break;
 		case WSC_AAGUN: // No extended distance
+		case WCS_DEMOLITION:
+		case WSC_CLOSECOMBAT:
 			distanceExtensionFactor = 1.0f;
 			break;
-		case WSC_ROCKET:
 		case WSC_MISSILE:
+		case WCS_AAMISSILE:
 		case WSC_SLOWROCKET:
 		case WSC_SLOWMISSILE:
 			bMissile = true; // Take the same extended targetDistance as artillery

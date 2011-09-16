@@ -2653,6 +2653,10 @@ bool getWeaponSubClass(const char* subClass, WEAPON_SUBCLASS* wclass)
 	{
 		*wclass = WSC_FLAME;
 	}
+	else if (strcmp(subClass, "CLOSECOMBAT") == 0)
+	{
+		*wclass = WSC_CLOSECOMBAT;
+	}
 	else if (strcmp(subClass, "HOWITZERS") == 0)
 	{
 		*wclass = WSC_HOWITZERS;
@@ -2692,6 +2696,46 @@ bool getWeaponSubClass(const char* subClass, WEAPON_SUBCLASS* wclass)
 	else if (strcmp(subClass, "EMP") == 0)
 	{
 		*wclass = WSC_EMP;
+	}
+	else if (strcmp(subClass, "FLAMESPIT") == 0)
+	{
+		*wclass = WCS_FLAMESPIT;
+	}
+	else if (strcmp(subClass, "DEMOLITION") == 0)
+	{
+		*wclass = WCS_DEMOLITION;
+	}
+	else if (strcmp(subClass, "AAMISSILE") == 0)
+	{
+		*wclass = WCS_AAMISSILE;
+	}
+	else if (strcmp(subClass, "ROCKET2") == 0)
+	{
+		*wclass = WSC_ROCKET2;
+	}
+	else if (strcmp(subClass, "QUARK") == 0)
+	{
+		*wclass = WSC_QUARK;
+	}
+	else if (strcmp(subClass, "ALPHA") == 0)
+	{
+		*wclass = WSC_ALPHA;
+	}
+	else if (strcmp(subClass, "BETA") == 0)
+	{
+		*wclass = WSC_BETA;
+	}
+	else if (strcmp(subClass, "GAMMA") == 0)
+	{
+		*wclass = WSC_GAMMA;
+	}
+	else if (strcmp(subClass, "DELTA") == 0)
+	{
+		*wclass = WSC_DELTA;
+	}
+	else if (strcmp(subClass, "EPSILON") == 0)
+	{
+		*wclass =WSC_EPSILON;
 	}
         else
         {

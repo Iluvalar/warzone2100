@@ -122,9 +122,9 @@ static void printWeaponInfo(const WEAPON_STATS* psStats)
 	case WSC_FLAME:
 		pWSC = "WSC_FLAME";
 		break;
-	/*case WSC_CLOSECOMBAT:
+	case WSC_CLOSECOMBAT:
 		pWSC = "WSC_CLOSECOMBAT";
-		break;*/
+		break;
 	case WSC_HOWITZERS:
 		pWSC = "WSC_HOWITZERS";
 		break;
@@ -151,6 +151,36 @@ static void printWeaponInfo(const WEAPON_STATS* psStats)
 		break;
 	case WSC_EMP:
 		pWSC = "WSC_EMP";
+		break;
+	case WCS_FLAMESPIT:
+		pWSC = "WCS_FLAMESPIT";
+		break;
+	case WCS_DEMOLITION:
+		pWSC = "DEMOLITION";
+		break;
+	case WCS_AAMISSILE:
+		pWSC = "WCS_AAMISSILE";
+		break;
+	case WSC_ROCKET2:
+		pWSC = "WSC_ROCKET2";
+		break;
+	case WSC_QUARK:
+		pWSC = "WSC_QUARK";
+		break;
+	case WSC_ALPHA:
+		pWSC = "WSC_ALPHA";
+		break;
+	case WSC_BETA:
+		pWSC = "WSC_BETA";
+		break;
+	case WSC_GAMMA:
+		pWSC = "WSC_GAMMA";
+		break;
+	case WSC_DELTA:
+		pWSC = "WSC_DELTA";
+		break;
+	case WSC_EPSILON:
+		pWSC = "WSC_EPSILON";
 		break;
 	default:
 		pWSC = "UNKNOWN SUB CLASS";
