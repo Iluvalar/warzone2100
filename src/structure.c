@@ -2346,13 +2346,13 @@ void clearCommandDroidFactory(DROID *psDroid)
 }
 
 /* Check that a tile is vacant for a droid to be placed */
-static BOOL structClearTile(UWORD x, UWORD y,PROPULSION_TYPE propulsion)
+static BOOL structClearTile(UWORD x, UWORD y)
 {
 	UDWORD	player;
 	DROID	*psCurr;
 
 	/* Check for a structure */
-	if (fpathBlockingTile(x, y, propulsion))
+	if (fpathBlockingTile(x, y, PROPULSION_TYPE_WHEELED))
 	{
 		debug(LOG_NEVER, "failed - blocked");
 		return false;
@@ -2377,7 +2377,7 @@ static BOOL structClearTile(UWORD x, UWORD y,PROPULSION_TYPE propulsion)
 }
 
 /*find a location near to a structure to start the droid of*/
-BOOL placeDroid(STRUCTURE *psStructure, UDWORD *droidX, UDWORD *droidY,PROPULSION_TYPE propulsion)
+BOOL placeDroid(STRUCTURE *psStructure, UDWORD *droidX, UDWORD *droidY)
 {
 	SWORD			sx,sy, xmin,xmax, ymin,ymax, x,y, xmid;
 	BOOL			placed;
@@ -2420,7 +2420,7 @@ BOOL placeDroid(STRUCTURE *psStructure, UDWORD *droidX, UDWORD *droidY,PROPULSIO
 	/* middle to right */
 	for(x = xmid; x < xmax; x++)
 	{
-		if (structClearTile(x, y, propulsion))
+		if (structClearTile(x, y))
 		{
 			placed = true;
 			break;
@@ -2431,7 +2431,7 @@ BOOL placeDroid(STRUCTURE *psStructure, UDWORD *droidX, UDWORD *droidY,PROPULSIO
 	{
 		for(x = xmin; x < xmid; x++)
 		{
-			if (structClearTile(x, y, propulsion))
+			if (structClearTile(x, y))
 			{
 				placed = true;
 				break;
@@ -2444,7 +2444,7 @@ BOOL placeDroid(STRUCTURE *psStructure, UDWORD *droidX, UDWORD *droidY,PROPULSIO
 		y = ymin;
 		for(x = xmin; x < xmax; x++)
 		{
-			if (structClearTile(x, y, propulsion))
+			if (structClearTile(x, y))
 			{
 				placed = true;
 				break;
@@ -2457,7 +2457,7 @@ BOOL placeDroid(STRUCTURE *psStructure, UDWORD *droidX, UDWORD *droidY,PROPULSIO
 		x = xmin;
 		for(y = ymin; y < ymax; y++)
 		{
-			if (structClearTile(x, y, propulsion))
+			if (structClearTile(x, y))
 			{
 				placed = true;
 				break;
@@ -2470,7 +2470,7 @@ BOOL placeDroid(STRUCTURE *psStructure, UDWORD *droidX, UDWORD *droidY,PROPULSIO
 		x = xmax;
 		for(y = ymin; y < ymax; y++)
 		{
-			if (structClearTile(x, y, propulsion))
+			if (structClearTile(x, y))
 			{
 				placed = true;
 				break;
@@ -2497,8 +2497,8 @@ static BOOL structPlaceDroid(STRUCTURE *psStructure, DROID_TEMPLATE *psTempl,
 	BOOL			assignCommander;
 
 	CHECK_STRUCTURE(psStructure);
-	
-	placed = placeDroid(psStructure, &x, &y,(asPropulsionStats + psTempl->asParts[COMP_PROPULSION])->propulsionType);
+
+	placed = placeDroid(psStructure, &x, &y);
 
 	if (placed)
 	{
