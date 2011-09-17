@@ -234,7 +234,7 @@ BOOL rebuildSearchPath( searchPathMode mode, BOOL force )
 	char tmpstr[PATH_MAX] = "\0";
 
 	if (mode != current_mode || force ||
-	    (use_override_mods && strcmp(override_mod_list, getModList())) || use_override_map)
+	    (use_override_mods && strcmp(override_mod_list, getModList())))
 	{
 		if (mode != mod_clean)
 		{
@@ -354,14 +354,22 @@ BOOL rebuildSearchPath( searchPathMode mode, BOOL force )
 				curSearchPath = searchPathRegistry;
 				while (curSearchPath->lowerPriority)
 					curSearchPath = curSearchPath->lowerPriority;
+				// Add the selected map first, for mapmod support
+				while (curSearchPath)
+				{
+					addSubdirs(curSearchPath->path, "maps", PHYSFS_APPEND, current_map, false);
+					curSearchPath = curSearchPath->higherPriority;
+				}
+				curSearchPath = searchPathRegistry;
+				while (curSearchPath->lowerPriority)
+					curSearchPath = curSearchPath->lowerPriority;
 				while( curSearchPath )
 				{
 #ifdef DEBUG
 					debug(LOG_WZ, "Adding [%s] to search path", curSearchPath->path);
 #endif // DEBUG
-					// Add maps and global and multiplay mods
+					// Add global and multiplay mods
 					PHYSFS_addToSearchPath( curSearchPath->path, PHYSFS_APPEND );
-					addSubdirs( curSearchPath->path, "maps", PHYSFS_APPEND, use_override_map?override_map:NULL, false );
 					addSubdirs( curSearchPath->path, "mods/music", PHYSFS_APPEND, NULL, false );
 					addSubdirs( curSearchPath->path, "mods/global", PHYSFS_APPEND, use_override_mods?override_mods:global_mods, true );
 					addSubdirs( curSearchPath->path, "mods", PHYSFS_APPEND, use_override_mods?override_mods:global_mods, true );
@@ -390,18 +398,27 @@ BOOL rebuildSearchPath( searchPathMode mode, BOOL force )
 
 					curSearchPath = curSearchPath->higherPriority;
 				}
+				curSearchPath = searchPathRegistry;
+				while (curSearchPath->lowerPriority)
+					curSearchPath = curSearchPath->lowerPriority;
+				// Add maps last, so files in them don't override game data
+                                while (curSearchPath)
+				{
+					addSubdirs(curSearchPath->path, "maps", PHYSFS_APPEND, NULL, false);
+					curSearchPath = curSearchPath->higherPriority;
+				}
 				break;
 			default:
 				debug(LOG_ERROR, "Can't switch to unknown mods %i", mode);
 				return false;
 		}
-		if ((use_override_mods || use_override_map) && mode != mod_clean)
+		if (use_override_mods && mode != mod_clean)
 		{
-			if (use_override_mods && strcmp(getModList(),override_mod_list))
+			if (strcmp(getModList(),override_mod_list))
 			{
 				debug(LOG_POPUP, _("The required mod could not be loaded: %s\n\nWarzone will try to load the game without it."), override_mod_list);
 			}
-			clearOverrides();
+			clearOverrideMods();
 			current_mode = mod_override;
 		}
 
@@ -416,7 +433,7 @@ BOOL rebuildSearchPath( searchPathMode mode, BOOL force )
 	else if (use_override_mods)
 	{
 		// override mods are already the same as current mods, so no need to do anything
-		clearOverrides();
+		clearOverrideMods();
 	}
 	return true;
 }
@@ -893,6 +910,8 @@ BOOL stageOneShutDown(void)
 
 	debug(LOG_TEXTURE, "=== stageOneShutDown ===");
 	pie_TexShutDown();
+	// no map for the main menu
+	setCurrentMap((char*)"", 1);
 	// Use mod_multiplay as the default (campaign might have set it to mod_singleplayer)
 	rebuildSearchPath( mod_multiplay, true );
 	pie_TexInit(); // restart it

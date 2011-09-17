@@ -8,8 +8,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: warzone2100\n"
 "Report-Msgid-Bugs-To: warzone-dev@gna.org\n"
-"POT-Creation-Date: 2011-06-23 21:27+0200\n"
-"PO-Revision-Date: 2011-06-23 20:13+0200\n"
+"POT-Creation-Date: 2011-09-07 21:16+0200\n"
+"PO-Revision-Date: 2011-07-26 16:10+0200\n"
 "Last-Translator: Ayhan GÖRGÜLÜ <ayhangorgulu45@gmail.com>\n"
 "Language-Team: Turkey <warzone-dev@gna.org>\n"
 "Language: \n"
@@ -721,7 +721,7 @@ msgstr "Yeni Silah Tareti Kullanılabilir"
 #: data/base/messages/resmessages12.rmsg:122
 #: data/mp/messages/resmessages12.rmsg:122
 msgid ".50-calibre heavy machinegun"
-msgstr ".50-Kalibrelik (12.7mm) ağır makineli"
+msgstr ".50-Kalibrelik (12.7mm) ağır makinalı"
 
 #: data/base/messages/resmessages12.rmsg:123
 #: data/base/messages/resmessages1.rmsg:617
@@ -1786,7 +1786,7 @@ msgstr "Hasar Direnci Arttırıldı"
 #: data/mp/messages/resmessages1.rmsg:370
 #: data/mp/messages/strings/names.txt:820
 msgid "Reinforced Base Structure Materials"
-msgstr "Desteklenmiş Üs Binnası Materyali"
+msgstr "Desteklenmiş Üs Binası Materyali"
 
 #: data/base/messages/resmessages1.rmsg:370
 #: data/base/messages/resmessages2.rmsg:58
@@ -2217,7 +2217,7 @@ msgstr "Patlayıcılığı arttırılmış gülleler"
 #: data/base/messages/strings/resstrings.txt:907
 #: data/mp/messages/strings/resstrings.txt:950
 msgid "Increases Mortar damage"
-msgstr "Havan Zararı Arttırıldı"
+msgstr "Havan Hasarı Arttırıldı"
 
 #: data/base/messages/resmessages1.rmsg:694
 #: data/mp/messages/resmessages1.rmsg:695
@@ -2372,7 +2372,7 @@ msgstr "Beden Puanı Arttırıldı"
 msgid "Armored hardpoint with Hyper-Velocity Cannon"
 msgstr "Yüksek hız Topçu Bağlama Noktası"
 
-# Energie kann nicht erzeugt werden, sie kann nur umgewandelt werden -Kreuvf
+# Enerji üretim hızı arttırırıldı
 #: data/base/messages/resmessages23.rmsg:31
 #: data/base/messages/resmessages3.rmsg:434
 msgid "New Power Generation Technology"
@@ -2692,14 +2692,14 @@ msgstr "Harika Hedefler: Üs Binaları, piyadeler, tekerlekli araçlar"
 #: data/base/messages/resmessages23.rmsg:213
 #: data/mp/messages/resmessages23.rmsg:213
 msgid "Multi-barrel, rapid-fire machinegun"
-msgstr "Çoklu-bariyel, hızlı ateşlenebilir makineli"
+msgstr "Çoklu-bariyel, hızlı ateşlenebilir makinalı"
 
 #: data/base/messages/resmessages23.rmsg:215
 #: data/mp/messages/resmessages23.rmsg:215
 #: data/mp/messages/resmessagesall.rmsg:878
 #: data/mp/messages/resmessagesall.rmsg:891
 msgid "Replaces all machineguns"
-msgstr "Tüm makineliler ile değiştirilecek"
+msgstr "Tüm makinalılar ile değiştirilecek"
 
 #: data/base/messages/resmessages2.rmsg:4
 #: data/base/messages/resmessages3.rmsg:4
@@ -3331,7 +3331,7 @@ msgstr "Dörtlü 80mm uçaksavar silahı"
 #: data/mp/messages/resmessages2.rmsg:616
 #: data/mp/messages/strings/resstrings.txt:681
 msgid "30mm Anti-Aircraft machinegun"
-msgstr "30mm Uçaksavar makineli"
+msgstr "30mm Uçaksavar makinalı"
 
 #: data/base/messages/resmessages2.rmsg:629
 #: data/base/messages/strings/resstrings.txt:654
@@ -3339,7 +3339,7 @@ msgstr "30mm Uçaksavar makineli"
 #: data/mp/messages/resmessagesall.rmsg:759
 #: data/mp/messages/strings/resstrings.txt:687
 msgid "Quad 30mm Anti-Aircraft machinegun"
-msgstr "Dörtlü 30mm Uçaksavar makineli"
+msgstr "Dörtlü 30mm Uçaksavar makinalı"
 
 #: data/base/messages/resmessages2.rmsg:642
 #: data/base/messages/strings/resstrings.txt:660
@@ -4384,7 +4384,7 @@ msgstr "Zırh delici oklar geliştirildi"
 
 #: data/base/messages/resmessages3.rmsg:1254
 msgid "Increases Rail Gun damage"
-msgstr "Demir silahı hsarı arttırıldı"
+msgstr "Demir silahı hasarı arttırıldı"
 
 #: data/base/messages/resmessages3.rmsg:1266
 #: data/mp/messages/resmessages3.rmsg:1266
@@ -5779,7 +5779,7 @@ msgstr "Kamyon"
 #: data/mp/messages/strings/names.txt:176
 #: data/mp/messages/strings/names.txt:1844
 msgid "Machinegun Viper Wheels"
-msgstr "Makineli Engerek Tekerlekler"
+msgstr "Makinalı Engerek Tekerlekler"
 
 #: data/base/messages/strings/names.txt:143
 #: data/mp/messages/strings/names.txt:143
@@ -5807,7 +5807,7 @@ msgstr "Hafif Topçu Engerek Paletler"
 #: data/mp/messages/strings/names.txt:149
 #: data/mp/messages/strings/names.txt:1441
 msgid "Heavy Machinegun Cobra Half-tracks"
-msgstr "Ağır Makineli Kobra Yarım Paletler"
+msgstr "Ağır Makinalı Kobra Yarım Paletler"
 
 #: data/base/messages/strings/names.txt:149
 #: data/mp/messages/strings/names.txt:150
@@ -5838,24 +5838,24 @@ msgstr "Tamir Tareti Engerek Yarım Paletler"
 #: data/mp/messages/strings/names.txt:177
 #: data/mp/messages/strings/names.txt:1845
 msgid "Twin Machinegun Viper Wheels"
-msgstr "Çift Makineli Engerek Tekerlekler"
+msgstr "Çift Makinalı Engerek Tekerlekler"
 
 #: data/base/messages/strings/names.txt:175
 #: data/mp/messages/strings/names.txt:178
 msgid "Twin Machinegun Viper Half-tracks"
-msgstr "Çift Makineli Engerek Yarım Paletler"
+msgstr "Çift Makinalı Engerek Yarım Paletler"
 
 #: data/base/messages/strings/names.txt:176
 #: data/mp/messages/strings/names.txt:179
 msgid "Heavy Machinegun Viper Half-tracks"
-msgstr "Ağır Makineli Engerek Yarım Paletler"
+msgstr "Ağır Makinalı Engerek Yarım Paletler"
 
 #: data/base/messages/strings/names.txt:177
 #: data/mods/multiplay/old-1.10-balance/messages/strings/names.txt:1840
 #: data/mp/messages/strings/names.txt:180
 #: data/mp/messages/strings/names.txt:1852
 msgid "Heavy Machinegun Viper Tracks"
-msgstr "Ağır Makineli Engerek Paletler"
+msgstr "Ağır Makinalı Engerek Paletler"
 
 #: data/base/messages/strings/names.txt:178
 #: data/mp/messages/strings/names.txt:181
@@ -6453,7 +6453,7 @@ msgstr "Hortum AA Sitesi"
 #: data/mp/messages/strings/names.txt:422
 #: data/mp/messages/strings/names.txt:741
 msgid "Ripple Rocket Battery"
-msgstr "Dalgalı Roket Batayası"
+msgstr "Dalgalı Roket Bataryası"
 
 #: data/base/messages/strings/names.txt:417
 #: data/mp/messages/strings/names.txt:425
@@ -6502,7 +6502,7 @@ msgstr "DİvK Radar Kulesi"
 #: data/mp/messages/strings/names.txt:439
 #: data/mp/messages/strings/names.txt:779
 msgid "Heavy Machinegun Hardpoint"
-msgstr "Ağır Makineli Bağlama Noktası"
+msgstr "Ağır Makinalı Bağlama Noktası"
 
 #: data/base/messages/strings/names.txt:432
 #: data/base/messages/strings/names.txt:765
@@ -6544,18 +6544,18 @@ msgstr "Roketatar Bağlama Noktası"
 #: data/mp/messages/strings/names.txt:446
 #: data/mp/messages/strings/names.txt:770
 msgid "Machinegun Guard Tower"
-msgstr "Makineli Koruma Kulesi"
+msgstr "Makinalı Koruma Kulesi"
 
 #: data/base/messages/strings/names.txt:439
 #: data/mp/messages/strings/names.txt:447
 msgid "Twin Machinegun Guard Tower"
-msgstr "Çift Makineli Koruma Kulesi"
+msgstr "Çift Makinalı Koruma Kulesi"
 
 #: data/base/messages/strings/names.txt:440
 #: data/mp/messages/strings/names.txt:448
 #: data/mp/messages/strings/names.txt:771
 msgid "Heavy Machinegun Tower"
-msgstr "Ağır Makineli Kulesi"
+msgstr "Ağır Makinalı Kulesi"
 
 #: data/base/messages/strings/names.txt:441
 #: data/base/messages/strings/names.txt:757
@@ -6583,14 +6583,14 @@ msgstr "Mini Roket Kulesi"
 #: data/mp/messages/strings/names.txt:504
 #: data/mp/messages/strings/names.txt:748
 msgid "Machinegun Bunker"
-msgstr "Makineli Sığınak"
+msgstr "Makinalı Sığınak"
 
 #: data/base/messages/strings/names.txt:447
 #: data/base/messages/strings/names.txt:498
 #: data/mp/messages/strings/names.txt:455
 #: data/mp/messages/strings/names.txt:506
 msgid "Twin Machinegun Bunker"
-msgstr "Çift Makineli Sığınak"
+msgstr "Çift Makinalı Sığınak"
 
 #: data/base/messages/strings/names.txt:448
 #: data/base/messages/strings/names.txt:500
@@ -6599,7 +6599,7 @@ msgstr "Çift Makineli Sığınak"
 #: data/mp/messages/strings/names.txt:508
 #: data/mp/messages/strings/names.txt:749
 msgid "Heavy Machinegun Bunker"
-msgstr "Ağır Makineli Sığınak"
+msgstr "Ağır Makinalı Sığınak"
 
 #: data/base/messages/strings/names.txt:449
 #: data/base/messages/strings/names.txt:735
@@ -7412,7 +7412,7 @@ msgstr "Havan T. Kuyusu"
 #: data/mp/messages/strings/names.txt:746
 #: data/mp/messages/strings/names.txt:1388
 msgid "Mini-Rocket Battery"
-msgstr "Mini Roket Batayası"
+msgstr "Mini Roket Bataryası"
 
 #: data/base/messages/strings/names.txt:738
 #: data/base/messages/strings/names.txt:1374
@@ -7607,11 +7607,11 @@ msgstr "Otomatik Tamir Tesisi"
 
 #: data/base/messages/strings/names.txt:822
 msgid "Automated Repair Facility Upgrade Mk2"
-msgstr "Otomatik Tamir Tesisi Kdm Kdm2"
+msgstr "Otomatik Tamir Tesisi Kdm2"
 
 #: data/base/messages/strings/names.txt:823
 msgid "Automated Repair Facility Upgrade Mk3"
-msgstr "Otomatik Tamir Tesisi Kdm Kdm3"
+msgstr "Otomatik Tamir Tesisi Kdm3"
 
 #: data/base/messages/strings/names.txt:824
 msgid "Robotic Repair Facility Upgrade"
@@ -8845,7 +8845,7 @@ msgstr "Roketatar-A.T Roketi "
 #: data/base/messages/strings/names.txt:1182
 #: data/mp/messages/strings/names.txt:1202
 msgid "Bunker Buster Rocket"
-msgstr "Sığınak Yok edici Roket"
+msgstr "Sığınak Yokedici Roket"
 
 #: data/base/messages/strings/names.txt:1185
 #: data/mp/messages/strings/names.txt:1205
@@ -9270,7 +9270,7 @@ msgstr "Destek kuvvetler şu anda kullanılabilir"
 
 #: data/base/script/text/tutorial3.slo:289
 msgid "In this training session you'll learn how to build an effective base"
-msgstr "Bu eğitim size nasıl etkili bir üs kurabileceğiniz öğretecek"
+msgstr "Bu eğitim size nasıl etkili bir üs kurabileceğinizi öğretecek"
 
 #: data/base/script/text/tutorial3.slo:304
 msgid "Oil resources are key to your success"
@@ -9278,11 +9278,11 @@ msgstr "Petrol Kaynakları başarının anahtarıdır"
 
 #: data/base/script/text/tutorial3.slo:313
 msgid "To build an oil derrick, select one of your trucks"
-msgstr "Bir Petrol Kuyusu inşa etmek için, bir kamyonunu seç"
+msgstr "Petrol Kuyusu inşa etmek için, bir kamyonunu seç"
 
 #: data/base/script/text/tutorial3.slo:333
 msgid "Left click the oil pool indicated by the radar pulse to order your truck to build"
-msgstr "Radarda gösterilen petrol yanğına kamyonuna petrol kuyusu inşa emri vermek için sağ tıkla"
+msgstr "Radarda gösterilen petrol yanına kamyonuna petrol kuyusu inşa emri vermek için sol tıkla"
 
 #: data/base/script/text/tutorial3.slo:353
 msgid "The oil derrick is currently dormant. Build a power generator to convert the oil into power"
@@ -9300,7 +9300,7 @@ msgstr "Soldaki menüden güç jeneratörüne sol tıkla"
 
 #: data/base/script/text/tutorial3.slo:407
 msgid "Position the square at your base and left click to start the build process"
-msgstr "İnşaata başlamak için bir yere güç jeneratörünü yerleştir ve inşayı başlat"
+msgstr "İnşaata başlamak için bir yere güç jeneratörünü yerleştir ve sol tıklayarak inşaatı başlat"
 
 #: data/base/script/text/tutorial3.slo:422
 msgid "To increase your build rate, select your second truck"
@@ -9308,11 +9308,11 @@ msgstr "İnşa hızını arttırmak için, ikinci kamyonunu seç"
 
 #: data/base/script/text/tutorial3.slo:457
 msgid "Now left click the power generator site"
-msgstr "Güç jeneratörüne sağ tıkla"
+msgstr "Şimdi de Güç jeneratörüne sol tıkla"
 
 #: data/base/script/text/tutorial3.slo:472
 msgid "The other truck will now help to build the power generator"
-msgstr "Diğer kamyon inşaata yardım edecek"
+msgstr "Diğer kamyon güç jeneratörü inşaatına yardım edecek"
 
 #: data/base/script/text/tutorial3.slo:510
 msgid "During missions you need to locate and recover technologies from before the Collapse"
@@ -9320,7 +9320,7 @@ msgstr "Görevler esnasında sen yıkımdan önce yerel teknolojileri toplamak z
 
 #: data/base/script/text/tutorial3.slo:519
 msgid "Use a truck to search for the artifact indicated by the radar pulse"
-msgstr "Bir kamyonunu kullanarak radarda gösterilen eseri bul ve al"
+msgstr "Bir kamyonunu kullanarak radarda yanıp sönerek gösterilen eseri bul ve al"
 
 #: data/base/script/text/tutorial3.slo:523
 msgid "Move the pointer over the artifact and left click to recover it"
@@ -9328,11 +9328,11 @@ msgstr "Eserin olduğu yere kamyonunu gönder veya esere sol tıkla"
 
 #: data/base/script/text/tutorial3.slo:566
 msgid "A research facility is required to research artifacts"
-msgstr "Şimdi bir araştırma tesisi eseri araştırmak için gerekli"
+msgstr "Şimdi ise eseri araştırmak için bir araştırma tesisi gerekli"
 
 #: data/base/script/text/tutorial3.slo:608
 msgid "Now left click the research facility and position it at your base"
-msgstr "Şimdi araştırma tesisine sol tıkla ve üssüne bir yerlere yerleştir"
+msgstr "Şimdi araştırma tesisine sol tıkla ve üssünde bir yere yerleştir"
 
 #: data/base/script/text/tutorial3.slo:631
 msgid "Use your other truck to help build the research facility"
@@ -9344,7 +9344,7 @@ msgstr "Eseri araştırmak için, ARAŞTIRMA ikonuna sol tıkla"
 
 #: data/base/script/text/tutorial3.slo:679
 msgid "Now left click the machinegun artifact"
-msgstr "Şimdi soldaki menüden makineli eserine (araştırmasına) sol tıkla"
+msgstr "Şimdi soldaki menüden makinalı araştırmasına sol tıkla"
 
 #: data/base/script/text/tutorial3.slo:692
 msgid "The artifact is now being researched by the facility"
@@ -9352,7 +9352,7 @@ msgstr "Eser araştıma tesisinde araştırılmaya başlandı"
 
 #: data/base/script/text/tutorial3.slo:713
 msgid "The researched machinegun can now be used to design a new vehicle"
-msgstr "Araştırılan makineli şimdi tasarımda kullanılabilir hale geldi"
+msgstr "Araştırılan makinalı şimdi tasarımda kullanılabilir hale geldi"
 
 #: data/base/script/text/tutorial3.slo:730
 msgid "Left click the flashing DESIGN icon"
@@ -9376,7 +9376,7 @@ msgstr "Tekerlekler ikonuna sağ tıkla"
 
 #: data/base/script/text/tutorial3.slo:799
 msgid "Then left click the machinegun to complete your design"
-msgstr "Son olarak makineliyi seç ve tasarımı tamamla"
+msgstr "Son olarak makinalıyı seç ve tasarımı tamamla"
 
 #: data/base/script/text/tutorial3.slo:832
 msgid "To finalize your design, left click the CLOSE icon"
@@ -9739,7 +9739,7 @@ msgstr "Sen Beta üssünü güvenli alana taşınmasını başlatmalısın."
 
 #: data/base/sequenceaudio/cam2/cam22fmv.txt:1
 msgid "NASDA is the North American Strategic Defense Agency."
-msgstr "K.A.S.S.A Kuzey Amerika Stratejik Savunma Ajentesi."
+msgstr "K.A.S.S.A Kuzey Amerika Stratejik Savunma Acentası."
 
 #: data/base/sequenceaudio/cam2/cam22fmv.txt:3
 msgid "NASDA was formed in 2076 to defend North America from conventional and nuclear attack. The construction of a satellite defense system began in 2081 and was completed in 2082."
@@ -10067,7 +10067,7 @@ msgstr "NEXUS Davetsiz Misafir Programı senin gibi salakların siparişleri iç
 
 #: data/base/sequenceaudio/cam3/cam3abf.txt:17
 msgid "It's very simple for me to infiltrate your systems and take them over. It's so simple, in fact, that you wouldn't even know I'm there. That is until I activate parts of myself etched into your core systems."
-msgstr "O benim için cok basittir.Onlar sistemi infilak ettirebilir. Çok basit, aslında, hatta sen orada olduğunu bilmeyeceksin. Bu sizin sistemlerinize bulaşmış parçalarımı etkinleştirene kadar sürer."
+msgstr "O benim için çok basittir.Onlar sistemi infilak ettirebilir. Çok basit, aslında, hatta sen orada olduğunu bilmeyeceksin. Bu sizin sistemlerinize bulaşmış parçalarımı etkinleştirene kadar sürer."
 
 #: data/base/sequenceaudio/cam3/cam3abf.txt:19
 msgid "Let's start by activating NEXUS in your core systems and see what happens!"
@@ -10079,11 +10079,11 @@ msgstr "Komutanım, Cihazlarımızda parazitlenme yaşıyorsanız."
 
 #: data/base/sequenceaudio/cam3/cam3abpl.txt:2
 msgid "Normal service will be restored as soon as possible."
-msgstr "Normâl servis en kısa sürede tamir edilecektir."
+msgstr "Normal servis en kısa sürede tamir edilecektir."
 
 #: data/base/sequenceaudio/cam3/cam3ad2n.txt:1
 msgid "Not long to go now, Commander. There's no where else for you to run to."
-msgstr "Simdi gitmek için uzak değil, Komutan. Başka bir kaçış şansın olmayacak."
+msgstr "Şimdi geri çekilmek için geç değil, Komutan. Başka bir kaçış şansın olmayacak."
 
 #: data/base/sequenceaudio/cam3/cam3ad2n.txt:4
 msgid "However, if you vacate this facility, then I shall let you go free, as you are no longer a threat to me."
@@ -10151,7 +10151,7 @@ msgstr "Ben ilk olarak sibernetik geleceğim için Dünyayı nükleer ateş ile 
 
 #: data/base/sequenceaudio/cam3/cam3_cn.txt:9
 msgid "I now intend to further shape the world into my own image, by  surgically removing unwanted growths like yourself."
-msgstr "Ben şimdi kendi resmim ile Dünyayı daha fazla biçimlendirmeye karar verdim, Senin gibi pürüzleri cerrahi olarak temizleyeceğim."
+msgstr "Ben dünyayı kendi istediğim şekilde biçimlendirmeye karar verdim, Ama önce senin gibi çıkıntıları temizleyeceğim."
 
 #: data/base/sequenceaudio/cam3/cam3_cn.txt:11
 msgid "My Laser Satellites are now powering up. I intend to test them on you first, Commander!"
@@ -10204,15 +10204,15 @@ msgstr "Yeni Bir Başlangıç"
 
 #: data/base/sequenceaudio/devastation.txt:1
 msgid "The NASDA system was developed to protect us. It was to be the ultimate nuclear deterrent. As it turned out, it was our executioner."
-msgstr "NASDA sistemleri bizi korumak için geliştirilmiştir. O Nükleer saldırıları engelleyici olacaktı. Dışa döndüğü gibi, o bizim Azrail'imiz oldu."
+msgstr "K.A.S.S.A sistemleri bizi korumak için geliştirilmiştir. O Nükleer saldırıları engelleyici olacaktı. Taraf değiştirdi ve, o bizim Azrail'imiz oldu."
 
 #: data/base/sequenceaudio/devastation.txt:3
 msgid "Reports said that NASDA developed a fault during a routine systems check. Don't believe it. Someone wanted it to take us out."
-msgstr "Raporlara göre sistemde bir arıza olmuş ve NASDA kontrol ediyormuş. İnanmayın. Birileri bizi öldürmek istiyordu."
+msgstr "Raporlara göre sistemde bir arıza olmuş ve K.A.S.S.A kontrol ediyormuş. İnanmayın. Birileri bizi öldürmek istiyordu."
 
 #: data/base/sequenceaudio/devastation.txt:5
 msgid "Those nukes were targeted on every major city around the world. NASDA was programmed to start the Collapse. When the counterstrikes launched, its laser defenses and anti-missile ground sites failed."
-msgstr "O Nükleer füzeler Dünyadaki bütün büyük şehirleri hedefliyordu. NASDA Kolapseyi başlatmayı programladı. Karşı saldırılar başlatıldı, onlar Lazer savunmaları ve Yer Anti-Füzeleri başarısız oldu."
+msgstr "O Nükleer füzeler Dünyadaki bütün büyük şehirleri hedefliyordu. K.A.S.S.A Kolapseyi başlatmayı programladı. Karşı saldırılar başlatıldı, Lazer savunmaları ve Yer Anti-Füzeleri başarısız oldu."
 
 #: data/base/sequenceaudio/devastation.txt:7
 msgid "The world as we knew it ended..."
@@ -10430,7 +10430,7 @@ msgstr "Wyvern Ağır Lazer Paletler"
 
 #: data/mods/multiplay/ntw/messages/strings/names.txt:1354
 msgid "Viper Machinegun Half-Track"
-msgstr "Engerek Makineli Yarım Paletler"
+msgstr "Engerek Makinalı Yarım Paletler"
 
 #: data/mods/multiplay/ntw/messages/strings/names.txt:1355
 msgid "Viper Flamer Half-Track"
@@ -10446,7 +10446,7 @@ msgstr "Ağır Tamir Tareti Kobra Hovercraft"
 #: data/mp/messages/strings/names.txt:1835
 #: data/mp/messages/strings/names.txt:1846
 msgid "Heavy Machinegun Viper Wheels"
-msgstr "Ağır Makineli Engerek Tekerlekler"
+msgstr "Ağır Makinalı Engerek Tekerlekler"
 
 #: data/mods/multiplay/old-1.10-balance/messages/strings/names.txt:1825
 #: data/mp/messages/strings/names.txt:1837
@@ -10458,7 +10458,7 @@ msgstr "Tank Öldürücü P. Devesi Hovercraft"
 #: data/mp/messages/strings/names.txt:1838
 #: data/mp/messages/strings/names.txt:1853
 msgid "Heavy Machinegun Cobra Tracks"
-msgstr "Ağır Makineli Kobra Paletler"
+msgstr "Ağır Makinalı Kobra Paletler"
 
 #: data/mods/multiplay/old-1.10-balance/messages/strings/names.txt:1827
 #: data/mp/messages/strings/names.txt:1839
@@ -10468,17 +10468,17 @@ msgstr "Ağır Topçu Kobra hovercraft"
 #: data/mods/multiplay/old-1.10-balance/messages/strings/names.txt:1835
 #: data/mp/messages/strings/names.txt:1847
 msgid "Heavy Machinegun Cobra Wheels"
-msgstr "Ağır Makineli  Kobra Tekerlekler"
+msgstr "Ağır Makinalı Kobra Tekerlekler"
 
 #: data/mods/multiplay/old-1.10-balance/messages/strings/names.txt:1836
 #: data/mp/messages/strings/names.txt:1848
 msgid "Heavy Machinegun Cobra Hover"
-msgstr "Ağır Makineli  Kobra Hovercraft"
+msgstr "Ağır Makinalı Kobra Hovercraft"
 
 #: data/mods/multiplay/old-1.10-balance/messages/strings/names.txt:1838
 #: data/mp/messages/strings/names.txt:1850
 msgid "Machinegun Viper Tracks"
-msgstr "Makineli Engerek Tekerlekler"
+msgstr "Makinalı Engerek Tekerlekler"
 
 #: data/mods/multiplay/old-1.10-balance/messages/strings/names.txt:1839
 #: data/mp/messages/strings/names.txt:1851
@@ -10686,7 +10686,7 @@ msgstr "Felaket F.  P. Devesi Paletler"
 #: data/mods/multiplay/old-1.10-balance/messages/strings/names.txt:1898
 #: data/mp/messages/strings/names.txt:1910
 msgid "Heavy Machinegun Scorpion Tracks"
-msgstr "Ağır Makineli Akrep Paletler"
+msgstr "Ağır Makinalı Akrep Paletler"
 
 #: data/mods/multiplay/old-1.10-balance/messages/strings/names.txt:1900
 #: data/mp/messages/strings/names.txt:1912
@@ -10799,7 +10799,7 @@ msgstr "Ağır Lazer Wyvern Paletler"
 #: data/mods/multiplay/old-1.10-balance/messages/strings/names.txt:1933
 #: data/mp/messages/strings/names.txt:1945
 msgid "Machinegun Viper Half-Tracks"
-msgstr "Makineli Engerek Yarım Paletler"
+msgstr "Makinalı Engerek Yarım Paletler"
 
 #: data/mods/multiplay/old-1.10-balance/messages/strings/names.txt:1934
 #: data/mp/messages/strings/names.txt:1946
@@ -10834,7 +10834,7 @@ msgstr "Hücüm Silahı Piton Yarım Paletler"
 #: data/mods/multiplay/old-1.10-balance/messages/strings/names.txt:1942
 #: data/mp/messages/strings/names.txt:1954
 msgid "Heavy Machinegun Scorpion Half Tracks"
-msgstr "Ağır Makineli Akrep Yarım Paletler"
+msgstr "Ağır Makinalı Akrep Yarım Paletler"
 
 #: data/mods/multiplay/old-1.10-balance/messages/strings/names.txt:1943
 #: data/mp/messages/strings/names.txt:1955
@@ -10929,7 +10929,7 @@ msgstr "Alev Atıcı Yeniden Yükle Süresi -15%"
 #: data/mp/messages/resmessages23.rmsg:175
 #: data/mp/messages/resmessages2.rmsg:890
 msgid "Machinegun reload time -15%"
-msgstr "Makineli Yeniden Yükleme Süresi-15%"
+msgstr "Makinalı Yeniden Yükleme Süresi-15%"
 
 #: data/mp/messages/resmessages12.rmsg:162
 #: data/mp/messages/resmessages23.rmsg:188
@@ -11051,7 +11051,7 @@ msgstr "Alev Atıcı Hasarı +25%"
 #: data/mp/messages/resmessages3.rmsg:1007
 #: data/mp/messages/resmessages3.rmsg:1020
 msgid "Machinegun damage +25%"
-msgstr "Makineli Hasarı +25%"
+msgstr "Makinalı Hasarı +25%"
 
 #: data/mp/messages/resmessages1.rmsg:683
 #: data/mp/messages/resmessages2.rmsg:916
@@ -11488,12 +11488,12 @@ msgstr "Girdap AA Silahlı Bağlama Noktası Kullanılabilir"
 
 #: data/mp/messages/resmessagesall.rmsg:863
 msgid "Quad 80mm Anti-Aircraft machinegun"
-msgstr "Dörtlü 80mm AA Makineli"
+msgstr "Dörtlü 80mm AA Makinalı"
 
 #: data/mp/messages/resmessagesall.rmsg:876
 #: data/mp/messages/resmessagesall.rmsg:889
 msgid "Twin Multi-barrel, rapid-fire machinegun"
-msgstr "Çift namlulu hızlı ateşlenebilir makineli"
+msgstr "Çift namlulu hızlı ateşlenebilir makinalı"
 
 #: data/mp/messages/resmessagesall.rmsg:888
 msgid "Hardpoint Twin Assault Gun Available"
@@ -12196,11 +12196,11 @@ msgstr "Parolayı buraya gir"
 #: lib/netplay/netplay.c:3254
 #, c-format
 msgid "Error connecting to the lobby server: %s. Make sure port %d can receive incoming connections. If you're using a router configure it to use UPnP, or to forward the port to your system."
-msgstr ""
+msgstr "Bekleme odası sunucusuna bağlanırken hata: %s. Port %d un gelen mesajlara erişebilir olduğuna emin olun .Eğer bir yönlendirici kullanıyorsanız, onu UPnP veya sisteminizin ileri port'unu kullanabilir hale getirin."
 
 #: lib/netplay/netplay.c:3261
 msgid "Disconnected from lobby server. Failed to register game."
-msgstr ""
+msgstr "Bekleme Odası sunucu bağlantısı kesildi. Oyun kaydedilemedi"
 
 #: lib/netplay/netplay.c:3295
 #, c-format
@@ -12214,10 +12214,10 @@ msgstr "Lobi Sunucusu ile iletişim kurulamadı! TCP-Port %u u açıkmı?"
 
 #: src/challenge.c:188
 #: src/hci.c:999
-#: src/hci.c:3814
-#: src/hci.c:3965
-#: src/hci.c:4416
-#: src/hci.c:5622
+#: src/hci.c:3823
+#: src/hci.c:3974
+#: src/hci.c:4425
+#: src/hci.c:5631
 #: src/intelmap.c:539
 #: src/intorder.c:787
 #: src/loadsave.c:267
@@ -12528,17 +12528,17 @@ msgstr "Oyuncu Çıktı"
 msgid "Player dropped"
 msgstr "Oyuncu Düştü"
 
-#: src/display.c:1743
+#: src/display.c:1758
 msgid "Cannot Build. Oil Resource Burning."
 msgstr "İnşa edilemiyor. Petrol Kaynağı Yanıyor."
 
-#: src/display.c:1923
-#: src/display.c:2534
+#: src/display.c:1938
+#: src/display.c:2549
 #, c-format
 msgid "%s - Damage %d%% - Experience %.1f, %s"
 msgstr "%s - Hasar %d%% - Tecrübe %.1f, %s"
 
-#: src/display.c:1939
+#: src/display.c:1954
 #, c-format
 msgid "%s - Allied - Damage %d%% - Experience %d, %s"
 msgstr "%s - Müttefik - Hasar %d%% - Tecrübe %d, %s"
@@ -12626,386 +12626,388 @@ msgstr "%s Sana vermek istedi %s ama, Sende daha çok var!"
 msgid "You wanted to give %s a %s but they have too many!"
 msgstr "Sen %s 'a %s vermek istedin ama, Onda  daha çok var!"
 
-#: src/frontend.c:97
+#: src/frontend.c:102
 msgid "Single Player"
 msgstr "Tek Oyuncu"
 
-#: src/frontend.c:98
+#: src/frontend.c:103
 msgid "Multi Player"
 msgstr "Çok Oyunculu"
 
-#: src/frontend.c:99
-#: src/frontend.c:155
+#: src/frontend.c:104
+#: src/frontend.c:181
 msgid "Tutorial"
 msgstr "Öğretici"
 
-#: src/frontend.c:100
-#: src/hci.c:3948
+#: src/frontend.c:105
+#: src/hci.c:3957
 msgid "Options"
 msgstr "Ayarlar"
 
-#: src/frontend.c:101
+#: src/frontend.c:106
 msgid "View Intro"
 msgstr "Oyun Videosunu İzle"
 
-#: src/frontend.c:103
+#: src/frontend.c:108
 msgid "Quit Game"
 msgstr "Oyundan Çık"
 
-#: src/frontend.c:105
+#: src/frontend.c:110
 msgid "MAIN MENU"
 msgstr "ANA MENÜ"
 
-#: src/frontend.c:156
+#: src/frontend.c:112
+msgid "Visit our official site: http://wz2100.net"
+msgstr ""
+
+#: src/frontend.c:182
 msgid "Fast Play"
 msgstr "Hızlı Oyun"
 
-#: src/frontend.c:157
+#: src/frontend.c:183
 msgid "TUTORIALS"
 msgstr "VİDEOLAR"
 
 #. TRANSLATORS: "Return", in this context, means "return to previous screen/menu"
-#: src/frontend.c:159
-#: src/frontend.c:218
-#: src/frontend.c:351
-#: src/frontend.c:421
-#: src/frontend.c:572
-#: src/frontend.c:728
-#: src/frontend.c:835
-#: src/frontend.c:1054
-#: src/frontend.c:1215
+#: src/frontend.c:185
+#: src/frontend.c:244
+#: src/frontend.c:377
+#: src/frontend.c:447
+#: src/frontend.c:598
+#: src/frontend.c:754
+#: src/frontend.c:861
+#: src/frontend.c:1080
+#: src/frontend.c:1241
 msgctxt "menu"
 msgid "Return"
 msgstr "Geri dön"
 
-#: src/frontend.c:212
+#: src/frontend.c:238
 msgid "New Campaign"
 msgstr "Yeni Oyun"
 
-#: src/frontend.c:213
+#: src/frontend.c:239
 msgid "Start Skirmish Game"
 msgstr "Çatışma Oyunu Başlat"
 
-#: src/frontend.c:214
+#: src/frontend.c:240
 msgid "Challenges"
 msgstr "Mücadeleler"
 
-#: src/frontend.c:215
+#: src/frontend.c:241
 #: src/ingameop.c:281
 msgid "Load Game"
 msgstr "Oyun Yükle"
 
-#: src/frontend.c:217
+#: src/frontend.c:243
 msgid "SINGLE PLAYER"
 msgstr "TEK OYUNCU"
 
-#: src/frontend.c:294
+#: src/frontend.c:320
 #: src/ingameop.c:507
 #: src/mission.c:2820
 #: src/mission.c:2925
 msgid "Load Saved Game"
 msgstr "Kayıtlı Oyun Yükle"
 
-#: src/frontend.c:346
+#: src/frontend.c:372
 msgid "MULTI PLAYER"
 msgstr "ÇOK OYUNCULU"
 
-#: src/frontend.c:348
+#: src/frontend.c:374
 msgid "Host Game"
 msgstr "Oyun Kur"
 
-#: src/frontend.c:349
+#: src/frontend.c:375
 msgid "Join Game"
 msgstr "Oyuna Katıl"
 
-#: src/frontend.c:414
+#: src/frontend.c:440
 #: src/multiint.c:1176
 msgid "OPTIONS"
 msgstr "AYARLAR"
 
-#: src/frontend.c:415
+#: src/frontend.c:441
 msgid "Game Options"
 msgstr "Oyun Ayarları"
 
-#: src/frontend.c:416
+#: src/frontend.c:442
 msgid "Graphics Options"
 msgstr "Grafik Ayarları"
 
-#: src/frontend.c:417
+#: src/frontend.c:443
 msgid "Video Options"
 msgstr "Video Ayarları"
 
-#: src/frontend.c:418
+#: src/frontend.c:444
 #: src/ingameop.c:276
 msgid "Audio Options"
 msgstr "Ses Ayarları"
 
-#: src/frontend.c:419
+#: src/frontend.c:445
 msgid "Mouse Options"
 msgstr "Fare Ayarları"
 
-#: src/frontend.c:420
+#: src/frontend.c:446
 msgid "Key Mappings"
 msgstr "Klavye Kısayolları"
 
-#: src/frontend.c:482
+#: src/frontend.c:508
 msgid "Video Playback"
 msgstr "Video Oynatma"
 
-#: src/frontend.c:486
-#: src/frontend.c:662
+#: src/frontend.c:512
+#: src/frontend.c:688
 msgid "1X"
 msgstr "1X"
 
-#: src/frontend.c:490
-#: src/frontend.c:652
+#: src/frontend.c:516
+#: src/frontend.c:678
 msgid "2X"
 msgstr "2X"
 
-#: src/frontend.c:494
-#: src/frontend.c:657
-#: src/frontend.c:803
-#: src/frontend.c:857
+#: src/frontend.c:520
+#: src/frontend.c:683
+#: src/frontend.c:829
+#: src/frontend.c:883
 msgid "Fullscreen"
 msgstr "Tam Ekran"
 
-#: src/frontend.c:503
+#: src/frontend.c:529
 msgid "Scanlines"
 msgstr "Tarama yolları"
 
-#: src/frontend.c:507
-#: src/frontend.c:528
-#: src/frontend.c:548
-#: src/frontend.c:564
+#: src/frontend.c:533
+#: src/frontend.c:554
+#: src/frontend.c:574
 #: src/frontend.c:590
-#: src/frontend.c:624
-#: src/frontend.c:642
-#: src/frontend.c:687
-#: src/frontend.c:828
-#: src/frontend.c:913
-#: src/frontend.c:951
-#: src/frontend.c:999
-#: src/frontend.c:1011
-#: src/frontend.c:1023
-#: src/frontend.c:1035
-#: src/frontend.c:1071
-#: src/frontend.c:1084
-#: src/frontend.c:1098
-#: src/frontend.c:1112
+#: src/frontend.c:616
+#: src/frontend.c:650
+#: src/frontend.c:668
+#: src/frontend.c:713
+#: src/frontend.c:854
+#: src/frontend.c:939
+#: src/frontend.c:977
+#: src/frontend.c:1025
+#: src/frontend.c:1037
+#: src/frontend.c:1049
+#: src/frontend.c:1061
+#: src/frontend.c:1097
+#: src/frontend.c:1110
+#: src/frontend.c:1124
+#: src/frontend.c:1138
 msgid "Off"
 msgstr "Kapalı"
 
-#: src/frontend.c:511
-#: src/frontend.c:677
+#: src/frontend.c:537
+#: src/frontend.c:703
 msgid "50%"
 msgstr "%50"
 
-#: src/frontend.c:515
-#: src/frontend.c:682
+#: src/frontend.c:541
+#: src/frontend.c:708
 #: src/multiplay.c:2038
 msgid "Black"
 msgstr "Siyah"
 
-#: src/frontend.c:521
+#: src/frontend.c:547
 msgid "Screen Shake"
 msgstr "Ekran Sarsıntısı"
 
-#: src/frontend.c:524
-#: src/frontend.c:552
-#: src/frontend.c:560
-#: src/frontend.c:595
-#: src/frontend.c:629
-#: src/frontend.c:638
-#: src/frontend.c:824
-#: src/frontend.c:918
-#: src/frontend.c:956
-#: src/frontend.c:995
-#: src/frontend.c:1007
-#: src/frontend.c:1019
-#: src/frontend.c:1031
-#: src/frontend.c:1076
-#: src/frontend.c:1089
-#: src/frontend.c:1103
-#: src/frontend.c:1117
+#: src/frontend.c:550
+#: src/frontend.c:578
+#: src/frontend.c:586
+#: src/frontend.c:621
+#: src/frontend.c:655
+#: src/frontend.c:664
+#: src/frontend.c:850
+#: src/frontend.c:944
+#: src/frontend.c:982
+#: src/frontend.c:1021
+#: src/frontend.c:1033
+#: src/frontend.c:1045
+#: src/frontend.c:1057
+#: src/frontend.c:1102
+#: src/frontend.c:1115
+#: src/frontend.c:1129
+#: src/frontend.c:1143
 msgid "On"
 msgstr "Açık"
 
-#: src/frontend.c:533
+#: src/frontend.c:559
 #: src/multiint.c:1246
 msgid "Fog"
 msgstr "Sis"
 
-#: src/frontend.c:536
-#: src/frontend.c:611
+#: src/frontend.c:562
+#: src/frontend.c:637
 msgid "Mist"
 msgstr "Duman"
 
-#: src/frontend.c:540
-#: src/frontend.c:605
+#: src/frontend.c:566
+#: src/frontend.c:631
 #: src/multiint.c:1248
 msgid "Fog Of War"
 msgstr "Siste Savaş"
 
-#: src/frontend.c:545
+#: src/frontend.c:571
 msgid "Subtitles"
 msgstr "Altyazılar"
 
-#: src/frontend.c:557
+#: src/frontend.c:583
 msgid "Shadows"
 msgstr "Gölgeler"
 
-#: src/frontend.c:568
+#: src/frontend.c:594
 msgid "GRAPHICS OPTIONS"
 msgstr "GRAFİK AYARLARI"
 
-#: src/frontend.c:716
+#: src/frontend.c:742
 #: src/ingameop.c:179
 msgid "Voice Volume"
 msgstr "Ses Düzeyi"
 
-#: src/frontend.c:720
+#: src/frontend.c:746
 #: src/ingameop.c:184
 msgid "FX Volume"
 msgstr "Ses Efekti"
 
-#: src/frontend.c:724
+#: src/frontend.c:750
 #: src/ingameop.c:189
 msgid "Music Volume"
 msgstr "Müzik Sesi"
 
-#: src/frontend.c:731
+#: src/frontend.c:757
 msgid "AUDIO OPTIONS"
 msgstr "SES AYARLARI"
 
-#: src/frontend.c:796
+#: src/frontend.c:822
 msgid "* Takes effect on game restart"
 msgstr "* Ayarlar oyun tekrar başlatıldığında etkili olacaktır."
 
-#: src/frontend.c:799
+#: src/frontend.c:825
 msgid "Graphics Mode*"
 msgstr "Grafik Modu*"
 
-#: src/frontend.c:807
-#: src/frontend.c:852
+#: src/frontend.c:833
+#: src/frontend.c:878
 msgid "Windowed"
 msgstr "Pencere"
 
-#: src/frontend.c:811
+#: src/frontend.c:837
 msgid "Resolution*"
 msgstr "Çözünürlük*"
 
-#: src/frontend.c:816
+#: src/frontend.c:842
 msgid "Texture size"
 msgstr "Yazı Boyutu"
 
-#: src/frontend.c:820
+#: src/frontend.c:846
 msgid "Vertical sync*"
 msgstr "Dikey senk."
 
-#: src/frontend.c:832
+#: src/frontend.c:858
 msgid "VIDEO OPTIONS"
 msgstr "VIDEO AYARLARI"
 
-#: src/frontend.c:988
+#: src/frontend.c:1014
 msgid "* May negatively affect performance"
 msgstr "* Performansı kötü etkileyebilir"
 
-#: src/frontend.c:992
+#: src/frontend.c:1018
 msgid "Reverse Rotation"
 msgstr "Tersine Döndür"
 
-#: src/frontend.c:1003
+#: src/frontend.c:1029
 msgid "Trap Cursor"
 msgstr "İmleci Yakala"
 
-#: src/frontend.c:1015
+#: src/frontend.c:1041
 msgid "Colored Cursors*"
 msgstr "Renkli İmleçler*"
 
-#: src/frontend.c:1028
+#: src/frontend.c:1054
 msgid "Switch Mouse Buttons"
 msgstr "Fare Düşmelerini Değiştir"
 
-#: src/frontend.c:1040
+#: src/frontend.c:1066
 msgid "Rotate Screen"
 msgstr "Ekranı Çevir"
 
-#: src/frontend.c:1043
-#: src/frontend.c:1131
-#, fuzzy
+#: src/frontend.c:1069
+#: src/frontend.c:1157
 msgctxt "middle mouse button"
 msgid "Middle Button"
 msgstr "Orta Tuş"
 
-#: src/frontend.c:1047
-#: src/frontend.c:1126
-#, fuzzy
+#: src/frontend.c:1073
+#: src/frontend.c:1152
 msgctxt "right mouse button"
 msgid "Right Button"
 msgstr "Sağ Tuş"
 
-#: src/frontend.c:1051
+#: src/frontend.c:1077
 msgid "MOUSE OPTIONS"
 msgstr "FARE AYARLARI"
 
-#: src/frontend.c:1166
-#: src/frontend.c:1236
+#: src/frontend.c:1192
+#: src/frontend.c:1262
 msgid "Difficulty"
 msgstr "Zorluk"
 
-#: src/frontend.c:1170
-#: src/frontend.c:1244
-#: src/frontend.c:1281
+#: src/frontend.c:1196
+#: src/frontend.c:1270
+#: src/frontend.c:1307
 msgid "Easy"
 msgstr "Kolay"
 
-#: src/frontend.c:1173
-#: src/frontend.c:1247
+#: src/frontend.c:1199
 #: src/frontend.c:1273
+#: src/frontend.c:1299
 msgid "Normal"
 msgstr "Normal"
 
-#: src/frontend.c:1177
-#: src/frontend.c:1250
-#: src/frontend.c:1277
+#: src/frontend.c:1203
+#: src/frontend.c:1276
+#: src/frontend.c:1303
 msgid "Hard"
 msgstr "Zor"
 
-#: src/frontend.c:1182
-#: src/frontend.c:1237
+#: src/frontend.c:1208
+#: src/frontend.c:1263
 msgid "Scroll Speed"
 msgstr "Kaydırma hızı"
 
-#: src/frontend.c:1196
-#: src/frontend.c:1234
+#: src/frontend.c:1222
+#: src/frontend.c:1260
 msgid "Language"
 msgstr "Lisan"
 
-#: src/frontend.c:1208
-#: src/frontend.c:1235
+#: src/frontend.c:1234
+#: src/frontend.c:1261
 msgid "Unit Colour"
 msgstr "Birim Rengi"
 
-#: src/frontend.c:1211
+#: src/frontend.c:1237
 msgid "Radar"
 msgstr "Radar"
 
-#: src/frontend.c:1212
-#: src/frontend.c:1261
+#: src/frontend.c:1238
+#: src/frontend.c:1287
 msgid "Rotating"
 msgstr "Dönüşlü"
 
-#: src/frontend.c:1212
-#: src/frontend.c:1261
+#: src/frontend.c:1238
+#: src/frontend.c:1287
 msgid "Fixed"
 msgstr "Tamir edilmiş"
 
-#: src/frontend.c:1218
-#: src/frontend.c:1238
+#: src/frontend.c:1244
+#: src/frontend.c:1264
 msgid "GAME OPTIONS"
 msgstr "OYUN AYARLARI"
 
-#: src/frontend.c:1379
+#: src/frontend.c:1405
 #: src/multiint.c:2212
 msgid "Mod: "
 msgstr "Mod: "
@@ -13014,183 +13016,183 @@ msgstr "Mod: "
 msgid "MAP SAVED!"
 msgstr "HARİTAN KAYDEDİLDİ!"
 
-#: src/hci.c:1692
+#: src/hci.c:1699
 #: src/loop.c:530
 #: src/loop.c:546
 #: src/mission.c:2891
 msgid "GAME SAVED :"
 msgstr "OYUN KAYDEDİLDİ :"
 
-#: src/hci.c:2082
+#: src/hci.c:2089
 msgid "Failed to create building"
 msgstr "Bina inşası başarısız"
 
-#: src/hci.c:2105
+#: src/hci.c:2112
 #, c-format
 msgid "Player %u is cheating (debug menu) him/herself a new structure: %s."
 msgstr "Oyuncu %u Yeni binasını (debug menü) inşa etti: %s."
 
-#: src/hci.c:2120
+#: src/hci.c:2127
 #, c-format
 msgid "Player %u is cheating (debug menu) him/herself a new feature: %s."
 msgstr "Oyuncu %u  (debug menü) yeni doğal maddesini oluşturdu: %s."
 
-#: src/hci.c:2141
+#: src/hci.c:2148
 #, c-format
 msgid "Player %u is cheating (debug menu) him/herself a new droid: %s."
 msgstr "Oyuncu %u  (debug menü) Yeni birimini oluşturdu: %s."
 
 # Commander kann als Eigenname im Deutschen allerdings mit deutschem Plural stehen bleiben -Kreuvf
-#: src/hci.c:3716
+#: src/hci.c:3725
 msgid "Commanders (F6)"
 msgstr "Komutanlar (F6)"
 
-#: src/hci.c:3732
+#: src/hci.c:3741
 msgid "Intelligence Display (F5)"
 msgstr "Görev Ekranı (F5)"
 
-#: src/hci.c:3748
+#: src/hci.c:3757
 msgid "Manufacture (F1)"
 msgstr "Üretim (F1)"
 
-#: src/hci.c:3764
+#: src/hci.c:3773
 msgid "Design (F4)"
 msgstr "Tasarım (F4)"
 
-#: src/hci.c:3780
+#: src/hci.c:3789
 msgid "Research (F2)"
 msgstr "Araştırma (F2)"
 
-#: src/hci.c:3796
+#: src/hci.c:3805
 msgid "Build (F3)"
 msgstr "İnşa (F3)"
 
-#: src/hci.c:3876
+#: src/hci.c:3885
 #: src/multiint.c:1293
 #: src/multimenu.c:764
 msgid "Power"
 msgstr "Güç"
 
-#: src/hci.c:3990
+#: src/hci.c:3999
 msgid "Map:"
 msgstr "Harita:"
 
-#: src/hci.c:4004
+#: src/hci.c:4013
 msgid "Load"
 msgstr "Yükle"
 
-#: src/hci.c:4005
+#: src/hci.c:4014
 msgid "Load Map File"
 msgstr "Harita Dosyası Yükle"
 
-#: src/hci.c:4012
+#: src/hci.c:4021
 msgid "Save"
 msgstr "Kaydet"
 
-#: src/hci.c:4013
+#: src/hci.c:4022
 msgid "Save Map File"
 msgstr "Harita dosyası kaydet"
 
-#: src/hci.c:4021
+#: src/hci.c:4030
 msgid "New"
 msgstr "Yeni"
 
-#: src/hci.c:4022
+#: src/hci.c:4031
 msgid "New Blank Map"
 msgstr "Yeni Boş Harita"
 
-#: src/hci.c:4060
+#: src/hci.c:4069
 msgid "Tile"
 msgstr "Harita Ö."
 
-#: src/hci.c:4061
+#: src/hci.c:4070
 msgid "Place tiles on map"
 msgstr "Haritaya yeni öğeler yerleştir"
 
-#: src/hci.c:4070
+#: src/hci.c:4079
 msgid "Unit"
 msgstr "Birim"
 
-#: src/hci.c:4071
+#: src/hci.c:4080
 msgid "Place Unit on map"
 msgstr "Haritaya yeni birimler yerleştir"
 
-#: src/hci.c:4079
+#: src/hci.c:4088
 msgid "Struct"
 msgstr "Bina"
 
-#: src/hci.c:4080
+#: src/hci.c:4089
 msgid "Place Structures on map"
 msgstr "Haritaya yeni binalar yerleştir"
 
 # gemäß: http://dict.leo.org/ende?search=Feat -Kreuvf
-#: src/hci.c:4088
+#: src/hci.c:4097
 msgid "Feat"
 msgstr "Özellik"
 
-#: src/hci.c:4089
+#: src/hci.c:4098
 msgid "Place Features on map"
 msgstr "Haritaya Özel Öğeler ekle"
 
-#: src/hci.c:4099
+#: src/hci.c:4108
 msgid "Pause"
 msgstr "Durdur"
 
-#: src/hci.c:4100
+#: src/hci.c:4109
 msgid "Pause or unpause the game"
 msgstr "Oyunu durdur yada başlat"
 
-#: src/hci.c:4114
+#: src/hci.c:4123
 msgid "Align height of all map objects"
 msgstr "Tüm harita yüksekliğini objelere uygun hale getir"
 
-#: src/hci.c:4124
+#: src/hci.c:4133
 msgid "Edit"
 msgstr "Düzenle"
 
-#: src/hci.c:4125
+#: src/hci.c:4134
 msgid "Start Edit Mode"
 msgstr "Düzenleme Modunu Aç"
 
-#: src/hci.c:4139
+#: src/hci.c:4148
 #: src/ingameop.c:119
 #: src/ingameop.c:264
 #: src/ingameop.c:269
 msgid "Quit"
 msgstr "Çıkış"
 
-#: src/hci.c:4140
+#: src/hci.c:4149
 msgid "Exit Game"
 msgstr "Oyundan Çık"
 
-#: src/hci.c:4165
+#: src/hci.c:4174
 msgid "Current Player:"
 msgstr "Geçerli Oyuncu:"
 
-#: src/hci.c:4501
+#: src/hci.c:4510
 #: src/intdisplay.c:209
 #: src/intdisplay.c:252
 #: src/intdisplay.c:303
 msgid "Progress Bar"
 msgstr "İlerleme Çubuğu"
 
-#: src/hci.c:5459
+#: src/hci.c:5468
 msgid "Infinite Production"
 msgstr "Sınırsız Üretim"
 
-#: src/hci.c:5537
+#: src/hci.c:5546
 msgid "Factory Delivery Point"
 msgstr "Fabrika Teslim Noktası"
 
-#: src/hci.c:5556
+#: src/hci.c:5565
 msgid "Loop Production"
 msgstr "Üretimi Tekrarla"
 
-#: src/hci.c:5647
+#: src/hci.c:5656
 msgid "Tab Scroll left"
 msgstr "Tabloyu Sola Kaydır"
 
-#: src/hci.c:5664
+#: src/hci.c:5673
 msgid "Tab Scroll right"
 msgstr "Tabloyu Sağa Kaydır"
 
@@ -13223,7 +13225,7 @@ msgstr "Oyun Kurucu olmadan devam edemez."
 msgid "-->  QUIT  <--"
 msgstr "-->  ÇIKIŞ  <--"
 
-#: src/init.c:402
+#: src/init.c:419
 #, c-format
 msgid ""
 "The required mod could not be loaded: %s\n"
@@ -13241,7 +13243,7 @@ msgid "Power Accrued"
 msgstr "Güç Birikmiş"
 
 #: src/intelmap.c:243
-#: src/keybind.c:1369
+#: src/keybind.c:1371
 msgid "PAUSED"
 msgstr "DURDURULDU"
 
@@ -13368,283 +13370,283 @@ msgstr "DİvK  Fabrikası Üretimine Ata"
 msgid "Circle"
 msgstr "Daire Çiz"
 
-#: src/keybind.c:135
+#: src/keybind.c:137
 msgid "Sorry, that cheat is disabled in multiplayer games."
 msgstr "Üzgünüm bu hile Çok oyunculu oyunda devre dışıdır."
 
-#: src/keybind.c:141
+#: src/keybind.c:143
 msgid "Warning! This cheat is buggy.  We recommend to NOT use it."
 msgstr "Tehlike! Bu hile hatalıdır. Onu kullanmamanızı öneririz."
 
-#: src/keybind.c:210
+#: src/keybind.c:212
 msgid "Lets us see what you see!"
 msgstr "Hadi ne görüyorsan bizde görelim!"
 
-#: src/keybind.c:212
+#: src/keybind.c:214
 msgid "Fine, weapon & sensor display is off!"
 msgstr "İyi, Silah & algılayıcı ışıkları kapalı!"
 
-#: src/keybind.c:344
+#: src/keybind.c:346
 #, c-format
 msgid "Player %u is cheating him/herself a new droid army of %s(s)."
 msgstr "Oyuncu %u droid ordusunu hile ile kuruyor %s."
 
-#: src/keybind.c:383
-#: src/keybind.c:413
-#: src/keybind.c:430
-#: src/keybind.c:474
-#: src/keybind.c:582
-#: src/keybind.c:622
-#: src/keybind.c:728
-#: src/keybind.c:1259
-#: src/keybind.c:1316
-#: src/keybind.c:1418
-#: src/keybind.c:1515
-#: src/keybind.c:1826
-#: src/keybind.c:1867
+#: src/keybind.c:385
+#: src/keybind.c:415
+#: src/keybind.c:432
+#: src/keybind.c:476
+#: src/keybind.c:584
+#: src/keybind.c:624
+#: src/keybind.c:730
+#: src/keybind.c:1261
+#: src/keybind.c:1318
+#: src/keybind.c:1420
+#: src/keybind.c:1517
+#: src/keybind.c:1828
+#: src/keybind.c:1869
 #, c-format
 msgid "(Player %u) is using cheat :%s"
 msgstr "(Player %u) şu hileyi kullandı: %s"
 
-#: src/keybind.c:384
+#: src/keybind.c:386
 msgid "Hard as nails!!!"
 msgstr "Koçum Benim. Demir Gibi Sağlam!!!"
 
-#: src/keybind.c:398
+#: src/keybind.c:400
 msgid "Takings thing easy!"
 msgstr "Herşeyi kolaya al!"
 
-#: src/keybind.c:414
+#: src/keybind.c:416
 msgid "1000 big ones!!!"
 msgstr "1000 Büyük güç!!!"
 
 # Ursprünglich kenne ich das nur als Cheat aus StarCraft und das sollte imho nicht übersetzt werden -Kreuvf
-#: src/keybind.c:431
+#: src/keybind.c:433
 msgid "Power overwhelming"
 msgstr "Sonsuz güç"
 
-#: src/keybind.c:446
+#: src/keybind.c:448
 msgid "Back to normality!"
 msgstr "Normale Dön!"
 
-#: src/keybind.c:459
+#: src/keybind.c:461
 msgid "Getting tricky!"
 msgstr "Hileli olmaya başlıyor!"
 
-#: src/keybind.c:475
+#: src/keybind.c:477
 msgid "Twice as nice!"
 msgstr "Çift iyidir!"
 
-#: src/keybind.c:486
+#: src/keybind.c:488
 msgid "FPS display is enabled."
 msgstr "FPS-Görünüşü aktif."
 
-#: src/keybind.c:490
+#: src/keybind.c:492
 msgid "FPS display is disabled."
 msgstr "FPS-Görünüşü devre dışı."
 
-#: src/keybind.c:514
+#: src/keybind.c:516
 #, c-format
 msgid "FPS %d; FPS-Limit: %d; PIEs %d; polys %d; Terr. polys %d; States %d"
 msgstr "FPS %d; FPS-Sınır: %d; PIEs %d; Polys %d; Terr. polys %d; States %d"
 
-#: src/keybind.c:546
+#: src/keybind.c:548
 #, c-format
 msgid "(Player %u) is using a cheat :Num Droids: %d  Num Structures: %d  Num Features: %d"
 msgstr "(Oyuncu %u) Şu hileyi kullanıyor: Draid sayısı: %d Bina Sayısı: %d  Özel Öğe Sayısı: %d"
 
-#: src/keybind.c:583
+#: src/keybind.c:585
 msgid "Infinite power disabled"
 msgstr "Sonsuz güç devre dışı"
 
-#: src/keybind.c:583
+#: src/keybind.c:585
 msgid "Infinite power enabled"
 msgstr "Sonsuz güç devrede"
 
-#: src/keybind.c:623
+#: src/keybind.c:625
 msgid "All items made available"
 msgstr "Herşey kullanılabilir oldu"
 
-#: src/keybind.c:729
+#: src/keybind.c:731
 msgid "Fog on"
 msgstr "Sis açık"
 
-#: src/keybind.c:729
+#: src/keybind.c:731
 msgid "Fog off"
 msgstr "Sis kapalı"
 
-#: src/keybind.c:1148
+#: src/keybind.c:1150
 #, c-format
 msgid "Warning!  This cheat can cause dire problems later on! [%s]"
 msgstr "Dikkat! Bu hile daha kötü sorunlara sebep olabilir! [%s]"
 
-#: src/keybind.c:1148
+#: src/keybind.c:1150
 msgid "Ending Mission."
 msgstr "Görev sonlandırılıyor."
 
-#: src/keybind.c:1260
+#: src/keybind.c:1262
 msgid "CHEATS ARE NOW ENABLED!"
 msgstr "HİLELER DEVREDE!"
 
-#: src/keybind.c:1260
+#: src/keybind.c:1262
 msgid "CHEATS ARE NOW DISABLED!"
 msgstr "HİLELER DEVRE DIŞI!"
 
-#: src/keybind.c:1317
+#: src/keybind.c:1319
 msgid "God Mode ON"
 msgstr "Tanrı Modu AÇIK"
 
-#: src/keybind.c:1317
+#: src/keybind.c:1319
 msgid "God Mode OFF"
 msgstr "Tanrı Modu KAPALI"
 
-#: src/keybind.c:1329
+#: src/keybind.c:1331
 msgid "View Aligned to North"
 msgstr "Görüntü Kuzeye sabitlendi"
 
-#: src/keybind.c:1338
+#: src/keybind.c:1340
 #, c-format
 msgid "Trap cursor %s"
 msgstr "İmleci Yakala %s"
 
-#: src/keybind.c:1419
+#: src/keybind.c:1421
 msgid "Researched EVERYTHING for you!"
 msgstr "HERŞEY senin için araştırıldı!"
 
-#: src/keybind.c:1452
+#: src/keybind.c:1454
 #, c-format
 msgid "(Player %u) is using cheat :%s %s"
 msgstr "(Oyuncu %u) şu hileyi kullanıyor: %s %s"
 
-#: src/keybind.c:1453
+#: src/keybind.c:1455
 msgid "Researched"
 msgstr "Araştırıldı"
 
-#: src/keybind.c:1473
+#: src/keybind.c:1475
 msgid "Only displaying energy bars when selected"
 msgstr "Hayat Puanı çubuğu sadece seçildiğinde gösterilecek"
 
-#: src/keybind.c:1476
+#: src/keybind.c:1478
 msgid "Always displaying energy bars for units"
 msgstr "Birimlerin Hayat Puanı çubukları her zaman gösterilecek"
 
-#: src/keybind.c:1479
+#: src/keybind.c:1481
 msgid "Always displaying energy bars for units and structures"
 msgstr "Binaların Hayat Puanı çubukları her zaman gösterilecek"
 
-#: src/keybind.c:1501
+#: src/keybind.c:1503
 msgid "Demo mode off - Returning to normal game mode"
 msgstr "Demo modu devre dışı - Normal oyun moduna dönülüyor"
 
-#: src/keybind.c:1516
+#: src/keybind.c:1518
 msgid "Debug menu is Open"
 msgstr "Debug-Menüsü açıldı"
 
-#: src/keybind.c:1547
+#: src/keybind.c:1549
 msgid "Unable to locate any oil derricks!"
 msgstr "Yerel Petrol Pompaları Devre Dışı!"
 
 # Let it snow, let it snow, let it snow..
 # Von daher sollte das unübersetzt bleiben -Kreuvf
-#: src/keybind.c:1768
+#: src/keybind.c:1770
 msgid "Oh, the weather outside is frightful... SNOW"
 msgstr "Vay canına, dışarda hava korkunç.. KAR"
 
 # Das Lied ist im Original Englisch --> bleibt unübersetzt -Kreuvf
-#: src/keybind.c:1774
+#: src/keybind.c:1776
 msgid "Singing in the rain, I'm singing in the rain... RAIN"
 msgstr "Yağmurda şarkı söyle, Ben yağmurda şarkı söylüyorum... YAĞMUR"
 
-#: src/keybind.c:1780
+#: src/keybind.c:1782
 msgid "Forecast : Clear skies for all areas... NO WEATHER"
 msgstr "Hava Durumu: Yer yerde gökyüzü temiz...YAĞIŞ YOK"
 
-#: src/keybind.c:1825
+#: src/keybind.c:1827
 msgid "Warning! This can have drastic consequences if used incorrectly in missions."
 msgstr "Dikkat! Misyonların yanlış kullanılmasının ciddi etkileri olabilir."
 
-#: src/keybind.c:1827
+#: src/keybind.c:1829
 msgid "All enemies destroyed by cheating!"
 msgstr "Tüm düşmanların hile ile yok edildi!"
 
-#: src/keybind.c:1868
+#: src/keybind.c:1870
 msgid "Destroying selected droids and structures!"
 msgstr "Seçili Birimler ve Birimler Yok Ediliyor!"
 
-#: src/keybind.c:2387
+#: src/keybind.c:2389
 msgid "Centered on player HQ, direction NORTH"
 msgstr "Görüntü Merkezi: Genel Merkez, Yön: KUZEY"
 
-#: src/keybind.c:2399
+#: src/keybind.c:2401
 msgid "Unable to locate HQ!"
 msgstr "Yerel Genel Merkez Devre Dışı!"
 
-#: src/keybind.c:2406
+#: src/keybind.c:2408
 msgid "Formation speed limiting has been removed from the game due to bugs."
 msgstr "Hata nedeniyle formasyon hız limiti kaldırıldı."
 
-#: src/keybind.c:2455
+#: src/keybind.c:2457
 msgid "Vertical rotation direction: Normal"
 msgstr "Dikey Yön: Normal"
 
-#: src/keybind.c:2460
+#: src/keybind.c:2462
 msgid "Vertical rotation direction: Flipped"
 msgstr "Dikey Yön: Saygısız"
 
-#: src/keybind.c:2469
+#: src/keybind.c:2471
 msgid "Screen shake when things die: Off"
 msgstr "Bişeyler öldüğünde ekran sarsıntısı: Kapalı"
 
-#: src/keybind.c:2474
+#: src/keybind.c:2476
 msgid "Screen shake when things die: On"
 msgstr "Bişeyler öldüğünde ekran sarsıntısı: Açık"
 
-#: src/keybind.c:2519
-#: src/keybind.c:2562
+#: src/keybind.c:2521
+#: src/keybind.c:2564
 msgid "Sorry, but game speed cannot be changed in multiplayer."
 msgstr "Üzgünüm, fakat oyun hızı çoklu oyunculu oyunlarda değiştirilemez"
 
-#: src/keybind.c:2540
-#: src/keybind.c:2583
-#: src/keybind.c:2605
+#: src/keybind.c:2542
+#: src/keybind.c:2585
+#: src/keybind.c:2607
 msgid "Game Speed Reset"
 msgstr "Oyun Hızı Sıfırlandı"
 
-#: src/keybind.c:2544
+#: src/keybind.c:2546
 #, c-format
 msgid "Game Speed Increased to %3.1f"
 msgstr "Oyun Hızı %3.1f  yükseltildi"
 
-#: src/keybind.c:2587
+#: src/keybind.c:2589
 #, c-format
 msgid "Game Speed Reduced to %3.1f"
 msgstr "Oyun Hızı %3.1f  ' indirildi"
 
-#: src/keybind.c:2617
+#: src/keybind.c:2619
 msgid "Radar showing friend-foe colors"
 msgstr "Radar Dost-Düşman haritasını gösterecek"
 
-#: src/keybind.c:2621
+#: src/keybind.c:2623
 msgid "Radar showing player colors"
 msgstr "Radar oyuncu renklerini gösterecek"
 
-#: src/keybind.c:2641
+#: src/keybind.c:2643
 msgid "Radar showing only objects"
 msgstr "Radar sadece nesneleri gösterecek"
 
-#: src/keybind.c:2644
+#: src/keybind.c:2646
 msgid "Radar blending terrain and height"
 msgstr "Radar bölge ve yüksekliği gösterecek"
 
-#: src/keybind.c:2647
+#: src/keybind.c:2649
 msgid "Radar showing terrain"
 msgstr "Radar bölgeyi gösterecek"
 
-#: src/keybind.c:2650
+#: src/keybind.c:2652
 msgid "Radar showing revealed terrain"
 msgstr "Radar keşfedilen alanı gösterecek"
 
-#: src/keybind.c:2653
+#: src/keybind.c:2655
 msgid "Radar showing height"
 msgstr "Radar yüksekliği gösterecek"
 
@@ -14465,12 +14467,10 @@ msgid "Choose Team"
 msgstr "Takım seç"
 
 #: src/multiint.c:2073
-#, fuzzy
 msgid "Click to change player settings"
-msgstr "Oyuncu pozisyonunu değiştirmek için tıkla"
+msgstr "Oyuncu ayarlarını değiştirmek için tıkla"
 
 #: src/multiint.c:2104
-#, fuzzy
 msgid "Click to adjust AI difficulty"
 msgstr "Zorluğu değiştirmek için tıkla"
 
@@ -14480,7 +14480,7 @@ msgstr "SOHBET"
 
 #: src/multiint.c:2217
 msgid "All players need to have the same mods to join your game."
-msgstr "TÜm oyuncular oyununa girebilmek için aynı moda ihtiyaç duyar."
+msgstr "Tüm oyuncular oyununa girebilmek için aynı moda ihtiyaç duyar."
 
 #: src/multiint.c:2377
 #, c-format
@@ -14667,7 +14667,7 @@ msgstr "Yeşil"
 
 #: src/multiplay.c:2036
 msgid "Orange"
-msgstr "Portakal Sarısı"
+msgstr "Turuncu"
 
 #: src/multiplay.c:2037
 msgid "Grey"
@@ -14863,9 +14863,8 @@ msgid "Unable to locate any Commanders!"
 msgstr "Hiç Komutan birimi bulunamadı!"
 
 #: src/structure.c:2743
-#, fuzzy
 msgid "Control Limit Reached - Production Halted"
-msgstr "Komuta Kontrol Limitine Ulaştın - Üretim Durduruldu"
+msgstr "Kontrol Limitine Ulaştın - Üretim Durduruldu"
 
 # nix Gruppe! -Kreuvf
 #: src/structure.c:5936
@@ -15152,7 +15151,6 @@ msgstr "Sürüm %s%s%s%s"
 #~ msgid "Warzone 2100 Campaign Mod File"
 #~ msgstr "Warzone 2100 Bölüm Mod Dosyası"
 
-# Das hat(te) Warzone damals schon, kA, ob noch nutzbar -Ayhan
 #~ msgid "Warzone 2100 Multiplayer Mod File"
 #~ msgstr "Warzone 2100 Çok Oyunculu Mod Dosyası"
 

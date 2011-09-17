@@ -20,6 +20,10 @@
 
 #include <locale.h>
 
+#if defined(WZ_OS_WIN)
+#include <physfs.h>
+#endif
+
 #ifdef WZ_OS_MAC
 # include <CoreFoundation/CoreFoundation.h>
 # include <CoreFoundation/CFURL.h>
@@ -46,7 +50,7 @@
 #define LANG_NAME_ENGLISH "English"
 #define LANG_NAME_ENGLISH_UK "English (United Kingdom)"
 #define LANG_NAME_ESTONIAN "Eesti Keel"
-#define LANG_NAME_FINNISH "tanska"
+#define LANG_NAME_FINNISH "suomi"
 #define LANG_NAME_FRENCH "Français"
 #define LANG_NAME_FRISIAN_NETHERLANDS "frysk"
 #define LANG_NAME_GERMAN "Deutsch"
@@ -135,7 +139,7 @@ static const struct
 	{ "tr", LANG_NAME_TURKISH, LANG_TURKISH, SUBLANG_DEFAULT },
 //	{ "uz", LANG_NAME_UZBEK_CYRILLIC, LANG_UZBEK, SUBLANG_UZBEK_CYRILLIC },
 	{ "uk_UA", LANG_NAME_UKRAINIAN, LANG_UKRAINIAN, SUBLANG_DEFAULT },
-//	{ "zh_CN", LANG_NAME_CHINESE_SIMPLIFIED, LANG_CHINESE, SUBLANG_CHINESE_SIMPLIFIED },
+	{ "zh_CN", LANG_NAME_CHINESE_SIMPLIFIED, LANG_CHINESE, SUBLANG_CHINESE_SIMPLIFIED },
 	{ "zh_TW", LANG_NAME_CHINESE_TRADITIONAL, LANG_CHINESE, SUBLANG_CHINESE_TRADITIONAL },
 #  endif
 };
@@ -188,7 +192,7 @@ static const struct
 	{ "tr", LANG_NAME_TURKISH, "tr_TR.UTF-8", "tr_TR" },
 //	{ "uz", LANG_NAME_UZBEK_CYRILLIC, "uz_UZ.UTF-8", "uz_UZ" },
 	{ "uk_UA", LANG_NAME_UKRAINIAN, "uk_UA.UTF-8", "uk" },
-//	{ "zh_CN", LANG_NAME_CHINESE_SIMPLIFIED, "zh_CN.UTF-8", "zh_CN" },
+	{ "zh_CN", LANG_NAME_CHINESE_SIMPLIFIED, "zh_CN.UTF-8", "zh_CN" },
 	{ "zh_TW", LANG_NAME_CHINESE_TRADITIONAL, "zh_TW.UTF-8", "zh_TW" },
 #  endif
 };

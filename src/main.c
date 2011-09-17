@@ -107,8 +107,8 @@ char * multiplay_mods[MAX_MODS] = { NULL };
 char * override_mods[MAX_MODS] = { NULL };
 char * override_mod_list = NULL;
 bool use_override_mods = false;
-char * override_map[2] = { NULL };
-bool use_override_map = false;
+
+char *current_map[3] = { NULL };
 
 char * loaded_mods[MAX_MODS] = { NULL };
 char * mod_list = NULL;
@@ -252,29 +252,34 @@ void setOverrideMods(char * modlist)
 	override_mod_list = modlist;
 	use_override_mods = true;
 }
-void setOverrideMap(char* map, int maxPlayers)
+
+void setCurrentMap(char* map, int maxPlayers)
 {
+	free(current_map[0]);
+	free(current_map[1]);
 	// Transform "Sk-Rush-T2" into "4c-Rush.wz" so it can be matched by the map loader
-	override_map[0] = (char*)malloc(strlen(map)+1+7);
-	snprintf(override_map[0], 3, "%d", maxPlayers);
-	strcat(override_map[0],"c-");
+	current_map[0] = (char*)malloc(strlen(map) + 1 + 7);
+	snprintf(current_map[0], 3, "%d", maxPlayers);
+	strcat(current_map[0], "c-");
 	if (strncmp(map, "Sk-", 3) == 0)
 	{
-		strcat(override_map[0],map+3);
+		strcat(current_map[0], map + 3);
 	}
 	else
 	{
-		strcat(override_map[0],map);
+		strcat(current_map[0], map);
 	}
-	if (strncmp(override_map[0]+strlen(override_map[0])-3,"-T",2) == 0)
+	if (strncmp(current_map[0] + strlen(current_map[0]) - 3, "-T", 2) == 0)
 	{
-		override_map[0][strlen(override_map[0])-3] = '\0';
+		current_map[0][strlen(current_map[0]) - 3] = '\0';
 	}
-	strcat(override_map[0],".wz");
-	override_map[1] = NULL;
-	use_override_map = true;
+	current_map[1] = (char*)malloc(strlen(map) + 1 + 7);
+	strcpy(current_map[1], current_map[0]);
+	strcat(current_map[1],".wz");
+	current_map[2] = NULL;
 }
-void clearOverrides(void)
+
+void clearOverrideMods(void)
 {
 	int i;
 	use_override_mods = false;
@@ -284,48 +289,16 @@ void clearOverrides(void)
 	}
 	override_mods[0] = NULL;
 	override_mod_list = NULL;
-
-	if (override_map[0])
-	{
-		free(override_map[0]);
-		override_map[0] = NULL;
-	}
-	use_override_map = false;
 }
 
 void addLoadedMod(const char * modname)
 {
 	char * mod = strdup(modname);
-	int i, modlen;
+	int i;
 	if (num_loaded_mods >= MAX_MODS)
 	{
 		// mod list full
 		return;
-	}
-	modlen = strlen(mod);
-	if (modlen >= 3 && strcmp(&mod[modlen-3], ".wz")==0)
-	{
-		// remove ".wz" from end
-		mod[modlen-3] = 0;
-		modlen -= 3;
-	}
-	if (modlen >= 4 && strcmp(&mod[modlen-4], ".cam")==0)
-	{
-		// remove ".cam.wz" from end
-		mod[modlen-4] = 0;
-		modlen -= 4;
-	}
-	else if (modlen >= 4 && strcmp(&mod[modlen-4], ".mod")==0)
-	{
-		// remove ".mod.wz" from end
-		mod[modlen-4] = 0;
-		modlen -= 4;
-	}
-	else if (modlen >= 5 && strcmp(&mod[modlen-5], ".gmod")==0)
-	{
-		// remove ".gmod.wz" from end
-		mod[modlen-5] = 0;
-		modlen -= 5;
 	}
 	// Yes, this is an online insertion sort.
 	// I swear, for the numbers of mods this is going to be dealing with
@@ -736,7 +709,7 @@ static void startGameLoop(void)
 {
 	SetGameMode(GS_NORMAL);
 
-	if (!levLoadData(aLevelName, NULL, GTYPE_SCENARIO_START))
+	if (!levLoadData(aLevelName, NULL, 0))
 	{
 		debug( LOG_FATAL, "Shutting down after failure" );
 		exit(EXIT_FAILURE);
