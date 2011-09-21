@@ -513,7 +513,7 @@ static void highLevelDroidUpdate(DROID *psDroid, float fx, float fy,
 	// update kill rating.
 	psDroid->experience = experience;
 
-	//just synch the order... dont ask to ask -ilu
+	//just synch the order... dont ask to ask 
 	turnOffMultiMsg(true);
 	if(order!=DORDER_NONE){
 		if (validOrderForObj(order))
@@ -530,60 +530,9 @@ static void highLevelDroidUpdate(DROID *psDroid, float fx, float fy,
 	psDroid->secondaryOrder = state;
 	turnOffMultiMsg(false);
 
-
-	// see how well the sync worked, optionally update.
-	// offscreen updates will make this ok each time.
-	// -ilu : this should be obsolete since I always use offscreen
-	if (psDroid->order == DORDER_NONE && order == DORDER_NONE)
-	{
-		if(  (fabs(fx - psDroid->sMove.fx)>(TILE_UNITS*2))		// if more than 2 tiles wrong.
-		   ||(fabs(fy - psDroid->sMove.fy)>(TILE_UNITS*2)) )
-		{
-			turnOffMultiMsg(true);
-			debug(LOG_SYNC, "Move order from %d,%d to %d,%d", (int)psDroid->pos.x, (int)psDroid->pos.y, (int)fx, (int)fy);
-			orderDroidLoc(psDroid, DORDER_MOVE, fx, fy);
-			turnOffMultiMsg(false);
-		}
-	}
 }
 
-// ////////////////////////////////////////////////////////////////////////////
-// droid on screen needs modifying
-/*
-static void onscreenUpdate(DROID *psDroid,
-						UDWORD dam,
-						float fx,
-						float fy,
-						UWORD dir,
-						DROID_ORDER order)
-{
-	BASE_OBJECT *psClickedOn;
-	BOOL		bMouseOver = false;
-
-	psClickedOn = mouseTarget();
-	if( psClickedOn != NULL && psClickedOn->type == OBJ_DROID)
-	{
-		if(psClickedOn->id == psDroid->id && mouseDown(MOUSE_RMB))
-		{
-			bMouseOver = true;						// override, so you dont see the updates.
-		}
-	}
-
-	if(!bMouseOver)
-	{
-		psDroid->body = dam;						// update damage
-	}
-
-//	if(psDroid->order == DORDER_NONE || (psDroid->order == DORDER_GUARD && psDroid->action == DACTION_NONE) )
-//	{
-//		psDroid->direction	 = dir  %360;				//update rotation
-//	}
-
-	return;
-}
-*/
-// ////////////////////////////////////////////////////////////////////////////
-// droid offscreen needs modyfying.
+// droid needs modyfying. (now do onscreen as well)
 static void offscreenUpdate(DROID *psDroid,
 							UDWORD dam,
 							float fx,

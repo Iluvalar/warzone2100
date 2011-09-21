@@ -109,7 +109,7 @@ typedef enum WEAPON_SUBCLASS
 	WCS_AAMISSILE,
 	WSC_ROCKET2,
 	WSC_QUARK,
-	WSC_ALPHA,				//A modder with a good idea should never be stucked just because he need one more spot -ilu
+	WSC_ALPHA,				//A modder with a good idea should never be stucked just because he need one more spot
 	WSC_BETA,
 	WSC_GAMMA,
 	WSC_DELTA,

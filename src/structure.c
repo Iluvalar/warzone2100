@@ -1163,7 +1163,7 @@ float structureDamage(STRUCTURE *psStructure, UDWORD damage, UDWORD weaponClass,
 				)/5; //fraction of the building built 1/5 $ + 4/5 points
 
 	// If the shell did sufficient damage to destroy the structure
-	//Ilu - Or if the body point fraction is under the contructed fraction (can't think of a better spot or way to do this)
+	//Or if the body point fraction is under the contructed fraction (can't think of a better spot or way to do this)
 	if (relativeDamage < 0.0f || (float)psStructure->body/(float)structureBody(psStructure) < 1.0f-constructMod)
 	{
 		debug(LOG_ATTACK, "Structure (id %d) DESTROYED", psStructure->id);
@@ -2346,7 +2346,7 @@ void clearCommandDroidFactory(DROID *psDroid)
 }
 
 /* Check that a tile is vacant for a droid to be placed */
-static BOOL structClearTile(UWORD x, UWORD y,PROPULSION_TYPE propulsion)
+static BOOL structClearTile(UWORD x, UWORD y, PROPULSION_TYPE propulsion)
 {
 	UDWORD	player;
 	DROID	*psCurr;
@@ -2377,7 +2377,7 @@ static BOOL structClearTile(UWORD x, UWORD y,PROPULSION_TYPE propulsion)
 }
 
 /*find a location near to a structure to start the droid of*/
-BOOL placeDroid(STRUCTURE *psStructure, UDWORD *droidX, UDWORD *droidY,PROPULSION_TYPE propulsion)
+BOOL placeDroid(STRUCTURE *psStructure, UDWORD *droidX, UDWORD *droidY, PROPULSION_TYPE propulsion)
 {
 	SWORD			sx,sy, xmin,xmax, ymin,ymax, x,y, xmid;
 	BOOL			placed;
