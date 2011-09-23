@@ -531,6 +531,7 @@ static void highLevelDroidUpdate(DROID *psDroid, float fx, float fy,
 	turnOffMultiMsg(false);
 	// see how well the sync worked, optionally update.
 	// offscreen updates will make this ok each time.
+	/*
 	if(  (fabs(fx - psDroid->sMove.fx)>(TILE_UNITS*2))		// if more than 2 tiles wrong.
 		||(fabs(fy - psDroid->sMove.fy)>(TILE_UNITS*2)) )
 	{
@@ -539,6 +540,7 @@ static void highLevelDroidUpdate(DROID *psDroid, float fx, float fy,
 		orderDroidLoc(psDroid, DORDER_MOVE, fx, fy);
 		turnOffMultiMsg(false);
 	}
+	*/
 }
 
 // droid needs modyfying. (now do onscreen as well)
@@ -563,8 +565,8 @@ static void offscreenUpdate(DROID *psDroid,
 	oldY			= psDroid->pos.y;
 	if(	!onScreen 
 		||(
-			(fabs(fx - psDroid->sMove.fx)>(TILE_UNITS*7))		// if more than 7 tiles wrong.
-		   	||(fabs(fy - psDroid->sMove.fy)>(TILE_UNITS*7)) 
+			(fabs(fx - psDroid->sMove.fx)>(TILE_UNITS*4))		// if more than 7 tiles wrong.
+		   	||(fabs(fy - psDroid->sMove.fy)>(TILE_UNITS*4)) 
 		)
 	)
 	{
