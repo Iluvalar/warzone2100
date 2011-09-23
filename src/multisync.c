@@ -513,18 +513,23 @@ static void highLevelDroidUpdate(DROID *psDroid, float fx, float fy,
 	// update kill rating.
 	psDroid->experience = experience;
 
-	//just synch the order... dont ask to ask 
 	turnOffMultiMsg(true);
 	if(order!=DORDER_NONE){
 		if (validOrderForObj(order))
 		{
 			if(psTarget!=0){
-				orderDroidObj(psDroid, order, psTarget);
+				if( !(psDroid->order==order && psDroid->psTarget==psTarget) )
+				{
+					orderDroidObj(psDroid, order, psTarget);
+				}
 			}
 		}
 		else if (validOrderForLoc(order))
 		{
-			orderDroidLoc(psDroid, order, fx, fy);
+			if( !(psDroid->order==order && psDroid->sMove.fx==fx && psDroid->sMove.fy==fy ) )
+			{
+				orderDroidLoc(psDroid, order, fx, fy);
+			 }
 		}
 	}
 	psDroid->secondaryOrder = state;
@@ -565,8 +570,8 @@ static void offscreenUpdate(DROID *psDroid,
 	oldY			= psDroid->pos.y;
 	if(	!onScreen 
 		||(
-			(fabs(fx - psDroid->sMove.fx)>(TILE_UNITS*4))		// if more than 7 tiles wrong.
-		   	||(fabs(fy - psDroid->sMove.fy)>(TILE_UNITS*4)) 
+			(fabs(fx - psDroid->sMove.fx)>(TILE_UNITS*3))		// if more than 7 tiles wrong.
+		   	||(fabs(fy - psDroid->sMove.fy)>(TILE_UNITS*3)) 
 		)
 	)
 	{
