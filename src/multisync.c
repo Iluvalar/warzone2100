@@ -526,7 +526,7 @@ static void highLevelDroidUpdate(DROID *psDroid, float fx, float fy,
 		}
 		else if (validOrderForLoc(order))
 		{
-			if( !(psDroid->order==order && psDroid->sMove.fx==fx && psDroid->sMove.fy==fy ) )
+			if( !(psDroid->order==order && psDroid->orderX==fx && psDroid->orderY==fy ) )
 			{
 				orderDroidLoc(psDroid, order, fx, fy);
 			 }
