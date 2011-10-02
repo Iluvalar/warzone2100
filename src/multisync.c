@@ -489,7 +489,7 @@ BOOL recvDroidCheck()
 //			      fx - pD->sMove.fx, fy - pD->sMove.fy, onscreen ? "onscreen" : "offscreen");
 
 			// Update the higher level stuff
-			if (!isVtolDroid(pD) or 1)
+			if (!isVtolDroid(pD) || 1)
 			{
 				highLevelDroidUpdate(pD, fx, fy, secondaryOrder, order, psTarget, experience);
 			}
