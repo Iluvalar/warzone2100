@@ -489,7 +489,7 @@ BOOL recvDroidCheck()
 //			      fx - pD->sMove.fx, fy - pD->sMove.fy, onscreen ? "onscreen" : "offscreen");
 
 			// Update the higher level stuff
-			if (!isVtolDroid(pD))
+			if (!isVtolDroid(pD) or 1)
 			{
 				highLevelDroidUpdate(pD, fx, fy, secondaryOrder, order, psTarget, experience);
 			}
@@ -586,7 +586,7 @@ static void offscreenUpdate(DROID *psDroid,
 	{
 		gridMoveDroid(psDroid, oldX, oldY);
 	}
-
+	/*
 	// stage one, update the droid's position & info, LOW LEVEL STUFF.
 	if(	   order == DORDER_ATTACK
 		|| order == DORDER_MOVE
@@ -607,7 +607,7 @@ static void offscreenUpdate(DROID *psDroid,
 		moveStopDroid(psDroid);
 		turnOffMultiMsg(false);
 	}
-
+	*/
 	// snap droid(if on ground)  to terrain level at x,y.
 	psPropStats = asPropulsionStats + psDroid->asBits[COMP_PROPULSION].nStat;
 	ASSERT( psPropStats != NULL, "offscreenUpdate: invalid propulsion stats pointer" );
