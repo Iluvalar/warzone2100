@@ -491,7 +491,7 @@ BOOL recvDroidCheck()
 			// Update the higher level stuff
 			if (!isVtolDroid(pD) || 1)
 			{
-				highLevelDroidUpdate(pD, fx, fy, secondaryOrder, order, psTarget, experience);
+				highLevelDroidUpdate(pD, tx, ty, secondaryOrder, order, psTarget, experience);
 			}
 
 			// ...and repeat!
@@ -506,7 +506,7 @@ BOOL recvDroidCheck()
 
 // ////////////////////////////////////////////////////////////////////////////
 // higher order droid updating. Works mainly at the order level. comes after the main sync.
-static void highLevelDroidUpdate(DROID *psDroid, float fx, float fy,
+static void highLevelDroidUpdate(DROID *psDroid, float tx, float ty,
 								 UDWORD state, UDWORD order,
 								 BASE_OBJECT *psTarget,float experience)
 {
@@ -517,7 +517,8 @@ static void highLevelDroidUpdate(DROID *psDroid, float fx, float fy,
 	if(order!=DORDER_NONE){
 		if (validOrderForObj(order))
 		{
-			if(psTarget!=0){
+			if(psTarget!=0)
+			{
 				if( !(psDroid->order==order && psDroid->psTarget==psTarget) )
 				{
 					orderDroidObj(psDroid, order, psTarget);
@@ -526,10 +527,16 @@ static void highLevelDroidUpdate(DROID *psDroid, float fx, float fy,
 		}
 		else if (validOrderForLoc(order))
 		{
-			if( !(psDroid->order==order && psDroid->orderX==fx && psDroid->orderY==fy ) )
+			if( !(psDroid->order==order && psDroid->orderX==tx && psDroid->orderY==ty ) )
 			{
-				orderDroidLoc(psDroid, order, fx, fy);
+				orderDroidLoc(psDroid, order, tx, ty);
 			 }
+		}
+		else{
+			if( !(psDroid->order==order) )
+			{
+				orderDroid(psDroid, order);
+			}
 		}
 	}
 	psDroid->secondaryOrder = state;
@@ -570,7 +577,7 @@ static void offscreenUpdate(DROID *psDroid,
 	oldY			= psDroid->pos.y;
 	if(	!onScreen 
 		||(
-			(fabs(fx - psDroid->sMove.fx)>(TILE_UNITS*3))		// if more than 7 tiles wrong.
+			(fabs(fx - psDroid->sMove.fx)>(TILE_UNITS*3))		// if more than 3 tiles wrong.
 		   	||(fabs(fy - psDroid->sMove.fy)>(TILE_UNITS*3)) 
 		)
 	)
