@@ -577,8 +577,8 @@ static void offscreenUpdate(DROID *psDroid,
 	oldY			= psDroid->pos.y;
 	if(	!onScreen 
 		||(
-			(fabs(fx - psDroid->sMove.fx)>(TILE_UNITS*3))		// if more than 3 tiles wrong.
-		   	||(fabs(fy - psDroid->sMove.fy)>(TILE_UNITS*3)) 
+			(fabs(fx - psDroid->sMove.fx)>(TILE_UNITS*2))		// if more than 1 tiles wrong.
+		   	||(fabs(fy - psDroid->sMove.fy)>(TILE_UNITS*2)) 
 		)
 	)
 	{
