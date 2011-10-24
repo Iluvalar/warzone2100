@@ -57,7 +57,7 @@ extern DROID_TEMPLATE			*apsStaticTemplates;			// for AIs and scripts
 extern bool runningMultiplayer(void);
 
 /* The range for neighbouring objects */
-#define NAYBOR_RANGE		(TILE_UNITS*9)	//range of lancer, BB, TK etc
+#define NAYBOR_RANGE		(TILE_UNITS*20)	//Highest range for direct weapon (lasers) after which consideration by the targeting AI is useless
 
 //used to stop structures being built too near the edge and droids being placed down - pickATile
 #define TOO_NEAR_EDGE	3
