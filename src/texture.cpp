@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2010  Warzone 2100 Project
+	Copyright (C) 2005-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -23,12 +23,10 @@
  * This is where we do texture atlas generation.
  */
 
-#include <GLee.h>
 #include "lib/framework/frame.h"
-
+#include "lib/framework/opengl.h"
 
 #include <string.h>
-
 #include <physfs.h>
 
 #include "lib/framework/file.h"
@@ -57,7 +55,7 @@ TILE_TEX_INFO tileTexInfo[MAX_TILES];
 static int firstPage; // the last used page before we start adding terrain textures
 int terrainPage; // texture ID of the terrain page
 static int mipmap_max, mipmap_levels;
-static int maxTextureSize = 256; ///< the maximum size texture we will create
+static int maxTextureSize = 2048; ///< the maximum size texture we will create
 
 void setTextureSize(int texSize)
 {
@@ -111,7 +109,7 @@ static int newPage(const char *name, int level, int width, int height, int count
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
 	// Use anisotropic filtering, if available, but only max 4.0 to reduce processor burden
-	if (GLEE_EXT_texture_filter_anisotropic)
+	if (GLEW_EXT_texture_filter_anisotropic)
 	{
 		GLfloat max;
 
@@ -173,7 +171,6 @@ bool texLoad(const char *fileName)
 		abort(); // cannot recover; we could possibly generate a random palette?
 	}
 	i = 0; // tile
-	k = 0; // number of values read
 	j = 0; // place in buffer
 	do {
 		unsigned int r, g, b;
@@ -217,7 +214,7 @@ bool texLoad(const char *fileName)
 			sprintf(fullPath, "%s/tile-%02d.png", partialPath, k);
 			if (PHYSFS_exists(fullPath)) // avoid dire warning
 			{
-				BOOL retval = iV_loadImage_PNG(fullPath, &tile);
+				bool retval = iV_loadImage_PNG(fullPath, &tile);
 				ASSERT_OR_RETURN(false, retval, "Could not load %s!", fullPath);
 			}
 			else

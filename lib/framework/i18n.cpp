@@ -1,6 +1,6 @@
 /*
 	This file is part of Warzone 2100.
-	Copyright (C) 2005-2010  Warzone 2100 Project
+	Copyright (C) 2005-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -38,27 +38,30 @@
 #endif
 
 // Language names (http://en.wikipedia.org/wiki/List_of_ISO_639-2_codes)
+#define LANG_NAME_BASQUE "euskara"
+#define LANG_NAME_CATALAN "català"
+#define LANG_NAME_CHINESE_SIMPLIFIED "汉语"
+#define LANG_NAME_CHINESE_TRADITIONAL "漢語"
+#define LANG_NAME_CROATIAN "Hrvatski"
 #define LANG_NAME_CZECH "česky"
 #define LANG_NAME_DANISH "Dansk"
-#define LANG_NAME_GERMAN "Deutsch"
+#define LANG_NAME_DUTCH "Nederlands"
 #define LANG_NAME_ENGLISH "English"
 #define LANG_NAME_ENGLISH_UK "English (United Kingdom)"
-#define LANG_NAME_SPANISH "Español"
 #define LANG_NAME_ESTONIAN "Eesti Keel"
-#define LANG_NAME_BASQUE "euskara"
-#define LANG_NAME_FINNISH "tanska"
+#define LANG_NAME_FINNISH "suomi"
 #define LANG_NAME_FRENCH "Français"
 #define LANG_NAME_FRISIAN_NETHERLANDS "frysk"
+#define LANG_NAME_GERMAN "Deutsch"
+#define LANG_NAME_HUNGARIAN "magyar"
 #define LANG_NAME_IRISH "Imruagadh"
-#define LANG_NAME_CROATIAN "Hrvatski"
 #define LANG_NAME_ITALIAN "Italiano"
-#define LANG_NAME_LITHUANIAN "lietuvių kalba"
+#define LANG_NAME_KOREAN "한국어"
 #define LANG_NAME_LATIN "latine"
 #define LANG_NAME_LATVIAN "latviešu valoda"
-#define LANG_NAME_KOREAN "한국어"
+#define LANG_NAME_LITHUANIAN "lietuvių kalba"
 #define LANG_NAME_NORWEGIAN "Norsk"
 #define LANG_NAME_NORWEGIAN_NYNORSK "nynorsk"
-#define LANG_NAME_DUTCH "Nederlands"
 #define LANG_NAME_POLISH "Polski"
 #define LANG_NAME_PORTUGUESE_BRAZILIAN "Português Brasileiro"
 #define LANG_NAME_PORTUGUESE "Português"
@@ -66,13 +69,12 @@
 #define LANG_NAME_RUSSIAN "Русский"
 #define LANG_NAME_SLOVAK "Slovensky"
 #define LANG_NAME_SLOVENIAN "Slovenski"
-#define LANG_NAME_SWEDISH_SWEDEN "svenska (Sverige)"
+#define LANG_NAME_SPANISH "Español"
 #define LANG_NAME_SWEDISH "svenska"
+#define LANG_NAME_SWEDISH_SWEDEN "svenska (Sverige)"
 #define LANG_NAME_TURKISH "Türkçe"
-#define LANG_NAME_UZBEK_CYRILLIC "Ўзбек"
 #define LANG_NAME_UKRAINIAN "Українська"
-#define LANG_NAME_CHINESE_SIMPLIFIED "汉语"
-#define LANG_NAME_CHINESE_TRADITIONAL "漢語"
+#define LANG_NAME_UZBEK_CYRILLIC "Ўзбек"
 
 #if defined(WZ_OS_WIN)
 /*
@@ -89,10 +91,11 @@ static const struct
 } map[] = {
 	{ "", N_("System locale"), LANG_NEUTRAL, SUBLANG_DEFAULT },
 #  if defined(ENABLE_NLS)
+	{ "ca", LANG_NAME_CATALAN, LANG_CATALAN, SUBLANG_DEFAULT },
 	{ "cs", LANG_NAME_CZECH, LANG_CZECH, SUBLANG_DEFAULT },
 	{ "da", LANG_NAME_DANISH, LANG_DANISH, SUBLANG_DEFAULT },
 	{ "de", LANG_NAME_GERMAN, LANG_GERMAN, SUBLANG_GERMAN },
-//	{ "en", LANG_NAME_ENGLISH, LANG_ENGLISH, SUBLANG_DEFAULT },
+	{ "en", LANG_NAME_ENGLISH, LANG_ENGLISH, SUBLANG_DEFAULT },
 	{ "en_GB", LANG_NAME_ENGLISH_UK, LANG_ENGLISH, SUBLANG_ENGLISH_UK },
 	{ "es", LANG_NAME_SPANISH, LANG_SPANISH, SUBLANG_SPANISH },
 	{ "et_EE", LANG_NAME_ESTONIAN, LANG_ESTONIAN, SUBLANG_DEFAULT },
@@ -109,6 +112,7 @@ static const struct
 	{ "fy", LANG_NAME_FRISIAN_NETHERLANDS, LANG_FRISIAN, SUBLANG_FRISIAN_NETHERLANDS },
 	{ "ga", LANG_NAME_IRISH, LANG_IRISH, SUBLANG_IRISH_IRELAND },
 	{ "hr", LANG_NAME_CROATIAN, LANG_CROATIAN, SUBLANG_DEFAULT },
+	{ "hu", LANG_NAME_HUNGARIAN, LANG_HUNGARIAN, SUBLANG_DEFAULT },
 	{ "it", LANG_NAME_ITALIAN, LANG_ITALIAN, SUBLANG_ITALIAN },
 	{ "ko_KR", LANG_NAME_KOREAN, LANG_KOREAN, SUBLANG_DEFAULT },
 //	{ "la", LANG_NAME_LATIN, LANG_LATIN, SUBLANG_DEFAULT },
@@ -148,46 +152,45 @@ static const struct
 } map[] = {
 	{ "",   N_("System locale"), "", "" },
 #  if defined(ENABLE_NLS)
-	{ "cs", LANG_NAME_CZECH, "cs.UTF-8", "cs" },
+	{ "ca_ES", LANG_NAME_CATALAN, "ca_ES.UTF-8", "ca" },
+	{ "cs_CZ", LANG_NAME_CZECH, "cs_CZ.UTF-8", "cs" },
 	{ "da", LANG_NAME_DANISH, "da_DK.UTF-8", "da_DK" },
 	{ "de", LANG_NAME_GERMAN, "de_DE.UTF-8", "de_DE" },
-//	{ "en", LANG_NAME_ENGLISH, "en_US.UTF-8", "en_US" },
+	{ "en", LANG_NAME_ENGLISH, "en_US.UTF-8", "en_US" },
 	{ "en_GB", LANG_NAME_ENGLISH_UK, "en_GB.UTF-8", "en_GB" },
 	{ "es", LANG_NAME_SPANISH, "es_ES.UTF-8", "es_ES" },
-	{ "et_EE", LANG_NAME_ESTONIAN, "et_EE.UTF-8", "et_EE" },
-//	{ "eu", LANG_NAME_BASQUE, "eu.UTF-8", "eu" },
-	{ "fi", LANG_NAME_FINNISH, "fi.UTF-8", "fi" },
+	{ "et_EE", LANG_NAME_ESTONIAN, "et_EE.UTF-8", "et" },
+//	{ "eu_ES", LANG_NAME_BASQUE, "eu_ES.UTF-8", "eu" },
+	{ "fi", LANG_NAME_FINNISH, "fi_FI.UTF-8", "fi_FI" },
 	{ "fr", LANG_NAME_FRENCH, "fr_FR.UTF-8", "fr_FR" },
 	/* Our Frisian translation is the "West Frisian" variation of it. This
 	 * variation is mostly spoken in the Dutch province Friesland (Fryslân
 	 * in Frisian) and has ISO 639-3 code "fry".
-	 *
-	 * FIXME: We should really use a sub-language code for this. E.g.
-	 *        fy_XX.
 	 */
-	{ "fy", LANG_NAME_FRISIAN_NETHERLANDS, "fy.UTF-8", "fy" },
-	{ "ga", LANG_NAME_IRISH, "ga.UTF-8", "ga" },
+	{ "fy_NL", LANG_NAME_FRISIAN_NETHERLANDS, "fy_NL.UTF-8", "fy" },
+	{ "ga_IE", LANG_NAME_IRISH, "ga_IE.UTF-8", "ga" },
 	{ "hr", LANG_NAME_CROATIAN, "hr_HR.UTF-8", "hr_HR" },
+	{ "hu", LANG_NAME_HUNGARIAN, "hu_HU.UTF-8", "hu_HU" },
 	{ "it", LANG_NAME_ITALIAN, "it_IT.UTF-8", "it_IT" },
-	{ "ko_KR", LANG_NAME_KOREAN, "ko_KR.UTF-8", "ko_KR" },
+	{ "ko_KR", LANG_NAME_KOREAN, "ko_KR.UTF-8", "ko" },
 	{ "la", LANG_NAME_LATIN, "la.UTF-8", "la" },
-	{ "lt", LANG_NAME_LITHUANIAN, "lt.UTF-8", "lt" },
-//	{ "lv", LANG_NAME_LATVIAN, "lv.UTF-8", "lv" },
-	{ "nb", LANG_NAME_NORWEGIAN, "nb_NO.UTF-8", "nb_NO" },
-//	{ "nn", LANG_NAME_NORWEGIAN_NYNORSK, "nn.UTF-8", "nn" },
+	{ "lt", LANG_NAME_LITHUANIAN, "lt_LT.UTF-8", "lt_LT" },
+//	{ "lv", LANG_NAME_LATVIAN, "lv_LV.UTF-8", "lv_LV" },
+	{ "nb_NO", LANG_NAME_NORWEGIAN, "nb_NO.UTF-8", "nb" },
+//	{ "nn_NO", LANG_NAME_NORWEGIAN_NYNORSK, "nn_NO.UTF-8", "nn" },
 	{ "nl", LANG_NAME_DUTCH, "nl_NL.UTF-8", "nl_NL" },
-	{ "pl", LANG_NAME_POLISH, "pl.UTF-8", "pl" },
+	{ "pl", LANG_NAME_POLISH, "pl_PL.UTF-8", "pl_PL" },
 	{ "pt_BR", LANG_NAME_PORTUGUESE_BRAZILIAN, "pt_BR.UTF-8", "pt_BR" },
 	{ "pt", LANG_NAME_PORTUGUESE, "pt_PT.UTF-8", "pt_PT" },
-	{ "ro", LANG_NAME_ROMANIAN, "ro.UTF-8", "ro" },
+	{ "ro", LANG_NAME_ROMANIAN, "ro_RO.UTF-8", "ro_RO" },
 	{ "ru", LANG_NAME_RUSSIAN, "ru_RU.UTF-8", "ru_RU" },
 	{ "sk", LANG_NAME_SLOVAK, "sk_SK.UTF-8", "sk_SK" },
-	{ "sl", LANG_NAME_SLOVENIAN, "sl.UTF-8", "sl" },
-//	{ "sv_SE", LANG_NAME_SWEDISH_SWEDEN, "sv_SE.UTF-8", "sv_SE" },
+	{ "sl_SI", LANG_NAME_SLOVENIAN, "sl_SI.UTF-8", "sl" },
+//	{ "sv_SE", LANG_NAME_SWEDISH_SWEDEN, "sv_SE.UTF-8", "sv" },
 //	{ "sv", LANG_NAME_SWEDISH, "sv.UTF-8", "sv" },
 	{ "tr", LANG_NAME_TURKISH, "tr_TR.UTF-8", "tr_TR" },
-//	{ "uz", LANG_NAME_UZBEK_CYRILLIC, "uz.UTF-8", "uz" },
-	{ "uk_UA", LANG_NAME_UKRAINIAN, "uk_UA.UTF-8", "uk_UA" },
+//	{ "uz", LANG_NAME_UZBEK_CYRILLIC, "uz_UZ.UTF-8", "uz_UZ" },
+	{ "uk_UA", LANG_NAME_UKRAINIAN, "uk_UA.UTF-8", "uk" },
 	{ "zh_CN", LANG_NAME_CHINESE_SIMPLIFIED, "zh_CN.UTF-8", "zh_CN" },
 	{ "zh_TW", LANG_NAME_CHINESE_TRADITIONAL, "zh_TW.UTF-8", "zh_TW" },
 #  endif

@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2010  Warzone 2100 Project
+	Copyright (C) 2005-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -31,6 +31,10 @@
 #include "lib/ivis_opengl/textdraw.h"
 #include "lib/ivis_opengl/bitimage.h"
 #include "src/multiplay.h"
+
+#define ASCII_SPACE			(32)
+#define ASCII_NEWLINE			('@')
+#define ASCII_COLOURMODE		('#')
 
 #ifdef WZ_OS_MAC
 # include <CoreFoundation/CoreFoundation.h>
@@ -229,6 +233,12 @@ void iV_SetFont(enum iV_fonts FontID)
 {
 	switch (FontID)
 	{
+		case font_scaled:
+			iV_SetTextSize(12.f * pie_GetVideoBufferHeight() / 480);
+			glcFont(_glcFont_Regular);
+			break;
+
+		default:
 		case font_regular:
 			iV_SetTextSize(12.f);
 			glcFont(_glcFont_Regular);
@@ -321,8 +331,7 @@ unsigned int iV_GetCountedTextWidth(const char* string, size_t string_length)
 	glcMeasureCountedString(GL_FALSE, string_length, string);
 	if (!glcGetStringMetric(GLC_BOUNDS, boundingbox))
 	{
-		debug(LOG_ERROR, "Couldn't retrieve a bounding box for the string \"%s\" of length %u", 
-		      string, (unsigned int)string_length);
+		debug(LOG_ERROR, "Couldn't retrieve a bounding box for the string \"%s\" of length %u", string, (unsigned int)string_length);
 		return 0;
 	}
 
@@ -453,8 +462,8 @@ void iV_SetTextColour(PIELIGHT colour)
  */
 int iV_DrawFormattedText(const char* String, UDWORD x, UDWORD y, UDWORD Width, UDWORD Justify)
 {
-	char FString[256];
-	char FWord[256];
+	std::string FString;
+	std::string FWord;
 	int i;
 	int jx = x;		// Default to left justify.
 	int jy = y;
@@ -468,7 +477,7 @@ int iV_DrawFormattedText(const char* String, UDWORD x, UDWORD y, UDWORD Width, U
 		bool NewLine = false;
 
 		// Reset text draw buffer
-		FString[0] = 0;
+		FString.clear();
 
 		WWidth = 0;
 
@@ -476,10 +485,11 @@ int iV_DrawFormattedText(const char* String, UDWORD x, UDWORD y, UDWORD Width, U
 		while (*curChar != 0 && WWidth < Width && !NewLine)
 		{
 			const char* startOfWord = curChar;
-			const unsigned int FStringWidth = iV_GetTextWidth(FString);
+			const unsigned int FStringWidth = iV_GetTextWidth(FString.c_str());
 
 			// Get the next word.
 			i = 0;
+			FWord.clear();
 			for (; *curChar != 0
 			    && *curChar != ASCII_SPACE
 			    && *curChar != ASCII_NEWLINE
@@ -488,14 +498,15 @@ int iV_DrawFormattedText(const char* String, UDWORD x, UDWORD y, UDWORD Width, U
 			{
 				if (*curChar == ASCII_COLOURMODE) // If it's a colour mode toggle char then just add it to the word.
 				{
-					FWord[i] = *curChar;
+					FWord.push_back(*curChar);
 
 					// this character won't be drawn so don't deal with its width
 					continue;
 				}
 
 				// Update this line's pixel width.
-				WWidth = FStringWidth + iV_GetCountedTextWidth(FWord, i + 1);
+				//WWidth = FStringWidth + iV_GetCountedTextWidth(FWord.c_str(), i + 1);  // This triggers tonnes of valgrind warnings, if the string contains unicode. Adding lots of trailing garbage didn't help... Using iV_GetTextWidth with a null-terminated string, instead.
+				WWidth = FStringWidth + iV_GetTextWidth(FWord.c_str());
 
 				// If this word doesn't fit on the current line then break out
 				if (WWidth > Width)
@@ -504,7 +515,7 @@ int iV_DrawFormattedText(const char* String, UDWORD x, UDWORD y, UDWORD Width, U
 				}
 
 				// If width ok then add this character to the current word.
-				FWord[i] = *curChar;
+				FWord.push_back(*curChar);
 			}
 
 			// Don't forget the space.
@@ -515,7 +526,7 @@ int iV_DrawFormattedText(const char* String, UDWORD x, UDWORD y, UDWORD Width, U
 				WWidth += iV_GetCharWidth('-');
 				if (WWidth <= Width)
 				{
-					FWord[i] = ' ';
+					FWord.push_back(' ');
 					++i;
 					++curChar;
 					GotSpace = true;
@@ -545,33 +556,18 @@ int iV_DrawFormattedText(const char* String, UDWORD x, UDWORD y, UDWORD Width, U
 				break;
 			}
 
-			// Terminate the word.
-			FWord[i] = 0;
-
 			// And add it to the output string.
-			sstrcat(FString, FWord);
+			FString.append(FWord);
 		}
 
 
 		// Remove trailing spaces, useful when doing center alignment.
+		while (!FString.empty() && FString[FString.size() - 1] == ' ')
 		{
-			// Find the string length (the "minus one" part
-			// guarantees that we get the length of the string, not
-			// the buffer size required to contain it).
-			size_t len = strnlen1(FString, sizeof(FString)) - 1;
-
-			for (; len != 0; --len)
-			{
-				// As soon as we encounter a non-space character, break out
-				if (FString[len] != ASCII_SPACE)
-					break;
-
-				// Cut off the current space character from the string
-				FString[len] = '\0';
-			}
+			FString.erase(FString.size() - 1);  // std::string has no pop_back().
 		}
 
-		TWidth = iV_GetTextWidth(FString);
+		TWidth = iV_GetTextWidth(FString.c_str());
 
 		// Do justify.
 		switch (Justify)
@@ -590,8 +586,7 @@ int iV_DrawFormattedText(const char* String, UDWORD x, UDWORD y, UDWORD Width, U
 		}
 
 		// draw the text.
-		//iV_SetTextSize(12.f);
-		iV_DrawText(FString, jx, jy);
+		iV_DrawText(FString.c_str(), jx, jy);
 
 		// and move down a line.
 		jy += iV_GetTextLineSize();
@@ -602,10 +597,11 @@ int iV_DrawFormattedText(const char* String, UDWORD x, UDWORD y, UDWORD Width, U
 
 void iV_DrawTextRotated(const char* string, float XPos, float YPos, float rotation)
 {
+	GLint matrix_mode = 0;
 	ASSERT_OR_RETURN( , string, "Couldn't render string!");
-
 	pie_SetTexturePage(TEXPAGE_EXTERN);
 
+	glGetIntegerv(GL_MATRIX_MODE, &matrix_mode);
 	glMatrixMode(GL_TEXTURE);
 	glPushMatrix();
 	glLoadIdentity();
@@ -631,7 +627,7 @@ void iV_DrawTextRotated(const char* string, float XPos, float YPos, float rotati
 	glPopMatrix();
 	glMatrixMode(GL_TEXTURE);
 	glPopMatrix();
-	glMatrixMode(GL_MODELVIEW);
+	glMatrixMode(matrix_mode);
 
 	// Reset the current model view matrix
 	glLoadIdentity();

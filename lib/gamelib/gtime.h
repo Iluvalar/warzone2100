@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2010  Warzone 2100 Project
+	Copyright (C) 2005-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -24,8 +24,11 @@
 #ifndef _gtime_h
 #define _gtime_h
 
-//#include "lib/netplay/nettypes.h"
-typedef struct _netqueue NETQUEUE_;
+#include "lib/framework/vector.h"
+
+
+struct NETQUEUE;
+struct Rational;
 
 /// The number of time units per second of the game clock.
 #define GAME_TICKS_PER_SEC 1000
@@ -71,7 +74,7 @@ extern void setGameTime(uint32_t newGameTime);
  * The game time increases in GAME_UNITS_PER_TICK increments, and deltaGameTime is either 0 or GAME_UNITS_PER_TICK.
  * @returns true iff the game time ticked.
  */
-extern void gameTimeUpdate(void);
+void gameTimeUpdate(bool mayUpdate);
 /// Call after updating the state, and before processing any net messages that use deltaGameTime. (Sets deltaGameTime = 0.)
 void gameTimeUpdateEnd(void);
 
@@ -79,7 +82,7 @@ void gameTimeUpdateEnd(void);
 void realTimeUpdate(void);
 
 /* Returns true if gameTime is stopped. */
-extern BOOL gameTimeIsStopped(void);
+extern bool gameTimeIsStopped(void);
 
 /** Call this to stop the game timer. */
 extern void gameTimeStop(void);
@@ -97,10 +100,10 @@ extern void gameTimeReset(UDWORD time);
 void gameTimeResetMod(void);
 
 /** Set the time modifier. Used to speed up the game. */
-void gameTimeSetMod(float mod);
+void gameTimeSetMod(Rational mod);
 
 /** Get the current time modifier. */
-void gameTimeGetMod(float *pMod);
+Rational gameTimeGetMod();
 
 /**
  * Returns the game time, modulo the time period, scaled to 0..requiredRange.
@@ -140,7 +143,7 @@ extern void	getTimeComponents(UDWORD time, UDWORD *hours, UDWORD *minutes, UDWOR
 extern float graphicsTimeFraction;  ///< Private performance calculation. Do not use.
 extern float realTimeFraction;  ///< Private performance calculation. Do not use.
 
-/// Returns the value times deltaGameTime, converted to seconds.
+/// Returns the value times deltaGameTime, converted to seconds. The return value is rounded down.
 static inline int32_t gameTimeAdjustedIncrement(int value)
 {
 	return value * (int)deltaGameTime / GAME_TICKS_PER_SEC;
@@ -156,8 +159,38 @@ static inline float realTimeAdjustedIncrement(float value)
 	return value * realTimeFraction;
 }
 
+/// Returns numerator/denominator * (newTime - oldTime). Rounds up or down such that the average return value is right, if oldTime is always the previous newTime.
+static inline WZ_DECL_CONST int quantiseFraction(int numerator, int denominator, int newTime, int oldTime)
+{
+	int64_t newValue = (int64_t)newTime * numerator/denominator;
+	int64_t oldValue = (int64_t)oldTime * numerator/denominator;
+	return newValue - oldValue;
+}
+/// Returns numerator/denominator * (newTime - oldTime). Rounds up or down such that the average return value is right, if oldTime is always the previous newTime.
+static inline WZ_DECL_CONST Vector3i quantiseFraction(Vector3i numerator, int denominator, int newTime, int oldTime)
+{
+	return Vector3i(quantiseFraction(numerator.x, denominator, newTime, oldTime),
+	                quantiseFraction(numerator.y, denominator, newTime, oldTime),
+	                quantiseFraction(numerator.z, denominator, newTime, oldTime));
+}
+/// Returns the value times deltaGameTime, converted to seconds. The return value is rounded up or down, such that it is exactly right on average.
+static inline int32_t gameTimeAdjustedAverage(int value)
+{
+	return quantiseFraction(value, GAME_TICKS_PER_SEC, gameTime + deltaGameTime, gameTime);
+}
+/// Returns the numerator/denominator times deltaGameTime, converted to seconds. The return value is rounded up or down, such that it is exactly right on average.
+static inline int32_t gameTimeAdjustedAverage(int numerator, int denominator)
+{
+	return quantiseFraction(numerator, GAME_TICKS_PER_SEC*denominator, gameTime + deltaGameTime, gameTime);
+}
+/// Returns the numerator/denominator times deltaGameTime, converted to seconds. The return value is rounded up or down, such that it is exactly right on average.
+static inline Vector3i gameTimeAdjustedAverage(Vector3i numerator, int denominator)
+{
+	return quantiseFraction(numerator, GAME_TICKS_PER_SEC*denominator, gameTime + deltaGameTime, gameTime);
+}
+
 void sendPlayerGameTime(void);                            ///< Sends a GAME_GAME_TIME message with gameTime plus latency to our game queues.
-void recvPlayerGameTime(NETQUEUE_ queue);                 ///< Processes a GAME_GAME_TIME message.
+void recvPlayerGameTime(NETQUEUE queue);                  ///< Processes a GAME_GAME_TIME message.
 bool checkPlayerGameTime(unsigned player);                ///< Checks that we are not waiting for a GAME_GAME_TIME message from this player. (player can be NET_ALL_PLAYERS.)
 void setPlayerGameTime(unsigned player, uint32_t time);   ///< Sets the player's time.
 

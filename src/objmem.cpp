@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2010  Warzone 2100 Project
+	Copyright (C) 2005-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -44,10 +44,7 @@
 #include "mapgrid.h"
 #include "combat.h"
 #include "visibility.h"
-
-#ifdef DEBUG
-static SDWORD factoryDeliveryPointCheck[MAX_PLAYERS][NUM_FLAG_TYPES][MAX_FACTORY];
-#endif
+#include "qtscript.h"
 
 // the initial value for the object ID
 #define OBJ_ID_INIT 20000
@@ -79,7 +76,7 @@ static void objListIntegCheck(void);
 
 
 /* Initialise the object heaps */
-BOOL objmemInitialise(void)
+bool objmemInitialise(void)
 {
 	// reset the object ID number
 	unsynchObjID = OBJ_ID_INIT/2;  // /2 so that object IDs start around OBJ_ID_INIT*8, in case that's important when loading maps.
@@ -146,7 +143,7 @@ void objmemUpdate(void)
 	   were destroyed before this turn */
 
 	/* First remove the objects from the start of the list */
-	while (psDestroyedObj != NULL && psDestroyedObj->died != gameTime)
+	while (psDestroyedObj != NULL && psDestroyedObj->died < gameTime - deltaGameTime)
 	{
 		psNext = psDestroyedObj->psNext;
 		objmemDestroy(psDestroyedObj);
@@ -158,7 +155,7 @@ void objmemUpdate(void)
 	for(psCurr = psPrev = psDestroyedObj; psCurr != NULL; psCurr = psNext)
 	{
 		psNext = psCurr->psNext;
-		if (psCurr->died != gameTime)
+		if (psCurr->died < gameTime - deltaGameTime)
 		{
 			objmemDestroy(psCurr);
 
@@ -186,6 +183,7 @@ void objmemUpdate(void)
 				break;
 			}
 			psCBObjDestroyed = NULL;
+			triggerEventDestroyed(psCurr);
 
 			psPrev = psCurr;
 		}
@@ -242,6 +240,8 @@ static inline void destroyObject(OBJECT* list[], OBJECT* object)
 {
 	ASSERT(object != NULL,
 	       "destroyObject: Invalid pointer");
+
+	scriptRemoveObject(object);
 
 	// If the message to remove is the first one in the list then mark the next one as the first
 	if (list[object->player] == object)
@@ -392,11 +392,8 @@ void addDroid(DROID *psDroidToAdd, DROID *pList[MAX_PLAYERS])
 		// commanders have to get their group back
 		if (psDroidToAdd->droidType == DROID_COMMAND)
 		{
-			grpCreate(&psGroup);
-			if (psGroup)
-			{
-				psGroup->add(psDroidToAdd);
-			}
+			psGroup = grpCreate();
+			psGroup->add(psDroidToAdd);
 		}
 	}
 	else if (pList[psDroidToAdd->player] == mission.apsDroidLists[psDroidToAdd->player])
@@ -618,7 +615,7 @@ void freeAllFeatures(void)
 /**************************  FLAG_POSITION ********************************/
 
 /* Create a new Flag Position */
-BOOL createFlagPosition(FLAG_POSITION **ppsNew, UDWORD player)
+bool createFlagPosition(FLAG_POSITION **ppsNew, UDWORD player)
 {
 	ASSERT( player<MAX_PLAYERS, "createFlagPosition: invalid player number" );
 
@@ -700,37 +697,33 @@ void freeAllFlagPositions(void)
 // check all flag positions for duplicate delivery points
 void checkFactoryFlags(void)
 {
-	FLAG_POSITION	*psFlag;
-	SDWORD			player, type, factory;
-
-	//clear the check array
-	for(player=0; player<MAX_PLAYERS; player++)
-	{
-		//for(type=0; type<NUM_FACTORY_TYPES; type++)
-        for(type=0; type<NUM_FLAG_TYPES; type++)
-		{
-			for(factory=0; factory<MAX_FACTORY; factory++)
-			{
-				factoryDeliveryPointCheck[player][type][factory] = 0;
-			}
-		}
-	}
+	static std::vector<unsigned> factoryDeliveryPointCheck[NUM_FLAG_TYPES];  // Static to save allocations.
 
 	//check the flags
-	for(player=0; player<MAX_PLAYERS; player++)
+	for (unsigned player = 0; player < MAX_PLAYERS; ++player)
 	{
-		psFlag = apsFlagPosLists[player];
+		//clear the check array
+		for (int type = 0; type < NUM_FLAG_TYPES; ++type)
+		{
+			factoryDeliveryPointCheck[type].clear();
+		}
+
+		FLAG_POSITION *psFlag = apsFlagPosLists[player];
 		while (psFlag)
 		{
 			if ((psFlag->type == POS_DELIVERY) &&//check this is attached to a unique factory
 				(psFlag->factoryType != REPAIR_FLAG))
 			{
-				type = psFlag->factoryType;
-				factory = psFlag->factoryInc;
-				ASSERT( factoryDeliveryPointCheck[player][type][factory] == 0,"DUPLICATE FACTORY DELIVERY POINT FOUND" );
-				factoryDeliveryPointCheck[player][type][factory] = 1;
+				unsigned type = psFlag->factoryType;
+				unsigned factory = psFlag->factoryInc;
+				factoryDeliveryPointCheck[type].push_back(factory);
 			}
 			psFlag = psFlag->psNext;
+		}
+		for (int type = 0; type < NUM_FLAG_TYPES; ++type)
+		{
+			std::sort(factoryDeliveryPointCheck[type].begin(), factoryDeliveryPointCheck[type].end());
+			ASSERT(std::unique(factoryDeliveryPointCheck[type].begin(), factoryDeliveryPointCheck[type].end()) == factoryDeliveryPointCheck[type].end(), "DUPLICATE FACTORY DELIVERY POINT FOUND");
 		}
 	}
 }
@@ -738,6 +731,68 @@ void checkFactoryFlags(void)
 
 
 /**************************  OBJECT ACCESS FUNCTIONALITY ********************************/
+
+// Find a base object from it's id
+BASE_OBJECT *getBaseObjFromData(unsigned id, unsigned player, OBJECT_TYPE type)
+{
+	BASE_OBJECT		*psObj;
+	DROID			*psTrans;
+
+	for (int i = 0; i < 3; ++i)
+	{
+		psObj = NULL;
+		switch (i)
+		{
+		case 0:
+			switch (type)
+			{
+			case OBJ_DROID: psObj = apsDroidLists[player]; break;
+			case OBJ_STRUCTURE: psObj = apsStructLists[player]; break;
+			case OBJ_FEATURE: psObj= apsFeatureLists[0];
+			default: break;
+			}
+			break;
+		case 1:
+			switch (type)
+			{
+			case OBJ_DROID: psObj = mission.apsDroidLists[player]; break;
+			case OBJ_STRUCTURE: psObj = mission.apsStructLists[player]; break;
+			case OBJ_FEATURE: psObj = mission.apsFeatureLists[0]; break;
+			default: break;
+			}
+			break;
+		case 2:
+			if (player == 0 && type == OBJ_DROID)
+			{
+				psObj = apsLimboDroids[0];
+			}
+			break;
+		}
+
+		while (psObj)
+		{
+			if (psObj->id == id)
+			{
+				return psObj;
+			}
+			// if transporter check any droids in the grp
+			if ((psObj->type == OBJ_DROID) && (((DROID*)psObj)->droidType == DROID_TRANSPORTER))
+			{
+				for(psTrans = ((DROID*)psObj)->psGroup->psList; psTrans != NULL; psTrans = psTrans->psGrpNext)
+				{
+					if (psTrans->id == id)
+					{
+						return (BASE_OBJECT*)psTrans;
+					}
+				}
+			}
+			psObj = psObj->psNext;
+		}
+	}
+	ASSERT(false, "failed to find id %d for player %d", id, player);
+
+	return NULL;
+}
 
 // Find a base object from it's id
 BASE_OBJECT *getBaseObjFromId(UDWORD id)
@@ -876,7 +931,7 @@ UDWORD getRepairIdFromFlag(FLAG_POSITION *psFlag)
 
 
 // check a base object exists for an ID
-BOOL checkValidId(UDWORD id)
+bool checkValidId(UDWORD id)
 {
 	return getBaseObjFromId(id) != NULL;
 }

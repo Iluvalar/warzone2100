@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2010  Warzone 2100 Project
+	Copyright (C) 2005-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -25,7 +25,7 @@
 
 #include "lib/framework/frame.h"
 #include "lib/framework/utf.h"
-#include "lib/framework/wzapp_c.h"
+#include "lib/framework/wzapp.h"
 #include "widget.h"
 #include "widgint.h"
 #include "editbox.h"
@@ -33,7 +33,6 @@
 // FIXME Direct iVis implementation include!
 #include "lib/ivis_opengl/pieblitfunc.h"
 #include "lib/ivis_opengl/textdraw.h"
-#include "scrap.h"
 
 
 /* Pixel gap between edge of edit box and text */
@@ -152,20 +151,6 @@ void W_EDITBOX::overwriteChar(QChar ch)
 
 	/* Update the insertion point */
 	++insPos;
-}
-
-/* Put a character into a text buffer overwriting any text under the cursor */
-void W_EDITBOX::putSelection()
-{
-	static char* scrap = NULL;
-	int scraplen;
-
-	get_scrap(T('T','E','X','T'), &scraplen, &scrap);
-	if (scraplen > 0 && scraplen < WIDG_MAXSTR-2)
-	{
-		aText = QString::fromUtf8(scrap);
-		insPos = aText.length();
-	}
 }
 
 
@@ -405,14 +390,10 @@ void W_EDITBOX::run(W_CONTEXT *psContext)
 			debug(LOG_INPUT, "EditBox cursor backspace");
 			break;
 		case INPBUF_TAB :
-			putSelection();
-
-			/* Update the printable text */
-			fitStringEnd();
 			debug(LOG_INPUT, "EditBox cursor tab");
 			break;
 		case INPBUF_CR :
-		case SDLK_KP_ENTER:		// either normal return key || keypad enter
+		case KEY_KPENTER:                  // either normal return key || keypad enter
 			/* Finish editing */
 			focusLost(psContext->psScreen);
 			screenClearFocus(psContext->psScreen);
@@ -424,6 +405,22 @@ void W_EDITBOX::run(W_CONTEXT *psContext)
 			break;
 
 		default:
+			if (keyDown(KEY_LCTRL) || keyDown(KEY_RCTRL))
+			{
+				switch (key)
+				{
+					case KEY_V:
+						aText = wzGetSelection();
+						insPos = aText.length();
+						/* Update the printable text */
+						fitStringEnd();
+						debug(LOG_INPUT, "EditBox paste");
+						break;
+					default:
+						break;
+				}
+				break;
+			}
 			/* Dealt with everything else this must be a printable character */
 			if (editState == WEDBS_INSERT)
 			{
@@ -556,7 +553,7 @@ void editBoxDisplay(WIDGET *psWidget, UDWORD xOffset, UDWORD yOffset, PIELIGHT *
 	enum iV_fonts CurrFontID;
 
 #if CURSOR_BLINK
-	BOOL		blink;
+	bool		blink;
 #endif
 
 	psEdBox = (W_EDITBOX *)psWidget;
@@ -601,7 +598,7 @@ void editBoxDisplay(WIDGET *psWidget, UDWORD xOffset, UDWORD yOffset, PIELIGHT *
 
 	// Display the cursor if editing
 #if CURSOR_BLINK
-	blink = !(((SDL_GetTicks() - psEdBox->blinkOffset)/WEDB_BLINKRATE) % 2);
+	blink = !(((wzGetTicks() - psEdBox->blinkOffset)/WEDB_BLINKRATE) % 2);
 	if ((psEdBox->state & WEDBS_MASK) == WEDBS_INSERT && blink)
 #else
 	if ((psEdBox->state & WEDBS_MASK) == WEDBS_INSERT)

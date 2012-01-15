@@ -1,6 +1,6 @@
 /*
 	This file is part of Warzone 2100.
-	Copyright (C) 2008-2010  Warzone 2100 Project
+	Copyright (C) 2008-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -22,11 +22,20 @@
 
 #include "lib/framework/types.h"
 
+typedef enum {
+    SCANLINES_OFF,
+    SCANLINES_50,
+    SCANLINES_BLACK
+} SCANLINE_MODE;
+
 extern bool seq_Play(const char* filename);
 extern bool seq_Playing(void);
 extern bool seq_Update(void);
 extern void seq_Shutdown(void);
 extern int seq_GetFrameNumber(void);
 extern void seq_SetDisplaySize(int sizeX, int sizeY, int posX, int posY);
+extern void seq_setScanlineMode(SCANLINE_MODE mode);
+extern SCANLINE_MODE seq_getScanlineMode(void);
+double seq_GetFrameTime();
 
 #endif // __INCLUDED_LIB_SEQUENCE_SEQUENCE_H__

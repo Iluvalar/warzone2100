@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2010  Warzone 2100 Project
+	Copyright (C) 2005-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@
 #include "lib/framework/file.h"
 #include "lib/framework/physfs_ext.h"
 #include "lib/framework/strres.h"
+#include "lib/framework/wzapp.h"
 #include "lib/ivis_opengl/piemode.h"
 #include "lib/ivis_opengl/piestate.h"
 #include "lib/ivis_opengl/tex.h"
@@ -93,6 +94,8 @@
 #include "wrappers.h"
 #include "terrain.h"
 #include "ingameop.h"
+#include "qtscript.h"
+#include "template.h"
 
 static void	initMiscVars(void);
 
@@ -103,7 +106,7 @@ char fileLoadBuffer[FILE_LOAD_BUFFER_SIZE];
 
 IMAGEFILE *FrontImages;
 
-BOOL DirectControl = false;
+bool DirectControl = false;
 
 static wzSearchPath * searchPathRegistry = NULL;
 
@@ -112,7 +115,7 @@ static wzSearchPath * searchPathRegistry = NULL;
 // any globals and statics to there default values each time the game
 // or frontend restarts.
 //
-static BOOL InitialiseGlobals(void)
+static bool InitialiseGlobals(void)
 {
 	frontendInitVars();	// Initialise frontend globals and statics.
 	statsInitVars();
@@ -135,7 +138,7 @@ static BOOL InitialiseGlobals(void)
 }
 
 
-static BOOL loadLevFile(const char* filename, searchPathMode datadir, bool ignoreWrf)
+static bool loadLevFile(const char* filename, searchPathMode datadir, bool ignoreWrf)
 {
 	char *pBuffer;
 	UDWORD size;
@@ -228,7 +231,7 @@ void registerSearchPath( const char path[], unsigned int priority )
  * Priority:
  * maps > mods > base > base.wz
  */
-BOOL rebuildSearchPath( searchPathMode mode, BOOL force )
+bool rebuildSearchPath( searchPathMode mode, bool force )
 {
 	static searchPathMode current_mode = mod_clean;
 	wzSearchPath * curSearchPath = searchPathRegistry;
@@ -297,6 +300,17 @@ BOOL rebuildSearchPath( searchPathMode mode, BOOL force )
 				debug(LOG_WZ, "*** Switching to campaign mods ***");
 				clearLoadedMods();
 
+				while (curSearchPath)
+				{
+					// make sure videos override included files
+					sstrcpy(tmpstr, curSearchPath->path);
+					sstrcat(tmpstr, "sequences.wz");
+					PHYSFS_addToSearchPath(tmpstr, PHYSFS_APPEND);
+					curSearchPath = curSearchPath->higherPriority;
+				}
+				curSearchPath = searchPathRegistry;
+				while (curSearchPath->lowerPriority)
+					curSearchPath = curSearchPath->lowerPriority;
 				while( curSearchPath )
 				{
 #ifdef DEBUG
@@ -326,11 +340,6 @@ BOOL rebuildSearchPath( searchPathMode mode, BOOL force )
 					sstrcat(tmpstr, "base.wz");
 					PHYSFS_addToSearchPath( tmpstr, PHYSFS_APPEND );
 
-					// add the video file
-					sstrcpy(tmpstr, curSearchPath->path);
-					sstrcat(tmpstr, "sequences.wz");
-					PHYSFS_addToSearchPath( tmpstr, PHYSFS_APPEND );
-					
 					curSearchPath = curSearchPath->higherPriority;
 				}
 				break;
@@ -338,14 +347,33 @@ BOOL rebuildSearchPath( searchPathMode mode, BOOL force )
 				debug(LOG_WZ, "*** Switching to multiplay mods ***");
 				clearLoadedMods();
 
+				while (curSearchPath)
+				{
+					// make sure videos override included files
+					sstrcpy(tmpstr, curSearchPath->path);
+					sstrcat(tmpstr, "sequences.wz");
+					PHYSFS_addToSearchPath(tmpstr, PHYSFS_APPEND);
+					curSearchPath = curSearchPath->higherPriority;
+				}
+				curSearchPath = searchPathRegistry;
+				while (curSearchPath->lowerPriority)
+					curSearchPath = curSearchPath->lowerPriority;
+				// Add the selected map first, for mapmod support
+				while (curSearchPath)
+				{
+					addSubdirs(curSearchPath->path, "maps", PHYSFS_APPEND, current_map, false);
+					curSearchPath = curSearchPath->higherPriority;
+				}
+				curSearchPath = searchPathRegistry;
+				while (curSearchPath->lowerPriority)
+					curSearchPath = curSearchPath->lowerPriority;
 				while( curSearchPath )
 				{
 #ifdef DEBUG
 					debug(LOG_WZ, "Adding [%s] to search path", curSearchPath->path);
 #endif // DEBUG
-					// Add maps and global and multiplay mods
+					// Add global and multiplay mods
 					PHYSFS_addToSearchPath( curSearchPath->path, PHYSFS_APPEND );
-					addSubdirs( curSearchPath->path, "maps", PHYSFS_APPEND, NULL, false );
 					addSubdirs( curSearchPath->path, "mods/music", PHYSFS_APPEND, NULL, false );
 					addSubdirs( curSearchPath->path, "mods/global", PHYSFS_APPEND, use_override_mods?override_mods:global_mods, true );
 					addSubdirs( curSearchPath->path, "mods", PHYSFS_APPEND, use_override_mods?override_mods:global_mods, true );
@@ -372,11 +400,15 @@ BOOL rebuildSearchPath( searchPathMode mode, BOOL force )
 					sstrcat(tmpstr, "base.wz");
 					PHYSFS_addToSearchPath( tmpstr, PHYSFS_APPEND );
 
-					// add the video file
-					sstrcpy(tmpstr, curSearchPath->path);
-					sstrcat(tmpstr, "sequences.wz");
-					PHYSFS_addToSearchPath( tmpstr, PHYSFS_APPEND );
-
+					curSearchPath = curSearchPath->higherPriority;
+				}
+				curSearchPath = searchPathRegistry;
+				while (curSearchPath->lowerPriority)
+					curSearchPath = curSearchPath->lowerPriority;
+				// Add maps last, so files in them don't override game data
+                                while (curSearchPath)
+				{
+					addSubdirs(curSearchPath->path, "maps", PHYSFS_APPEND, NULL, false);
 					curSearchPath = curSearchPath->higherPriority;
 				}
 				break;
@@ -411,7 +443,7 @@ BOOL rebuildSearchPath( searchPathMode mode, BOOL force )
 }
 
 
-BOOL buildMapList(void)
+bool buildMapList(void)
 {
 	char ** filelist, ** file;
 	size_t len;
@@ -446,7 +478,7 @@ BOOL buildMapList(void)
 // ////////////////////////////////////////////////////////////////////////////
 // Called once on program startup.
 //
-BOOL systemInitialise(void)
+bool systemInitialise(void)
 {
 	if (!widgInitialise())
 	{
@@ -456,27 +488,23 @@ BOOL systemInitialise(void)
 	buildMapList();
 
 	// Initialize render engine
-	war_SetFog(war_GetFog());		// Set Fog mode based on user preferences
 	if (!pie_Initialise())
 	{
 		debug(LOG_ERROR, "Unable to initialise renderer");
 		return false;
 	}
-	
-	if ( war_getSoundEnabled() )
+
+	if (!audio_Init(droidAudioTrackStopped, war_getSoundEnabled()))
 	{
-		if (!audio_Init(droidAudioTrackStopped))
-		{
-			debug(LOG_SOUND, "Could not initialise audio system: Continuing without audio");
-		}
-		if (war_GetMusicEnabled())
-		{
-			cdAudio_Open(UserMusicPath);
-		}
+		debug(LOG_SOUND, "Continuing without audio");
+	}
+	if (war_getSoundEnabled() && war_GetMusicEnabled())
+	{
+		cdAudio_Open(UserMusicPath);
 	}
 	else
 	{
-		debug(LOG_SOUND, "Sound disabled");
+		debug(LOG_SOUND, "Music disabled");
 	}
 
 	if (!dataInitLoadFuncs()) // Pass all the data loading functions to the framework library
@@ -542,6 +570,7 @@ void systemShutdown(void)
 	levShutDown();
 	widgShutDown();
 	fpathShutdown();
+	mapShutdown();
 	debug(LOG_MAIN, "shutting down everything else");
 	pal_ShutDown();		// currently unused stub
 	frameShutDown();	// close screen / SDL / resources / cursors / trig
@@ -554,7 +583,7 @@ void systemShutdown(void)
 
 /***************************************************************************/
 
-static BOOL
+static bool
 init_ObjectDead( void * psObj )
 {
 	BASE_OBJECT	*psBaseObj = (BASE_OBJECT *) psObj;
@@ -590,7 +619,7 @@ init_ObjectDead( void * psObj )
 // ////////////////////////////////////////////////////////////////////////////
 // Called At Frontend Startup.
 
-BOOL frontendInitialise(const char *ResourceFile)
+bool frontendInitialise(const char *ResourceFile)
 {
 	debug(LOG_MAIN, "Initialising frontend : %s", ResourceFile);
 
@@ -658,7 +687,7 @@ BOOL frontendInitialise(const char *ResourceFile)
 
 	// Set the default uncoloured cursor here, since it looks slightly
 	// better for menus and such.
-	pie_SetMouse(CURSOR_DEFAULT, false);
+	wzSetCursor(CURSOR_DEFAULT);
 
 	SetFormAudioIDs(-1,ID_SOUND_WINDOWCLOSE);			// disable the open noise since distorted in 3dfx builds.
 
@@ -673,7 +702,7 @@ BOOL frontendInitialise(const char *ResourceFile)
 }
 
 
-BOOL frontendShutdown(void)
+bool frontendShutdown(void)
 {
 	debug(LOG_WZ, "== Shuting down frontend ==");
 
@@ -722,7 +751,7 @@ BOOL frontendShutdown(void)
 
 
 
-BOOL stageOneInitialise(void)
+bool stageOneInitialise(void)
 {
 	debug(LOG_WZ, "== stageOneInitalise ==");
 
@@ -796,7 +825,12 @@ BOOL stageOneInitialise(void)
 		return false;
 	}
 
-	if (!scrTabInitialise())	// Initialise the script system
+	if (!scrTabInitialise())	// Initialise the old wzscript system
+	{
+		return false;
+	}
+
+	if (!initScripts())		// Initialise the new javascript system
 	{
 		return false;
 	}
@@ -823,7 +857,7 @@ BOOL stageOneInitialise(void)
 /******************************************************************************/
 /*                       Shutdown after data is released                      */
 
-BOOL stageOneShutDown(void)
+bool stageOneShutDown(void)
 {
 	debug(LOG_WZ, "== stageOneShutDown ==");
 
@@ -852,7 +886,7 @@ BOOL stageOneShutDown(void)
 
 	//free up the gateway stuff?
 	gwShutDown();
-	
+
 	shutdownTerrain();
 
 	if (!mapShutdown())
@@ -873,8 +907,15 @@ BOOL stageOneShutDown(void)
 		return false;
 	}
 
+	if (!shutdownScripts())
+	{
+		return false;
+	}
+
 	debug(LOG_TEXTURE, "=== stageOneShutDown ===");
 	pie_TexShutDown();
+	// no map for the main menu
+	setCurrentMap((char*)"", 1);
 	// Use mod_multiplay as the default (campaign might have set it to mod_singleplayer)
 	rebuildSearchPath( mod_multiplay, true );
 	pie_TexInit(); // restart it
@@ -888,7 +929,7 @@ BOOL stageOneShutDown(void)
 // ////////////////////////////////////////////////////////////////////////////
 // Initialise after the base data is loaded but before final level data is loaded
 
-BOOL stageTwoInitialise(void)
+bool stageTwoInitialise(void)
 {
 	int i;
 
@@ -910,11 +951,6 @@ BOOL stageTwoInitialise(void)
 	}
 
 	if (!dispInitialise())		/* Initialise the display system */
-	{
-		return false;
-	}
-
-	if(!InitRadar()) 	// After resLoad cause it needs the game palette initialised.
 	{
 		return false;
 	}
@@ -956,13 +992,14 @@ BOOL stageTwoInitialise(void)
 
 	// Set the default uncoloured cursor here, since it looks slightly
 	// better for menus and such.
-	pie_SetMouse(CURSOR_DEFAULT, false);
+	wzSetCursor(CURSOR_DEFAULT);
 
 	SetFormAudioIDs(ID_SOUND_WINDOWOPEN,ID_SOUND_WINDOWCLOSE);
 
 	// Setup game queues.
 	// Don't ask why this doesn't go in stage three. In fact, don't even ask me what stage one/two/three is supposed to mean, it seems about as descriptive as stage doStuff, stage doMoreStuff and stage doEvenMoreStuff...
 	debug(LOG_MAIN, "Init game queues, I am %d.", selectedPlayer);
+	sendQueuedDroidInfo();  // Discard any pending orders which could later get flushed into the game queue.
 	for (i = 0; i < MAX_PLAYERS; ++i)
 	{
 		NETinitQueue(NETgameQueue(i));
@@ -982,7 +1019,7 @@ BOOL stageTwoInitialise(void)
 // ////////////////////////////////////////////////////////////////////////////
 // Free up after level specific data has been released but before base data is released
 //
-BOOL stageTwoShutDown(void)
+bool stageTwoShutDown(void)
 {
 	debug(LOG_WZ, "== stageTwoShutDown ==");
 
@@ -1023,7 +1060,7 @@ BOOL stageTwoShutDown(void)
 	return true;
 }
 
-BOOL stageThreeInitialise(void)
+bool stageThreeInitialise(void)
 {
 	STRUCTURE *psStr;
 	UDWORD i;
@@ -1033,6 +1070,11 @@ BOOL stageThreeInitialise(void)
 	bTrackingTransporter = false;
 
 	loopMissionState = LMS_NORMAL;
+
+	if(!InitRadar()) 	// After resLoad cause it needs the game palette initialised.
+	{
+		return false;
+	}
 
 	// reset the clock to normal speed
 	gameTimeResetMod();
@@ -1056,6 +1098,9 @@ BOOL stageThreeInitialise(void)
 	preProcessVisibility();
 	closeLoadingScreen();			// reset the loading screen.
 
+	// Load any stored templates; these need to be available ASAP
+	initTemplates();
+
 	if (!fpathInitialise())
 	{
 		return false;
@@ -1069,16 +1114,6 @@ BOOL stageThreeInitialise(void)
 	if(MissionResUp)
 	{
 		intRemoveMissionResultNoAnim();
-	}
-
-	// determine if to use radar
-	for(psStr = apsStructLists[selectedPlayer];psStr;psStr=psStr->psNext){
-		if(psStr->pStructureType->type == REF_HQ)
-		{
-			radarOnScreen = true;
-			setHQExists(true,selectedPlayer);
-			break;
-		}
 	}
 
 	// Re-inititialise some static variables.
@@ -1125,25 +1160,24 @@ BOOL stageThreeInitialise(void)
 	if (getLevelLoadType() != GTYPE_SAVE_MIDMISSION)
 	{
 		eventFireCallbackTrigger((TRIGGER_TYPE)CALL_GAMEINIT);
+		triggerEvent(TRIGGER_GAME_INIT);
 	}
 
 	return true;
 }
 
-
-
-
-
 /*****************************************************************************/
 /*      Shutdown before any data is released                                 */
 
-BOOL stageThreeShutDown(void)
+bool stageThreeShutDown(void)
 {
 	debug(LOG_WZ, "== stageThreeShutDown ==");
 
 	challengesUp = false;
 	challengeActive = false;
 	isInGamePopupUp = false;
+
+	shutdownTemplates();
 
 	// make sure any button tips are gone.
 	widgReset();
@@ -1185,7 +1219,7 @@ BOOL stageThreeShutDown(void)
 }
 
 // Reset the game between campaigns
-BOOL campaignReset(void)
+bool campaignReset(void)
 {
 	debug(LOG_MAIN, "campaignReset");
 	gwShutDown();
@@ -1199,7 +1233,7 @@ BOOL campaignReset(void)
 }
 
 // Reset the game when loading a save game
-BOOL saveGameReset(void)
+bool saveGameReset(void)
 {
 	debug(LOG_MAIN, "saveGameReset");
 
@@ -1235,9 +1269,8 @@ static void	initMiscVars(void)
 	realSelectedPlayer = 0;
 	godMode = false;
 
-	// ffs am
-
 	radarOnScreen = true;
+	radarPermitted = true;
 	enableConsoleDisplay(true);
 
 	setSelectedGroup(UBYTE_MAX);

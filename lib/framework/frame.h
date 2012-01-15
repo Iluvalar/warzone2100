@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2010  Warzone 2100 Project
+	Copyright (C) 2005-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@
 #define _frame_h
 
 #include "wzglobal.h"
+#include <stdlib.h>
 
 // Workaround X11 headers #defining Status
 #ifdef Status
@@ -60,11 +61,11 @@ typedef uint16_t PlayerMask;
 #error Warzone 2100 is not a MMO.
 #endif
 
-typedef enum
+enum QUEUE_MODE
 {
 	ModeQueue,      ///< Sends a message on the game queue, which will get synchronised, by sending a GAME_ message.
 	ModeImmediate   ///< Performs the action immediately. Must already have been synchronised, for example by sending a GAME_ message.
-} QUEUE_MODE;
+};
 
 
 /** Initialise the framework library
@@ -78,7 +79,7 @@ typedef enum
  *  @return true when the framework library is successfully initialised, false
  *          when a part of the initialisation failed.
  */
-extern bool frameInitialise(const char* pWindowName, UDWORD width, UDWORD height, UDWORD bitDepth, unsigned int fsaa, bool fullScreen, bool vsync);
+extern bool frameInitialise(void);
 
 extern bool selfTest;
 
@@ -107,26 +108,14 @@ extern int getFramerateLimit(void);
  */
 extern void frameUpdate(void);
 
-extern void frameSetCursor(CURSOR cur);
-
 /** Returns the current frame we're on - used to establish whats on screen. */
 extern UDWORD frameGetFrameNumber(void);
 
-/** Return average framerate of the last seconds. */
-extern UDWORD frameGetAverageRate(void);
+/** Return framerate of the last second. */
+int frameRate();
 
 extern UDWORD HashString( const char *String );
 extern UDWORD HashStringIgnoreCase( const char *String );
-
-#if defined(WZ_OS_WIN)
-# include <winsock2.h> /* for struct timeval */
-
-struct timezone;
-extern int gettimeofday(struct timeval* tv, struct timezone* tz);
-
-extern "C" int isatty(int);  // Apparently flex declares isatty with C++ linkage on Windows. Don't ask why. Declaring here instead.
-#endif
-extern "C" int isatty(int);  // Apparently flex declares isatty with C++ linkage on Windows. Don't ask why. Declaring here instead.
 
 static inline WZ_DECL_CONST const char * bool2string(bool var)
 {

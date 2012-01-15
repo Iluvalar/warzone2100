@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2010  Warzone 2100 Project
+	Copyright (C) 2005-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -66,8 +66,8 @@ extern bool assertEnabled;
 /** Deals with failure in an assert. Expression is (re-)evaluated for output in the assert() call. */
 #define ASSERT_FAILURE(expr, expr_string, location_description, function, ...) \
 	( \
-		(void)_debug(LOG_ERROR, function, __VA_ARGS__), \
-		(void)_debug(LOG_ERROR, function, "Assert in Warzone: %s (%s), last script event: '%s'", \
+		(void)_debug(LOG_INFO, function, __VA_ARGS__), \
+		(void)_debug(LOG_INFO, function, "Assert in Warzone: %s (%s), last script event: '%s'", \
 	                                  location_description, expr_string, last_called_script_event), \
 		( assertEnabled ? (void)wz_assert(expr) : (void)0 )\
 	)
@@ -147,7 +147,8 @@ template<> class StaticAssert<true>{};
  ***/
 
 /** Debug enums. Must match code_part_names in debug.c */
-typedef enum {
+enum code_part
+{
   LOG_ALL, /* special: sets all to on */
   LOG_MAIN,
   LOG_SOUND,
@@ -181,7 +182,7 @@ typedef enum {
   LOG_POPUP,	// special, on by default, for both debug & release builds (used for OS dependent popup code)
   LOG_CONSOLE,	// send console messages to file
   LOG_LAST /**< _must_ be last! */
-} code_part;
+};
 
 extern bool enabled_debug[LOG_LAST];
 
@@ -189,13 +190,14 @@ typedef void (*debug_callback_fn)(void**, const char*);
 typedef bool (*debug_callback_init)(void**);
 typedef void (*debug_callback_exit)(void**);
 
-typedef struct _debug_callback {
-	struct _debug_callback * next;
+struct debug_callback
+{
+	debug_callback * next;
 	debug_callback_fn callback; /// Function which does the output
 	debug_callback_init init; /// Setup function
 	debug_callback_exit exit; /// Cleaning function
 	void * data; /// Used to pass data to the above functions. Eg a filename or handle.
-} debug_callback;
+};
 
 /**
  * Call once to initialize the debug logging system.
@@ -252,6 +254,9 @@ bool debug_enable_switch(const char *str);
 #define debug(part, ...) do { if (enabled_debug[part]) _debug(part, __FUNCTION__, __VA_ARGS__); } while(0)
 void _debug( code_part part, const char *function, const char *str, ...)
 		WZ_DECL_FORMAT(printf, 3, 4);
+
+#define debugBacktrace(part, ...) do { if (enabled_debug[part]) { _debug(part, __FUNCTION__, __VA_ARGS__); _debugBacktrace(part); }} while(0)
+void _debugBacktrace(code_part part);
 
 /** Global to keep track of which game object to trace. */
 extern UDWORD traceID;

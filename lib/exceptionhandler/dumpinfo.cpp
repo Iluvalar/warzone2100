@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 2008  Giel van Schijndel
-	Copyright (C) 2008-2010  Warzone 2100 Project
+	Copyright (C) 2008-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 #include <cerrno>
 #include <climits>
 #include <ctime>
+#include <cstdlib>
 #include <string>
 #include <vector>
 #include <deque>
@@ -29,8 +30,6 @@
 #include <physfs.h>
 #include "lib/framework/stdio_ext.h"
 #include "lib/framework/wzglobal.h" // required for config.h
-// FIXME: #include from src/
-#include "src/version.h"
 
 #if defined(WZ_OS_UNIX)
 # include <sys/utsname.h>
@@ -203,11 +202,11 @@ static std::string getProgramPath(const char* programCommand)
 		// `which' adds a \n which confuses exec()
 		std::string::size_type eol = programPath.find('\n');
 		if (eol != std::string::npos)
-			programPath.erase(eol); 
+			programPath.erase(eol);
 		// Strip any NUL chars
 		std::string::size_type nul = programPath.find('\0');
 		if (nul != std::string::npos)
-			programPath.erase(nul); 
+			programPath.erase(nul);
 		debug(LOG_WZ, "Found us at %s", programPath.c_str());
 	}
 	else
@@ -276,7 +275,7 @@ std::basic_ostream<CharT, Traits>& operator<<(std::basic_ostream<CharT, Traits>&
 	   << "." << static_cast<unsigned int>(ver.patch);
 }
 
-static void createHeader(int const argc, char* argv[])
+static void createHeader(int const argc, const char** argv, const char *packageVersion)
 {
 	std::ostringstream os;
 
@@ -291,7 +290,7 @@ static void createHeader(int const argc, char* argv[])
 
 	os << endl;
 
-	os << "Version: "     << version_getFormattedVersionString() << endl
+	os << "Version: "     << packageVersion << endl
 	   << "Distributor: " PACKAGE_DISTRIBUTOR << endl
 	   << "Compiled on: " __DATE__ " " __TIME__ << endl
 	   << "Compiled by: "
@@ -352,8 +351,8 @@ void addDumpInfo(const char *inbuffer)
 	miscData.insert(miscData.end(), msg.begin(), msg.end());
 }
 
-void dbgDumpInit(int argc, char* argv[])
+void dbgDumpInit(int argc, const char** argv, const char *packageVersion)
 {
 	debug_register_callback(&debug_exceptionhandler_data, NULL, NULL, NULL );
-	createHeader(argc, argv);
+	createHeader(argc, argv, packageVersion);
 }

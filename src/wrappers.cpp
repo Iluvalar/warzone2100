@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2010  Warzone 2100 Project
+	Copyright (C) 2005-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@
 #include "lib/ivis_opengl/screen.h"
 #include "lib/netplay/netplay.h"	// multiplayer
 #include "lib/sound/audio.h"
+#include "lib/framework/wzapp.h"
 
 #include "frontend.h"
 #include "keyedit.h"
@@ -43,22 +44,22 @@
 #include "warzoneconfig.h"
 #include "wrappers.h"
 
-typedef struct _star
+struct STAR
 {
 	int      xPos;
 	int      speed;
 	PIELIGHT colour;
-} STAR;
+};
 
-static BOOL		firstcall = false;
-static BOOL		bPlayerHasLost = false;
-static BOOL		bPlayerHasWon = false;
+static bool		firstcall = false;
+static bool		bPlayerHasLost = false;
+static bool		bPlayerHasWon = false;
 static UBYTE    scriptWinLoseVideo = PLAY_NONE;
 
 void	runCreditsScreen	( void );
 
 static	UDWORD	lastChange = 0;
-BOOL hostlaunch = false;				// used to detect if we are hosting a game via command line option.
+bool hostlaunch = false;				// used to detect if we are hosting a game via command line option.
 
 static uint32_t lastTick = 0;
 static int barLeftX, barLeftY, barRightX, barRightY, boxWidth, boxHeight, starsNum, starHeight;
@@ -108,7 +109,7 @@ static void setupLoadingScreen(void)
 // //////////////////////////////////////////////////////////////////
 // Initialise frontend globals and statics.
 //
-BOOL frontendInitVars(void)
+bool frontendInitVars(void)
 {
 	firstcall = true;
 	setupLoadingScreen();
@@ -125,7 +126,7 @@ TITLECODE titleLoop(void)
 	pie_SetDepthBufferStatus(DEPTH_CMP_ALWAYS_WRT_ON);
 	pie_SetFogStatus(false);
 	screen_RestartBackDrop();
-	pie_ShowMouse(true);
+	wzShowMouse(true);
 
 	// When we first init the game, firstcall is true.
 	if (firstcall)
@@ -144,14 +145,14 @@ TITLECODE titleLoop(void)
 		}
 		else if(strlen(iptoconnect) )
 		{
-			changeTitleMode(GAMEFIND);		// a ip/hostname was found, so go directly to the GAMEFIND screen
+			joinGame(iptoconnect, 0);
 		}
 		else
 		{
 			changeTitleMode(TITLE);			// normal game, run main title screen.
 		}
 		// Using software cursors (when on) for these menus due to a bug in SDL's SDL_ShowCursor()
-		pie_SetMouse(CURSOR_DEFAULT, war_GetColouredCursor());
+		wzSetCursor(CURSOR_DEFAULT);
 	}
 
 	if (titleMode != MULTIOPTION && titleMode != MULTILIMIT && titleMode != STARTGAME)
@@ -261,8 +262,6 @@ TITLECODE titleLoop(void)
 	NETflush();  // Send any pending network data.
 
 	audio_Update();
-	
-	pie_DrawMouse(mouseX(), mouseY());
 
 	pie_SetFogStatus(false);
 	pie_ScreenFlip(CLEAR_BLACK);//title loop
@@ -270,7 +269,7 @@ TITLECODE titleLoop(void)
 	if ((keyDown(KEY_LALT) || keyDown(KEY_RALT))
 	    /* Check for toggling display mode */
 	    && keyPressed(KEY_RETURN)) {
-		screenToggleMode();
+		wzToggleFullscreen();
 	}
 	return RetCode;
 }
@@ -283,7 +282,7 @@ TITLECODE titleLoop(void)
 void loadingScreenCallback(void)
 {
 	const PIELIGHT loadingbar_background = WZCOL_LOADING_BAR_BACKGROUND;
-	const uint32_t currTick = SDL_GetTicks();
+	const uint32_t currTick = wzGetTicks();
 	unsigned int i;
 
 	if (currTick - lastTick < 50)
@@ -318,9 +317,9 @@ void loadingScreenCallback(void)
 }
 
 // fill buffers with the static screen
-void initLoadingScreen( BOOL drawbdrop )
+void initLoadingScreen( bool drawbdrop )
 {
-	pie_ShowMouse(false);
+	wzShowMouse(false);
 	if (!drawbdrop)	// fill buffers
 	{
 		//just init the load bar with the current screen
@@ -388,7 +387,7 @@ void closeLoadingScreen(void)
 ////////////////////////////////////////////////////////////////////////////////
 // Gameover screen.
 
-BOOL displayGameOver(BOOL bDidit)
+bool displayGameOver(bool bDidit)
 {
 	if(bDidit)
 	{
@@ -417,24 +416,24 @@ BOOL displayGameOver(BOOL bDidit)
 
 
 ////////////////////////////////////////////////////////////////////////////////
-BOOL testPlayerHasLost( void )
+bool testPlayerHasLost( void )
 {
 	return(bPlayerHasLost);
 }
 
-void setPlayerHasLost( BOOL val )
+void setPlayerHasLost( bool val )
 {
 	bPlayerHasLost = val;
 }
 
 
 ////////////////////////////////////////////////////////////////////////////////
-BOOL testPlayerHasWon( void )
+bool testPlayerHasWon( void )
 {
 	return(bPlayerHasWon);
 }
 
-void setPlayerHasWon( BOOL val )
+void setPlayerHasWon( bool val )
 {
 	bPlayerHasWon = val;
 }

@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2010  Warzone 2100 Project
+	Copyright (C) 2005-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -59,7 +59,6 @@ static std::vector<BUCKET_TAG> bucketArray;
 static SDWORD bucketCalculateZ(RENDER_TYPE objectType, void* pObject)
 {
 	SDWORD				z = 0, radius;
-	SDWORD				px, pz;
 	Vector2i				pixel;
 	Vector3i				position;
 	UDWORD				droidSize;
@@ -70,24 +69,16 @@ static SDWORD bucketCalculateZ(RENDER_TYPE objectType, void* pObject)
 	const iIMDShape		*pImd;
 	Spacetime               spacetime;
 
-   	pie_MatBegin();
-
 	switch(objectType)
 	{
 		case RENDER_PARTICLE:
-	   		px = player.p.x & (TILE_UNITS-1);
-	   		pz = player.p.z & (TILE_UNITS-1);
-
-	   		/* Translate */
-   			pie_TRANSLATE(px,0,-pz);
-
 			position.x = ((ATPART*)pObject)->position.x;
 			position.y = ((ATPART*)pObject)->position.y;
 			position.z = ((ATPART*)pObject)->position.z;
 
-   			position.x = (SDWORD)(position.x - player.p.x) - terrainMidX*TILE_UNITS;
-   			position.z = (SDWORD)(terrainMidY*TILE_UNITS - (position.z - player.p.z));
- 			position.y = (SDWORD)position.y;
+			position.x = position.x - player.p.x;
+			position.z = -(position.z - player.p.z);
+ 			position.y = position.y;
 
 			/* 16 below is HACK!!! */
 			z = pie_RotateProject(&position,&pixel) - 16;
@@ -118,15 +109,9 @@ static SDWORD bucketCalculateZ(RENDER_TYPE objectType, void* pObject)
 				//the weapon stats holds the reference to which graphic to use
 				pImd = ((PROJECTILE*)pObject)->psWStats->pInFlightGraphic;
 
-	   			px = player.p.x & (TILE_UNITS-1);
-	   			pz = player.p.z & (TILE_UNITS-1);
-
-	   			/* Translate */
-   				pie_TRANSLATE(px,0,-pz);
-
 				psSimpObj = (SIMPLE_OBJECT*) pObject;
-   				position.x = (psSimpObj->pos.x - player.p.x) - terrainMidX*TILE_UNITS;
-   				position.z = terrainMidY*TILE_UNITS - (psSimpObj->pos.y - player.p.z);
+				position.x = psSimpObj->pos.x - player.p.x;
+				position.z = -(psSimpObj->pos.y - player.p.z);
 
 				position.y = psSimpObj->pos.z;
 
@@ -147,15 +132,9 @@ static SDWORD bucketCalculateZ(RENDER_TYPE objectType, void* pObject)
 			}
 			break;
 		case RENDER_STRUCTURE://not depth sorted
-	   		px = player.p.x & (TILE_UNITS-1);
-	   		pz = player.p.z & (TILE_UNITS-1);
-
-	   		/* Translate */
-   			pie_TRANSLATE(px,0,-pz);
-
 			psSimpObj = (SIMPLE_OBJECT*) pObject;
-   			position.x = (psSimpObj->pos.x - player.p.x) - terrainMidX*TILE_UNITS;
-   			position.z = terrainMidY*TILE_UNITS - (psSimpObj->pos.y - player.p.z);
+			position.x = psSimpObj->pos.x - player.p.x;
+			position.z = -(psSimpObj->pos.y - player.p.z);
 
 			//if((objectType == RENDER_STRUCTURE) && (((STRUCTURE*)pObject)->
 			//	pStructureType->type >= REF_DEFENSE) &&
@@ -189,15 +168,9 @@ static SDWORD bucketCalculateZ(RENDER_TYPE objectType, void* pObject)
 			}
 			break;
 		case RENDER_FEATURE://not depth sorted
-	   		px = player.p.x & (TILE_UNITS-1);
-	   		pz = player.p.z & (TILE_UNITS-1);
-
-	   		/* Translate */
-   			pie_TRANSLATE(px,0,-pz);
-
 			psSimpObj = (SIMPLE_OBJECT*) pObject;
-   			position.x = (psSimpObj->pos.x - player.p.x) - terrainMidX*TILE_UNITS;
-   			position.z = terrainMidY*TILE_UNITS - (psSimpObj->pos.y - player.p.z);
+			position.x = psSimpObj->pos.x - player.p.x;
+			position.z = -(psSimpObj->pos.y - player.p.z);
 
 			position.y = psSimpObj->pos.z+2;
 
@@ -217,22 +190,18 @@ static SDWORD bucketCalculateZ(RENDER_TYPE objectType, void* pObject)
 			}
 			break;
 		case RENDER_ANIMATION://not depth sorted
-	   		px = player.p.x & (TILE_UNITS-1);
-	   		pz = player.p.z & (TILE_UNITS-1);
-
-	   		/* Translate */
-   			pie_TRANSLATE(px,0,-pz);
-
 			psCompObj = (COMPONENT_OBJECT *) pObject;
 			spacetime = interpolateObjectSpacetime((SIMPLE_OBJECT *)psCompObj->psParent, graphicsTime);
-			position.x = (spacetime.pos.x - player.p.x) - terrainMidX*TILE_UNITS;
-			position.z = terrainMidY*TILE_UNITS - (spacetime.pos.y - player.p.z);
+			position.x = spacetime.pos.x - player.p.x;
+			position.z = -(spacetime.pos.y - player.p.z);
 			position.y = spacetime.pos.z;
 
 			/* object offset translation */
 			position.x += psCompObj->psShape->ocen.x;
 			position.y += psCompObj->psShape->ocen.z;
 			position.z -= psCompObj->psShape->ocen.y;
+
+			pie_MatBegin();
 
 			/* object (animation) translations - ivis z and y flipped */
 			pie_TRANSLATE( psCompObj->position.x, psCompObj->position.z,
@@ -245,19 +214,16 @@ static SDWORD bucketCalculateZ(RENDER_TYPE objectType, void* pObject)
 
 			z = pie_RotateProject(&position,&pixel);
 
+			pie_MatEnd();
+
 			break;
 		case RENDER_DROID:
 		case RENDER_SHADOW:
 			psDroid = (DROID*) pObject;
-	   		px = player.p.x & (TILE_UNITS-1);
-	   		pz = player.p.z & (TILE_UNITS-1);
-
-	   		/* Translate */
-   			pie_TRANSLATE(px,0,-pz);
 
 			psSimpObj = (SIMPLE_OBJECT*) pObject;
-   			position.x = (psSimpObj->pos.x - player.p.x) - terrainMidX*TILE_UNITS;
-   			position.z = terrainMidY*TILE_UNITS - (psSimpObj->pos.y - player.p.z);
+			position.x = psSimpObj->pos.x - player.p.x;
+			position.z = -(psSimpObj->pos.y - player.p.z);
  			position.y = psSimpObj->pos.z;
 			if(objectType == RENDER_SHADOW)
 			{
@@ -282,17 +248,11 @@ static SDWORD bucketCalculateZ(RENDER_TYPE objectType, void* pObject)
 			}
 			break;
 		case RENDER_PROXMSG:
-	   		px = player.p.x & (TILE_UNITS-1);
-	   		pz = player.p.z & (TILE_UNITS-1);
-
-	   		/* Translate */
-   			pie_TRANSLATE(px,0,-pz);
 			if (((PROXIMITY_DISPLAY *)pObject)->type == POS_PROXDATA)
 			{
-				position.x = (((VIEW_PROXIMITY *)((VIEWDATA *)((PROXIMITY_DISPLAY *)
-					pObject)->psMessage->pViewData)->pData)->x - player.p.x) -
-					terrainMidX * TILE_UNITS;
-   				position.z = terrainMidY * TILE_UNITS - (((VIEW_PROXIMITY *)((VIEWDATA *)
+				position.x = ((VIEW_PROXIMITY *)((VIEWDATA *)((PROXIMITY_DISPLAY *)
+					pObject)->psMessage->pViewData)->pData)->x - player.p.x;
+				position.z = -(((VIEW_PROXIMITY *)((VIEWDATA *)
 					((PROXIMITY_DISPLAY *)pObject)->psMessage->pViewData)->pData)->y -
 					player.p.z);
  				position.y = ((VIEW_PROXIMITY *)((VIEWDATA *)((PROXIMITY_DISPLAY *)pObject)->
@@ -300,10 +260,9 @@ static SDWORD bucketCalculateZ(RENDER_TYPE objectType, void* pObject)
 			}
 			else if (((PROXIMITY_DISPLAY *)pObject)->type == POS_PROXOBJ)
 			{
-				position.x = (((BASE_OBJECT *)((PROXIMITY_DISPLAY *)pObject)->
-					psMessage->pViewData)->pos.x - player.p.x) - terrainMidX *
-					TILE_UNITS;
-   				position.z = terrainMidY * TILE_UNITS - (((BASE_OBJECT *)((
+				position.x = ((BASE_OBJECT *)((PROXIMITY_DISPLAY *)pObject)->
+					psMessage->pViewData)->pos.x - player.p.x;
+				position.z = -(((BASE_OBJECT *)((
 					PROXIMITY_DISPLAY *)pObject)->psMessage->pViewData)->pos.y -
 					player.p.z);
  				position.y = ((BASE_OBJECT *)((PROXIMITY_DISPLAY *)pObject)->
@@ -326,15 +285,9 @@ static SDWORD bucketCalculateZ(RENDER_TYPE objectType, void* pObject)
 			}
 			break;
 		case RENDER_EFFECT:
-	   		px = player.p.x & (TILE_UNITS-1);
-	   		pz = player.p.z & (TILE_UNITS-1);
-
-	   		/* Translate */
-   			pie_TRANSLATE(px,0,-pz);
-
-   			position.x = (SDWORD)(((EFFECT*)pObject)->position.x - player.p.x) - terrainMidX*TILE_UNITS;
-   			position.z = (SDWORD)(terrainMidY*TILE_UNITS - (((EFFECT*)pObject)->position.z - player.p.z));
- 			position.y = (SDWORD)((EFFECT*)pObject)->position.y;
+			position.x = ((EFFECT*)pObject)->position.x - player.p.x;
+			position.z = -(((EFFECT*)pObject)->position.z - player.p.z);
+ 			position.y = ((EFFECT*)pObject)->position.y;
 
 			/* 16 below is HACK!!! */
 			z = pie_RotateProject(&position,&pixel) - 16;
@@ -359,14 +312,8 @@ static SDWORD bucketCalculateZ(RENDER_TYPE objectType, void* pObject)
 			break;
 
 		case RENDER_DELIVPOINT:
-	   		px = player.p.x & (TILE_UNITS-1);
-	   		pz = player.p.z & (TILE_UNITS-1);
-
-	   		/* Translate */
-   			pie_TRANSLATE(px,0,-pz);
-			position.x = (((FLAG_POSITION *)pObject)->coords.x - player.p.x) -
-				terrainMidX * TILE_UNITS;
-   			position.z = terrainMidY*TILE_UNITS - (((FLAG_POSITION*)pObject)->
+			position.x = ((FLAG_POSITION *)pObject)->coords.x - player.p.x;
+			position.z = -(((FLAG_POSITION*)pObject)->
 				coords.y - player.p.z);
  			position.y = ((FLAG_POSITION*)pObject)->coords.z;
 
@@ -391,108 +338,15 @@ static SDWORD bucketCalculateZ(RENDER_TYPE objectType, void* pObject)
 		break;
 	}
 
-   	pie_MatEnd();
-
-	return z;
-}
-
-static SDWORD bucketCalculateState(RENDER_TYPE objectType, void* pObject)
-{
-	SDWORD				z = 0;
-	const iIMDShape*	pie;
-
-	if (bucketCalculateZ(objectType,pObject) < 0)
-	{
-		return -1;
-	}
-
-	switch(objectType)
-	{
-		case RENDER_EFFECT:
-			switch(((EFFECT*)pObject)->group)
-			{
-				case EFFECT_WAYPOINT:
-				case EFFECT_EXPLOSION:
-				case EFFECT_CONSTRUCTION:
-					pie = ((EFFECT*)pObject)->imd;
-					z = INT32_MAX - pie->texpage;
-				break;
-
-				case EFFECT_SMOKE:
-				case EFFECT_GRAVITON:
-				case EFFECT_BLOOD:
-				case EFFECT_STRUCTURE:
-				case EFFECT_DESTRUCTION:
-				default:
-					z = INT32_MAX - 42;
-				break;
-			}
-		break;
-		case RENDER_DROID:
-			pie = BODY_IMD(((DROID*)pObject),0);
-			z = INT32_MAX - pie->texpage;
-		break;
-		case RENDER_STRUCTURE:
-			pie = ((STRUCTURE*)pObject)->sDisplay.imd;
-			z = INT32_MAX - pie->texpage;
-		break;
-		case RENDER_FEATURE:
-			pie = ((FEATURE*)pObject)->sDisplay.imd;
-			z = INT32_MAX - pie->texpage;
-		break;
-		case RENDER_PROXMSG:
-			z = INT32_MAX - 40;
-		break;
-		case RENDER_PROJECTILE:
-			pie = ((PROJECTILE*)pObject)->psWStats->pInFlightGraphic;
-			z = INT32_MAX - pie->texpage;
-		break;
-		case RENDER_ANIMATION:
-			pie = ((COMPONENT_OBJECT*)pObject)->psShape;
-			z = INT32_MAX - pie->texpage;
-		break;
-		case RENDER_DELIVPOINT:
-			pie = pAssemblyPointIMDs[((FLAG_POSITION*)pObject)->
-				factoryType][((FLAG_POSITION*)pObject)->factoryInc];
-			z = INT32_MAX - pie->texpage;
-		break;
-		default:
-		break;
-	}
-
 	return z;
 }
 
 /* add an object to the current render list */
 void bucketAddTypeToList(RENDER_TYPE objectType, void* pObject)
 {
-	BUCKET_TAG newTag;
-	int32_t    z;
-	bool       useCalculateZ = false;
-
-	switch (objectType)
-	{
-		case RENDER_EFFECT:
-			switch (((EFFECT*)pObject)->group)
-			{
-				case EFFECT_EXPLOSION:
-				case EFFECT_CONSTRUCTION:
-				case EFFECT_SMOKE:
-				case EFFECT_FIREWORK:
-					useCalculateZ = true;
-					break;
-				default: break;
-			}
-			break;
-		case RENDER_SHADOW:
-		case RENDER_PROJECTILE:
-		case RENDER_PROXMSG:
-			useCalculateZ = true;
-			break;
-		default: break;
-	}
-	// NOTE bucketCalculateState calls bucketCalculateZ, don't know why not just use bucketCalculateZ.
-	z = useCalculateZ ? bucketCalculateZ(objectType, pObject) : bucketCalculateState(objectType, pObject);
+	const iIMDShape* pie;
+	BUCKET_TAG	newTag;
+	int32_t		z = bucketCalculateZ(objectType, pObject);
 
 	if (z < 0)
 	{
@@ -502,8 +356,59 @@ void bucketAddTypeToList(RENDER_TYPE objectType, void* pObject)
 			/* Won't draw selection boxes */
 			((BASE_OBJECT *)pObject)->sDisplay.frameNumber = 0;
 		}
-
+		
 		return;
+	}
+
+	switch(objectType)
+	{
+		case RENDER_EFFECT:
+			switch(((EFFECT*)pObject)->group)
+			{
+				case EFFECT_EXPLOSION:
+				case EFFECT_CONSTRUCTION:
+				case EFFECT_SMOKE:
+				case EFFECT_FIREWORK:
+					// Use calculated Z
+					break;
+
+				case EFFECT_WAYPOINT:
+					pie = ((EFFECT*)pObject)->imd;
+					z = INT32_MAX - pie->texpage;
+					break;
+
+				default:
+					z = INT32_MAX - 42;
+					break;
+			}
+			break;
+		case RENDER_DROID:
+			pie = BODY_IMD(((DROID*)pObject),0);
+			z = INT32_MAX - pie->texpage;
+			break;
+		case RENDER_STRUCTURE:
+			pie = ((STRUCTURE*)pObject)->sDisplay.imd;
+			z = INT32_MAX - pie->texpage;
+			break;
+		case RENDER_FEATURE:
+			pie = ((FEATURE*)pObject)->sDisplay.imd;
+			z = INT32_MAX - pie->texpage;
+			break;
+		case RENDER_ANIMATION:
+			pie = ((COMPONENT_OBJECT*)pObject)->psShape;
+			z = INT32_MAX - pie->texpage;
+			break;
+		case RENDER_DELIVPOINT:
+			pie = pAssemblyPointIMDs[((FLAG_POSITION*)pObject)->
+			factoryType][((FLAG_POSITION*)pObject)->factoryInc];
+			z = INT32_MAX - pie->texpage;
+			break;
+		case RENDER_PARTICLE:
+			z = 0;
+			break;
+		default:
+			// Use calculated Z
+			break;
 	}
 
 	//put the object data into the tag

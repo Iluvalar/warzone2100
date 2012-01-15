@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2010  Warzone 2100 Project
+	Copyright (C) 2005-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -18,14 +18,9 @@
 	Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 */
 
-#include <GLee.h>
-#include "lib/framework/frame.h"
 
-#if defined(WZ_OS_MAC)
-# include <OpenGL/glu.h>
-#else
-# include <GL/glu.h>
-#endif
+#include "lib/framework/frame.h"
+#include "lib/framework/opengl.h"
 
 #include "lib/ivis_opengl/ivisdef.h"
 #include "lib/ivis_opengl/piestate.h"
@@ -154,7 +149,7 @@ int pie_AddTexPage(iV_Image *s, const char* filename, int slot, int maxTextureSi
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
 	// Use anisotropic filtering, if available, but only max 4.0 to reduce processor burden
-	if (GLEE_EXT_texture_filter_anisotropic)
+	if (GLEW_EXT_texture_filter_anisotropic)
 	{
 		GLfloat max;
 

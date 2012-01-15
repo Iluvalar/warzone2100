@@ -1,6 +1,6 @@
 /*
 	This file is part of Warzone 2100.
-	Copyright (C) 2008-2010  Warzone 2100 Project
+	Copyright (C) 2008-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -68,7 +68,6 @@
 
 #include <theora/theora.h>
 #include <physfs.h>
-#include <SDL.h>
 
 #if !defined(WZ_NOSOUND)
 # include <vorbis/codec.h>
@@ -80,7 +79,7 @@
 # endif
 
 // stick this in sequence.h perhaps?
-typedef struct
+struct AudioData
 {
 	ALuint buffer1;			// buffer 1
 	ALuint buffer2;			// buffer 2
@@ -88,11 +87,11 @@ typedef struct
 	int totbufstarted;		// number of buffers started
 	int audiofd_fragsize;	// audio fragment size, used to calculate how big audiobuf is
 	int audiobuf_fill;		// how full our audio buffer is
-} AudioData;
+};
 
 #endif
 
-typedef struct
+struct VideoData
 {
 	ogg_sync_state oy;		// ogg sync state
 	ogg_page og;			// ogg page
@@ -107,7 +106,7 @@ typedef struct
 	vorbis_block vb;		// vorbis block
 	vorbis_comment vc;		// vorbis comment
 #endif
-} VideoData;
+};
 // stick that in sequence.h perhaps?
 
 #if !defined(WZ_NOSOUND)
@@ -136,7 +135,7 @@ static bool audiobuf_ready = false;		// single 'frame' audio buffer ready for pr
 // file handle
 static PHYSFS_file* fpInfile = NULL;
 
-static char* RGBAframe = NULL;					// texture buffer
+static uint32_t* RGBAframe = NULL;					// texture buffer
 
 #if !defined(WZ_NOSOUND)
 static ogg_int16_t* audiobuf = NULL;			// audio buffer
@@ -173,6 +172,8 @@ static int videoY1 = 0;
 static int videoY2 = 0;
 static int ScrnvidXpos = 0;
 static int ScrnvidYpos = 0;
+
+static SCANLINE_MODE use_scanlines;
 
 // Helper; just grab some more compressed bitstream and sync it for page extraction
 static int buffer_data(PHYSFS_file* in, ogg_sync_state* oy)
@@ -280,17 +281,46 @@ static double getRelativeTime(void)
 	return((getTimeNow() - basetime) * .001);
 }
 
+static int texture_width = 1024;
+static int texture_height = 1024;
+static GLuint video_texture;
+
 /** Allocates memory to hold the decoded video frame
  */
 static void Allocate_videoFrame(void)
 {
-	RGBAframe = (char *)malloc(videodata.ti.frame_width * videodata.ti.frame_height * 4);
+	int size = videodata.ti.frame_width * videodata.ti.frame_height * 4;
+	if (use_scanlines)
+		size *= 2;
+
+	RGBAframe = (uint32_t *)malloc(size);
+	memset(RGBAframe, 0, size);
+	glGenTextures(1, &video_texture);
 }
 
-static int texture_width = 512;
-static int texture_height = 512;
-static GLuint video_texture;
+static void deallocateVideoFrame(void)
+{
+	if (RGBAframe)
+		free(RGBAframe);
+	glDeleteTextures(1, &video_texture);
+}
 
+#ifndef __BIG_ENDIAN__
+const int Rshift = 0;
+const int Gshift = 8;
+const int Bshift = 16;
+const int Ashift = 24;
+// RGBmask is used only after right-shifting, so ignore the leftmost bit of each byte
+const int RGBmask = 0x007f7f7f;
+const int Amask = 0xff000000;
+#else
+const int Rshift = 24;
+const int Gshift = 16;
+const int Bshift = 8;
+const int Ashift = 0;
+const int RGBmask = 0x7f7f7f00;
+const int Amask = 0x000000ff;
+#endif
 #define Vclip( x )	( (x > 0) ? ((x < 255) ? x : 255) : 0 )
 // main routine to display video on screen.
 static void video_write(bool update)
@@ -298,42 +328,85 @@ static void video_write(bool update)
 	unsigned int x = 0, y = 0;
 	const int video_width = videodata.ti.frame_width;
 	const int video_height = videodata.ti.frame_height;
+	// when using scanlines we need to double the height
+	const int height_factor = (use_scanlines ? 2 : 1);
 	yuv_buffer yuv;
 
 	glErrors();
 	glEnable(GL_TEXTURE_2D);
 	glBindTexture(GL_TEXTURE_2D, video_texture);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
 	if (update)
 	{
+		int rgb_offset = 0;
+		int y_offset = 0;
+		int uv_offset = 0;
+		const int half_width = video_width / 2;
+
 		theora_decode_YUVout(&videodata.td, &yuv);
 
 		// fill the RGBA buffer
 		for (y = 0; y < video_height; y++)
 		{
-			for (x = 0; x < video_width; x++)
+			y_offset = y * yuv.y_stride;
+			uv_offset = (y >> 1) * yuv.uv_stride;
+
+			for (x = 0; x < half_width; x++)
 			{
-				int Y = yuv.y[x + y * yuv.y_stride];
-				int U = yuv.u[x / 2 + (y / 2) * yuv.uv_stride];
-				int V = yuv.v[x / 2 + (y / 2) * yuv.uv_stride];
+				int Y = yuv.y[y_offset++] - 16;
+				const int U = yuv.u[uv_offset] - 128;
+				const int V = yuv.v[uv_offset++] - 128;
 
-				int C = Y - 16;
-				int D = U - 128;
-				int E = V - 128;
+				int A = 298 * Y;
+				const int C = 409 * V;
 
-				int R = Vclip((298 * C + 409 * E + 128) >> 8);
-				int G = Vclip((298 * C - 100 * D - 208 * E + 128) >> 8);
-				int B = Vclip((298 * C + 516 * D + 128) >> 8);
+				int R = Vclip((A + C + 128) >> 8);
+				int G = Vclip((A - 100 * U - (C >> 1) + 128) >> 8);
+				int B = Vclip((A + 516 * U + 128) >> 8);
 
-				RGBAframe[x * 4 + y * video_width * 4 + 0] = R;
-				RGBAframe[x * 4 + y * video_width * 4 + 1] = G;
-				RGBAframe[x * 4 + y * video_width * 4 + 2] = B;
-				RGBAframe[x * 4 + y * video_width * 4 + 3] = 0xFF;
+				uint32_t rgba = (R << Rshift) | (G << Gshift) | (B << Bshift) | (0xFF << Ashift);
+
+				RGBAframe[rgb_offset] = rgba;
+				if (use_scanlines == SCANLINES_50)
+				{
+					// halve the rgb values for a dimmed scanline
+					RGBAframe[rgb_offset + video_width] = (rgba >> 1 & RGBmask) | Amask;
+				}
+				else if (use_scanlines == SCANLINES_BLACK)
+				{
+					RGBAframe[rgb_offset + video_width] = Amask;
+				}
+				rgb_offset++;
+
+				// second pixel, U and V (and thus C) are the same as before.
+				Y = yuv.y[y_offset++] - 16;
+				A = 298 * Y;
+
+				R = Vclip((A + C + 128) >> 8);
+				G = Vclip((A - 100 * U - (C >> 1) + 128) >> 8);
+				B = Vclip((A + 516 * U + 128) >> 8);
+
+				rgba = (R << Rshift) | (G << Gshift) | (B << Bshift) | (0xFF << Ashift);
+				RGBAframe[rgb_offset] = rgba;
+				if (use_scanlines == SCANLINES_50)
+				{
+					// halve the rgb values for a dimmed scanline
+					RGBAframe[rgb_offset + video_width] = (rgba >> 1 & RGBmask) | Amask;
+				}
+				else if (use_scanlines == SCANLINES_BLACK)
+				{
+					RGBAframe[rgb_offset + video_width] = Amask;
+				}
+				rgb_offset++;
 			}
+			if (use_scanlines)
+				rgb_offset += video_width;
 		}
 
 		glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, video_width,
-				video_height, GL_RGBA, GL_UNSIGNED_BYTE, RGBAframe);
+				video_height * height_factor, GL_RGBA, GL_UNSIGNED_BYTE, RGBAframe);
 		glErrors();
 	}
 
@@ -343,15 +416,15 @@ static void video_write(bool update)
 	glPushMatrix();
 
 	glTranslatef(ScrnvidXpos, ScrnvidYpos, 0.0f);
-	glBegin(GL_TRIANGLE_STRIP);
+	glBegin(GL_QUADS);
 	glTexCoord2f(0, 0);
 	glVertex2f(videoX1, videoY1);
 	glTexCoord2f((float) video_width / texture_width, 0);
 	glVertex2f(videoX2, videoY1);				//screenWidth
-	glTexCoord2f(0, (float) video_height / texture_height);
-	glVertex2f(videoX1, videoY2);				//screenHeight
-	glTexCoord2f((float) video_width / texture_width, (float) video_height / texture_height);
+	glTexCoord2f((float) video_width / texture_width, (float) video_height * height_factor / texture_height);
 	glVertex2f(videoX2, videoY2);		//screenWidth,screenHeight
+	glTexCoord2f(0, (float) video_height * height_factor / texture_height);
+	glVertex2f(videoX1, videoY2);				//screenHeight
 	glEnd();
 
 	glPopMatrix();
@@ -490,7 +563,7 @@ bool seq_Play(const char* filename)
 	if (fpInfile == NULL)
 	{
 		info("unable to open '%s' for playback", filename);
-		
+
 		fpInfile = PHYSFS_openRead("novideo.ogg");
 		if (fpInfile == NULL)
 		{
@@ -683,15 +756,19 @@ bool seq_Play(const char* filename)
 			return false;
 		}
 		char *blackframe = (char *)calloc(1, texture_width * texture_height * 4);
+
+		// disable scanlines if the video is too large for the texture or shown too small
+		if (videodata.ti.frame_height * 2 > texture_height || videoY2 < videodata.ti.frame_height * 2)
+			use_scanlines = SCANLINES_OFF;
+
 		Allocate_videoFrame();
 
-		glGenTextures(1, &video_texture);
 		glBindTexture(GL_TEXTURE_2D, video_texture);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, texture_width, texture_height,
 				0, GL_RGBA, GL_UNSIGNED_BYTE, blackframe);
 		free(blackframe);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
 		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
 	}
@@ -941,6 +1018,7 @@ void seq_Shutdown()
 		theora_clear(&videodata.td);
 		theora_comment_clear(&videodata.tc);
 		theora_info_clear(&videodata.ti);
+		deallocateVideoFrame();
 	}
 
 	ogg_sync_clear(&videodata.oy);
@@ -950,10 +1028,6 @@ void seq_Shutdown()
 		PHYSFS_close(fpInfile);
 	}
 
-	if (RGBAframe)
-	{
-		free(RGBAframe);
-	}
 	videoplaying = false;
 	Timer_stop();
 
@@ -969,6 +1043,11 @@ void seq_Shutdown()
 int seq_GetFrameNumber()
 {
 	return frames;
+}
+
+double seq_GetFrameTime()
+{
+	return videobuf_time;
 }
 
 // this controls the size of the video to display on screen
@@ -995,10 +1074,18 @@ void seq_SetDisplaySize(int sizeX, int sizeY, int posX, int posY)
 			videoY1 += offset;
 			videoY2 -= offset;
 		}
-
-
 	}
 
 	ScrnvidXpos = posX;
 	ScrnvidYpos = posY;
+}
+
+void seq_setScanlineMode(SCANLINE_MODE mode)
+{
+    use_scanlines = mode;
+}
+
+SCANLINE_MODE seq_getScanlineMode(void)
+{
+    return use_scanlines;
 }

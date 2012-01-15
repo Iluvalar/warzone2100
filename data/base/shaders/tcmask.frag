@@ -6,9 +6,12 @@ varying vec3 normal, lightDir, eyeVec;
 
 uniform sampler2D Texture0;
 uniform sampler2D Texture1;
+uniform sampler2D Texture2;
 uniform vec4 teamcolour;
-uniform int tcmask;
+uniform int tcmask, normalmap;
 uniform int fogEnabled;
+uniform bool ecmEffect;
+uniform float graphicsCycle;
 
 void main(void)
 {
@@ -40,6 +43,11 @@ void main(void)
 	else
 	{
 		gl_FragColor = colour * gl_Color;
+	}
+
+	if (ecmEffect)
+	{
+		gl_FragColor.a = 0.45 + 0.225 * graphicsCycle;
 	}
 
 	if (fogEnabled > 0)

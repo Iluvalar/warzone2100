@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2010  Warzone 2100 Project
+	Copyright (C) 2005-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -79,14 +79,14 @@ void renderResearchToBuffer(RESEARCH *psResearch, UDWORD OriginX, UDWORD OriginY
 			IMDType = IMDTYPE_STRUCTURESTAT;
 			psResGraphic = psResearch->psStat;
 			//set up the scale
-			basePlateSize= getStructureStatSize((STRUCTURE_STATS*)psResearch->psStat);
+			basePlateSize= getStructureStatSizeMax((STRUCTURE_STATS*)psResearch->psStat);
 			if(basePlateSize == 1)
 			{
 				scale = RESEARCH_COMPONENT_SCALE / 2;
 				/*HACK HACK HACK!
 				if its a 'tall thin (ie tower)' structure stat with something on
 				the top - offset the position to show the object on top*/
-				if (((STRUCTURE_STATS*)psResearch->psStat)->pIMD->nconnectors &&
+				if (((STRUCTURE_STATS*)psResearch->psStat)->pIMD[0]->nconnectors &&
 					getStructureStatHeight((STRUCTURE_STATS*)psResearch->psStat) > TOWER_HEIGHT)
 				{
 					Position.y -= 30;

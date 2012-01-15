@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2010  Warzone 2100 Project
+	Copyright (C) 2005-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -26,14 +26,11 @@
 
 enum iV_fonts
 {
-    font_regular,
-    font_large,
+	font_regular,
+	font_large,
 	font_small,
+	font_scaled,
 };
-
-#define PIE_TEXT_WHITE				(-1)
-#define PIE_TEXT_LIGHTBLUE			(-2)
-#define PIE_TEXT_DARKBLUE			(-3)
 
 extern void iV_TextInit(void);
 extern void iV_TextShutdown(void);
@@ -50,24 +47,12 @@ extern unsigned int iV_GetCharWidth(uint32_t charCode);
 extern unsigned int iV_GetTextHeight(const char* string);
 extern void iV_SetTextColour(PIELIGHT colour);
 
-#define ASCII_SPACE			(32)
-#define ASCII_NEWLINE		('`')
-#define ASCII_COLOURMODE	('#')
-
-#define TEXT_UTF8_SPACE       " "
-#define TEXT_UTF8_NEWLINE     "\n"
-
-static const char text_space_utf8[] = TEXT_UTF8_SPACE;
-static const char text_newline_utf8[] = TEXT_UTF8_NEWLINE;
-
 // Valid values for "Justify" argument of iV_DrawFormattedText().
-
 enum {
 	FTEXT_LEFTJUSTIFY,			// Left justify.
 	FTEXT_CENTRE,				// Centre justify.
 	FTEXT_RIGHTJUSTIFY,			// Right justify.
 };
-
 
 extern int iV_DrawFormattedText(const char* String, UDWORD x, UDWORD y, UDWORD Width, UDWORD Justify);
 

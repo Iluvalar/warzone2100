@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2010  Warzone 2100 Project
+	Copyright (C) 2005-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -49,7 +49,7 @@
 static INTERP_VAL	scrFunctionResult;	//function return value to be pushed to stack
 
 // Add a droid to a group
-BOOL scrGroupAddDroid(void)
+bool scrGroupAddDroid(void)
 {
 	DROID_GROUP		*psGroup;
 	DROID			*psDroid;
@@ -87,7 +87,7 @@ BOOL scrGroupAddDroid(void)
 
 
 // Add droids in an area to a group
-BOOL scrGroupAddArea(void)
+bool scrGroupAddArea(void)
 {
 	DROID_GROUP		*psGroup;
 	DROID			*psDroid;
@@ -127,7 +127,7 @@ BOOL scrGroupAddArea(void)
 
 
 // Add groupless droids in an area to a group
-BOOL scrGroupAddAreaNoGroup(void)
+bool scrGroupAddAreaNoGroup(void)
 {
 	DROID_GROUP		*psGroup;
 	DROID			*psDroid;
@@ -165,7 +165,7 @@ BOOL scrGroupAddAreaNoGroup(void)
 
 
 // Move the droids from one group to another
-BOOL scrGroupAddGroup(void)
+bool scrGroupAddGroup(void)
 {
 	DROID_GROUP		*psTo, *psFrom;
 	DROID			*psDroid, *psNext;
@@ -191,11 +191,11 @@ BOOL scrGroupAddGroup(void)
 
 
 // check if a droid is a member of a group
-BOOL scrGroupMember(void)
+bool scrGroupMember(void)
 {
 	DROID_GROUP		*psGroup;
 	DROID			*psDroid;
-	BOOL			retval;
+	bool			retval;
 
 	if (!stackPopParams(2, ST_GROUP, &psGroup, ST_DROID, &psDroid))
 	{
@@ -231,7 +231,7 @@ BOOL scrGroupMember(void)
 
 
 // returns number of idle droids in a group.
-BOOL scrIdleGroup(void)
+bool scrIdleGroup(void)
 {
 	DROID_GROUP *psGroup;
 	DROID		*psDroid;
@@ -245,7 +245,7 @@ BOOL scrIdleGroup(void)
 
 	for(psDroid = psGroup->psList;psDroid; psDroid = psDroid->psGrpNext)
 	{
-		if (psDroid->order == DORDER_NONE || (psDroid->order == DORDER_GUARD && psDroid->psTarget == NULL))
+		if (psDroid->order.type == DORDER_NONE || (psDroid->order.type == DORDER_GUARD && psDroid->order.psObj == NULL))
 		{
 			count++;
 		}
@@ -264,7 +264,7 @@ static DROID_GROUP		*psScrIterateGroup;
 static DROID			*psScrIterateGroupDroid;
 
 // initialise iterating a groups members
-BOOL scrInitIterateGroup(void)
+bool scrInitIterateGroup(void)
 {
 	DROID_GROUP	*psGroup;
 
@@ -284,7 +284,7 @@ BOOL scrInitIterateGroup(void)
 
 
 // iterate through a groups members
-BOOL scrIterateGroup(void)
+bool scrIterateGroup(void)
 {
 	DROID_GROUP	*psGroup;
 	DROID		*psDroid;
@@ -321,7 +321,7 @@ BOOL scrIterateGroup(void)
 
 
 // initialise iterating a cluster
-BOOL scrInitIterateCluster(void)
+bool scrInitIterateCluster(void)
 {
 	SDWORD	clusterID;
 
@@ -337,7 +337,7 @@ BOOL scrInitIterateCluster(void)
 
 
 // iterate a cluster
-BOOL scrIterateCluster(void)
+bool scrIterateCluster(void)
 {
 	BASE_OBJECT		*psObj;
 
@@ -354,7 +354,7 @@ BOOL scrIterateCluster(void)
 
 
 // remove a droid from a group
-BOOL scrDroidLeaveGroup(void)
+bool scrDroidLeaveGroup(void)
 {
 	DROID			*psDroid;
 
@@ -373,7 +373,7 @@ BOOL scrDroidLeaveGroup(void)
 
 
 // Give a group an order
-BOOL scrOrderGroup(void)
+bool scrOrderGroup(void)
 {
 	DROID_GROUP		*psGroup;
 	DROID_ORDER		order;
@@ -406,7 +406,7 @@ BOOL scrOrderGroup(void)
 
 
 // Give a group an order to a location
-BOOL scrOrderGroupLoc(void)
+bool scrOrderGroupLoc(void)
 {
 	DROID_GROUP		*psGroup;
 	DROID_ORDER		order;
@@ -445,7 +445,7 @@ BOOL scrOrderGroupLoc(void)
 
 
 // Give a group an order to an object
-BOOL scrOrderGroupObj(void)
+bool scrOrderGroupObj(void)
 {
 	DROID_GROUP		*psGroup;
 	DROID_ORDER		order;
@@ -484,7 +484,7 @@ BOOL scrOrderGroupObj(void)
 }
 
 // Give a droid an order
-BOOL scrOrderDroid(void)
+bool scrOrderDroid(void)
 {
 	DROID			*psDroid;
 	DROID_ORDER		order;
@@ -521,7 +521,7 @@ BOOL scrOrderDroid(void)
 
 
 // Give a Droid an order to a location
-BOOL scrOrderDroidLoc(void)
+bool scrOrderDroidLoc(void)
 {
 	DROID			*psDroid;
 	DROID_ORDER		order;
@@ -563,7 +563,7 @@ BOOL scrOrderDroidLoc(void)
 
 
 // Give a Droid an order to an object
-BOOL scrOrderDroidObj(void)
+bool scrOrderDroidObj(void)
 {
 	DROID			*psDroid;
 	DROID_ORDER		order;
@@ -603,12 +603,11 @@ BOOL scrOrderDroidObj(void)
 }
 
 // Give a Droid an order with a stat
-BOOL scrOrderDroidStatsLoc(void)
+bool scrOrderDroidStatsLoc(void)
 {
 	DROID			*psDroid;
 	DROID_ORDER		order;
 	SDWORD			x,y, statIndex;
-	BASE_STATS		*psStats;
 
 	if (!stackPopParams(5, ST_DROID, &psDroid, VAL_INT, &order, ST_STRUCTURESTAT, &statIndex,
 						   VAL_INT, &x, VAL_INT, &y))
@@ -623,7 +622,7 @@ BOOL scrOrderDroidStatsLoc(void)
 	}
 
 	ASSERT_OR_RETURN( false, statIndex < numStructureStats, "Invalid range referenced for numStructureStats, %d > %d", statIndex, numStructureStats);
-	psStats = (asStructureStats + statIndex);
+	STRUCTURE_STATS *psStats = asStructureStats + statIndex;
 
 	ASSERT_OR_RETURN( false, psDroid != NULL, "Invalid Unit pointer" );
 	ASSERT_OR_RETURN( false, psStats != NULL, "Invalid object pointer" );
@@ -666,7 +665,7 @@ BOOL scrOrderDroidStatsLoc(void)
 
 
 // set the secondary state for a droid
-BOOL scrSetDroidSecondary(void)
+bool scrSetDroidSecondary(void)
 {
 	DROID		*psDroid;
 	SECONDARY_ORDER	sec;
@@ -690,7 +689,7 @@ BOOL scrSetDroidSecondary(void)
 }
 
 // set the secondary state for a droid
-BOOL scrSetGroupSecondary(void)
+bool scrSetGroupSecondary(void)
 {
 	DROID_GROUP		*psGroup;
 	SECONDARY_ORDER		sec;
@@ -711,7 +710,7 @@ BOOL scrSetGroupSecondary(void)
 
 
 // add a droid to a commander
-BOOL scrCmdDroidAddDroid(void)
+bool scrCmdDroidAddDroid(void)
 {
 	DROID		*psDroid, *psCommander;
 
@@ -726,7 +725,7 @@ BOOL scrCmdDroidAddDroid(void)
 }
 
 // returns max number of droids in a commander group
-BOOL scrCmdDroidMaxGroup(void)
+bool scrCmdDroidMaxGroup(void)
 {
 	DROID		*psCommander;
 
@@ -753,7 +752,7 @@ UDWORD	scrDroidPref, scrDroidIgnore;
 
 
 // reset the structure preferences
-BOOL scrResetStructTargets(void)
+bool scrResetStructTargets(void)
 {
 	scrStructPref = 0;
 	scrStructIgnore = 0;
@@ -763,7 +762,7 @@ BOOL scrResetStructTargets(void)
 
 
 // reset the droid preferences
-BOOL scrResetDroidTargets(void)
+bool scrResetDroidTargets(void)
 {
 	scrDroidPref = 0;
 	scrDroidIgnore = 0;
@@ -773,7 +772,7 @@ BOOL scrResetDroidTargets(void)
 
 
 // set prefered structure target types
-BOOL scrSetStructTarPref(void)
+bool scrSetStructTarPref(void)
 {
 	UDWORD	pref;
 
@@ -807,7 +806,7 @@ BOOL scrSetStructTarPref(void)
 
 
 // set structure target ignore types
-BOOL scrSetStructTarIgnore(void)
+bool scrSetStructTarIgnore(void)
 {
 	UDWORD	pref;
 
@@ -841,7 +840,7 @@ BOOL scrSetStructTarIgnore(void)
 
 
 // set prefered droid target types
-BOOL scrSetDroidTarPref(void)
+bool scrSetDroidTarPref(void)
 {
 	UDWORD	pref;
 
@@ -878,7 +877,7 @@ BOOL scrSetDroidTarPref(void)
 }
 
 // set droid target ignore types
-BOOL scrSetDroidTarIgnore(void)
+bool scrSetDroidTarIgnore(void)
 {
 	UDWORD	pref;
 
@@ -1169,7 +1168,6 @@ static BASE_OBJECT *scrTargetInArea(SDWORD tarPlayer, SDWORD visPlayer, SDWORD t
 {
 	BASE_OBJECT		*psTarget, *psCurr;
 	SDWORD			temp;
-	BOOL			bVisCheck;
 	UDWORD			tarMask;
 	TARGET_MASK		getTargetMask;
 	TARGET_PREF		targetPriority;
@@ -1194,17 +1192,6 @@ static BASE_OBJECT *scrTargetInArea(SDWORD tarPlayer, SDWORD visPlayer, SDWORD t
 		y2 = y1;
 		y1 = temp;
 	}
-
-	// see if a visibility check is required and for which player
-	if (visPlayer < 0 || visPlayer >= MAX_PLAYERS)
-	{
-		bVisCheck = false;
-	}
-	else
-	{
-		bVisCheck = true;
-	}
-		bVisCheck = false;
 
 	// see which target type to use
 	switch (tarType)
@@ -1231,8 +1218,7 @@ static BASE_OBJECT *scrTargetInArea(SDWORD tarPlayer, SDWORD visPlayer, SDWORD t
 	psTarget = NULL;
 	for(; psCurr; psCurr=psCurr->psNext)
 	{
-		if ((!bVisCheck || psCurr->visible[visPlayer]) &&
-			(cluster == 0 || psCurr->cluster == cluster) &&
+		if ((cluster == 0 || psCurr->cluster == cluster) &&
 			((SDWORD)psCurr->pos.x >= x1) &&
 			((SDWORD)psCurr->pos.x <= x2) &&
 			((SDWORD)psCurr->pos.y >= y1) &&
@@ -1263,7 +1249,7 @@ static BASE_OBJECT *scrTargetInArea(SDWORD tarPlayer, SDWORD visPlayer, SDWORD t
 }
 
 // get a structure target in an area using the preferences
-BOOL scrStructTargetInArea(void)
+bool scrStructTargetInArea(void)
 {
 	SDWORD		x1,y1,x2,y2;
 	SDWORD		tarPlayer, visPlayer;
@@ -1285,7 +1271,7 @@ BOOL scrStructTargetInArea(void)
 }
 
 // get a structure target on the map using the preferences
-BOOL scrStructTargetOnMap(void)
+bool scrStructTargetOnMap(void)
 {
 	SDWORD		tarPlayer, visPlayer;
 	STRUCTURE	*psTarget;
@@ -1309,7 +1295,7 @@ BOOL scrStructTargetOnMap(void)
 }
 
 // get a droid target in an area using the preferences
-BOOL scrDroidTargetInArea(void)
+bool scrDroidTargetInArea(void)
 {
 	SDWORD		x1,y1,x2,y2;
 	SDWORD		tarPlayer, visPlayer;
@@ -1333,7 +1319,7 @@ BOOL scrDroidTargetInArea(void)
 }
 
 // get a droid target on the map using the preferences
-BOOL scrDroidTargetOnMap(void)
+bool scrDroidTargetOnMap(void)
 {
 	SDWORD		tarPlayer, visPlayer;
 	DROID		*psTarget;
@@ -1357,7 +1343,7 @@ BOOL scrDroidTargetOnMap(void)
 }
 
 // get a target from a cluster using the preferences
-BOOL scrTargetInCluster(void)
+bool scrTargetInCluster(void)
 {
 	SDWORD		tarPlayer, tarType, visPlayer, clusterID, cluster;
 	BASE_OBJECT	*psTarget;
@@ -1396,7 +1382,7 @@ BOOL scrTargetInCluster(void)
 // ********************************************************************************************
 // ********************************************************************************************
 
-BOOL scrSkCanBuildTemplate(void)
+bool scrSkCanBuildTemplate(void)
 {
 	STRUCTURE *psStructure;
 	DROID_TEMPLATE *psTempl;
@@ -1517,7 +1503,7 @@ failTempl:
 // ********************************************************************************************
 // locate the enemy
 // gives a target location given a player to attack.
-BOOL scrSkLocateEnemy(void)
+bool scrSkLocateEnemy(void)
 {
 	SDWORD		player;//,*x,*y;
 	STRUCTURE	*psStruct;
@@ -1559,38 +1545,39 @@ BOOL scrSkLocateEnemy(void)
 
 // ********************************************************************************************
 
-BOOL skTopicAvail(UWORD inc, UDWORD player)
+bool skTopicAvail(UWORD inc, UDWORD player)
 {
 	UDWORD				incPR, incS;
-	PLAYER_RESEARCH		*pPlayerRes = asPlayerResList[player];
-	BOOL				bPRFound, bStructFound;
+	bool				bPRFound, bStructFound;
 
 
 	//if the topic is possible and has not already been researched - add to list
-	if ((IsResearchPossible(&pPlayerRes[inc])))
+	if ((IsResearchPossible(&asPlayerResList[player][inc])))
 	{
-		if ((IsResearchCompleted(&pPlayerRes[inc])==false) && (IsResearchStarted(&pPlayerRes[inc])==false))
+		if (!IsResearchCompleted(&asPlayerResList[player][inc])
+		    && !IsResearchStartedPending(&asPlayerResList[player][inc]))
 		{
-		return true;
+			return true;
 		}
 	}
 
 	// make sure that the research is not completed  or started by another researchfac
-	if ((IsResearchCompleted(&pPlayerRes[inc])==false) && (IsResearchStarted(&pPlayerRes[inc])==false))
+	if (!IsResearchCompleted(&asPlayerResList[player][inc])
+	    && !IsResearchStartedPending(&asPlayerResList[player][inc]))
 	{
 		// Research is not completed  ... also  it has not been started by another researchfac
 
 		//if there aren't any PR's - go to next topic
-		if (!asResearch[inc].numPRRequired)
+		if (asResearch[inc].pPRList.empty())
 		{
 			return false;
 		}
 
 		//check for pre-requisites
 		bPRFound = true;
-		for (incPR = 0; incPR < asResearch[inc].numPRRequired; incPR++)
+		for (incPR = 0; incPR < asResearch[inc].pPRList.size(); incPR++)
 		{
-			if (IsResearchCompleted(&(pPlayerRes[asResearch[inc].pPRList[incPR]]))==0)
+			if (IsResearchCompleted(&asPlayerResList[player][asResearch[inc].pPRList[incPR]]) == 0)
 			{
 				//if haven't pre-requisite - quit checking rest
 				bPRFound = false;
@@ -1605,7 +1592,7 @@ BOOL skTopicAvail(UWORD inc, UDWORD player)
 
 		//check for structure effects
 		bStructFound = true;
-		for (incS = 0; incS < asResearch[inc].numStructures; incS++)
+		for (incS = 0; incS < asResearch[inc].pStructList.size(); incS++)
 		{
 			//if (!checkStructureStatus(asStructureStats + asResearch[inc].
 			//	pStructList[incS], playerID, SS_BUILT))
@@ -1629,11 +1616,10 @@ BOOL skTopicAvail(UWORD inc, UDWORD player)
 }
 
 // ********************************************************************************************
-BOOL scrSkDoResearch(void)
+bool scrSkDoResearch(void)
 {
-	SDWORD				player, bias;//,timeToResearch;//,*x,*y;
+	SDWORD				player, bias;
 	UWORD				i;
-
 	STRUCTURE			*psBuilding;
 	RESEARCH_FACILITY	*psResFacilty;
 
@@ -1651,7 +1637,7 @@ BOOL scrSkDoResearch(void)
 	}
 
 	// choose a topic to complete.
-	for(i=0; i < numResearch; i++)
+	for(i=0; i < asResearch.size(); i++)
 	{
 		if (skTopicAvail(i, player) && (!bMultiPlayer || !beingResearchedByAlly(i, player)))
 		{
@@ -1659,7 +1645,7 @@ BOOL scrSkDoResearch(void)
 		}
 	}
 
-	if(i != numResearch)
+	if (i != asResearch.size())
 	{
 		sendResearchStatus(psBuilding, i, player, true);			// inform others, I'm researching this.
 #if defined (DEBUG)
@@ -1675,7 +1661,7 @@ BOOL scrSkDoResearch(void)
 }
 
 // ********************************************************************************************
-BOOL scrSkVtolEnableCheck(void)
+bool scrSkVtolEnableCheck(void)
 {
 	SDWORD player;
 	UDWORD i;
@@ -1715,7 +1701,7 @@ BOOL scrSkVtolEnableCheck(void)
 }
 
 // ********************************************************************************************
-BOOL scrSkGetFactoryCapacity(void)
+bool scrSkGetFactoryCapacity(void)
 {
 	SDWORD count=0;
 	STRUCTURE *psStructure;
@@ -1738,7 +1724,7 @@ BOOL scrSkGetFactoryCapacity(void)
 	return true;
 }
 // ********************************************************************************************
-BOOL scrSkDifficultyModifier(void)
+bool scrSkDifficultyModifier(void)
 {
 	int 			player;
 	RESEARCH_FACILITY	*psResFacility;
@@ -1773,7 +1759,7 @@ BOOL scrSkDifficultyModifier(void)
 			{
 				RESEARCH	*psResearch = (RESEARCH *)psResFacility->psSubject;
 
-				pPlayerRes = asPlayerResList[player] + (psResearch->ref - REF_RESEARCH_START);
+				pPlayerRes = &asPlayerResList[player][psResearch->ref - REF_RESEARCH_START];
 				pPlayerRes->currentPoints += (psResearch->researchPoints * 4 * game.skDiff[player]) / 100;
 				syncDebug("AI %d is cheating with research time.", player);
 			}
@@ -1787,15 +1773,14 @@ BOOL scrSkDifficultyModifier(void)
 // ********************************************************************************************
 
 // not a direct script function but a helper for scrSkDefenseLocation and scrSkDefenseLocationB
-static BOOL defenseLocation(BOOL variantB)
+static bool defenseLocation(bool variantB)
 {
 	SDWORD		*pX,*pY,statIndex,statIndex2;
 	UDWORD		x,y,gX,gY,dist,player,nearestSoFar,count;
 	GATEWAY		*psGate,*psChosenGate;
 	DROID		*psDroid;
-	BASE_STATS	*psWStats;
 	UDWORD		x1,x2,x3,x4,y1,y2,y3,y4;
-	BOOL		noWater;
+	bool		noWater;
 	UDWORD      minCount;
 	UDWORD      offset;
 
@@ -1820,7 +1805,7 @@ static BOOL defenseLocation(BOOL variantB)
 	ASSERT_OR_RETURN( false, statIndex < numStructureStats, "Invalid range referenced for numStructureStats, %d > %d", statIndex, numStructureStats);
 
 	ASSERT_OR_RETURN( false, statIndex2 < numStructureStats, "Invalid range referenced for numStructureStats, %d > %d", statIndex2, numStructureStats);
-	psWStats = (asStructureStats + statIndex2);
+	STRUCTURE_STATS *psWStats = (asStructureStats + statIndex2);
 
     // check for wacky coords.
 	if(		*pX < 0
@@ -2022,19 +2007,19 @@ failed:
 
 
 // return a good place to build a defence, given a starting point
-BOOL scrSkDefenseLocation(void)
+bool scrSkDefenseLocation(void)
 {
     return defenseLocation(false);
 }
 
 // return a good place to build a defence with a min number of clear tiles
-BOOL scrSkDefenseLocationB(void)
+bool scrSkDefenseLocationB(void)
 {
     return defenseLocation(true);
 }
 
 
-BOOL scrSkFireLassat(void)
+bool scrSkFireLassat(void)
 {
 	SDWORD	player;
 	BASE_OBJECT *psObj;
@@ -2055,7 +2040,7 @@ BOOL scrSkFireLassat(void)
 //-----------------------
 // New functions
 //-----------------------
-BOOL scrActionDroidObj(void)
+bool scrActionDroidObj(void)
 {
 	DROID			*psDroid;
 	DROID_ACTION		action;
@@ -2095,7 +2080,7 @@ DROID_GROUP		*psScrIterateGroupB[MAX_PLAYERS];
 DROID			*psScrIterateGroupDroidB[MAX_PLAYERS];
 
 // initialise iterating a groups members
-BOOL scrInitIterateGroupB(void)
+bool scrInitIterateGroupB(void)
 {
 	DROID_GROUP	*psGroup;
 	SDWORD		bucket;
@@ -2120,7 +2105,7 @@ BOOL scrInitIterateGroupB(void)
 
 //script function - improved version
 // iterate through a groups members
-BOOL scrIterateGroupB(void)
+bool scrIterateGroupB(void)
 {
 	DROID_GROUP	*psGroup;
 	DROID		*psDroid;
@@ -2161,7 +2146,7 @@ BOOL scrIterateGroupB(void)
 	return true;
 }
 
-BOOL scrDroidCanReach(void)
+bool scrDroidCanReach(void)
 {
 	DROID			*psDroid;
 	int			x, y;

@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2010  Warzone 2100 Project
+	Copyright (C) 2005-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -53,19 +53,14 @@
 #include "multiint.h"
 #include "multirecv.h"
 #include "scriptfuncs.h"
+#include "template.h"
+#include "lib/framework/wzapp.h"
 
-#include <SDL.h>
-// ////////////////////////////////////////////////////////////////////////////
-// External Variables
-
-extern char	buildTime[8];
-
-// ////////////////////////////////////////////////////////////////////////////
-// ////////////////////////////////////////////////////////////////////////////
 
 // send complete game info set!
 void sendOptions()
 {
+	bool dummy = true;
 	unsigned int i;
 
 	NETbeginEncode(NETbroadcastQueue(), NET_OPTIONS);
@@ -75,7 +70,7 @@ void sendOptions()
 	NETstring(game.map, 128);
 	NETuint8_t(&game.maxPlayers);
 	NETstring(game.name, 128);
-	NETbool(&game.fog);
+	NETbool(&dummy);
 	NETuint32_t(&game.power);
 	NETuint8_t(&game.base);
 	NETuint8_t(&game.alliance);
@@ -122,7 +117,7 @@ void sendOptions()
 /*!
  * check the wdg files that are being used.
  */
-static BOOL checkGameWdg(const char *nm)
+static bool checkGameWdg(const char *nm)
 {
 	LEVEL_DATASET *lev;
 
@@ -142,6 +137,7 @@ static BOOL checkGameWdg(const char *nm)
 void recvOptions(NETQUEUE queue)
 {
 	unsigned int i;
+	bool dummy = true;
 
 	debug(LOG_NET, "Receiving options from host");
 	NETbeginDecode(queue, NET_OPTIONS);
@@ -151,7 +147,7 @@ void recvOptions(NETQUEUE queue)
 	NETstring(game.map, 128);
 	NETuint8_t(&game.maxPlayers);
 	NETstring(game.name, 128);
-	NETbool(&game.fog);
+	NETbool(&dummy);
 	NETuint32_t(&game.power);
 	NETuint8_t(&game.base);
 	NETuint8_t(&game.alliance);
@@ -242,7 +238,7 @@ void recvOptions(NETQUEUE queue)
 
 // ////////////////////////////////////////////////////////////////////////////
 // Host Campaign.
-BOOL hostCampaign(char *sGame, char *sPlayer)
+bool hostCampaign(char *sGame, char *sPlayer)
 {
 	PLAYERSTATS playerStats;
 	UDWORD		i;
@@ -292,38 +288,14 @@ BOOL hostCampaign(char *sGame, char *sPlayer)
 }
 
 // ////////////////////////////////////////////////////////////////////////////
-// Join Campaign
-
-BOOL joinCampaign(UDWORD gameNumber, char *sPlayer)
-{
-	PLAYERSTATS	playerStats;
-
-	if(!ingame.localJoiningInProgress)
-	{
-		if (!NETjoinGame(gameNumber, sPlayer))	// join
-		{
-			return false;
-		}
-		ingame.localJoiningInProgress	= true;
-
-		loadMultiStats(sPlayer,&playerStats);
-		setMultiStats(selectedPlayer, playerStats, false);
-		setMultiStats(selectedPlayer, playerStats, true);
-		return true;
-	}
-
-	return false;
-}
-
-// ////////////////////////////////////////////////////////////////////////////
 // Tell the host we are leaving the game 'nicely', (we wanted to) and not
 // because we have some kind of error. (dropped or disconnected)
-BOOL sendLeavingMsg(void)
+bool sendLeavingMsg(void)
 {
 	debug(LOG_NET, "We are leaving 'nicely'");
 	NETbeginEncode(NETnetQueue(NET_HOST_ONLY), NET_PLAYER_LEAVING);
 	{
-		BOOL host = NetPlay.isHost;
+		bool host = NetPlay.isHost;
 		uint32_t id = selectedPlayer;
 
 		NETuint32_t(&id);
@@ -336,7 +308,7 @@ BOOL sendLeavingMsg(void)
 
 // ////////////////////////////////////////////////////////////////////////////
 // called in Init.c to shutdown the whole netgame gubbins.
-BOOL multiShutdown(void)
+bool multiShutdown(void)
 {
 	// shut down netplay lib.
 	debug(LOG_MAIN, "shutting down networking");
@@ -355,7 +327,7 @@ BOOL multiShutdown(void)
 
 // ////////////////////////////////////////////////////////////////////////////
 // copy templates from one player to another.
-BOOL addTemplateToList(DROID_TEMPLATE *psNew, DROID_TEMPLATE **ppList)
+bool addTemplateToList(DROID_TEMPLATE *psNew, DROID_TEMPLATE **ppList)
 {
 	DROID_TEMPLATE *psTempl = new DROID_TEMPLATE(*psNew);
 	psTempl->pName = NULL;
@@ -373,7 +345,7 @@ BOOL addTemplateToList(DROID_TEMPLATE *psNew, DROID_TEMPLATE **ppList)
 
 // ////////////////////////////////////////////////////////////////////////////
 // copy templates from one player to another.
-BOOL addTemplate(UDWORD player, DROID_TEMPLATE *psNew)
+bool addTemplate(UDWORD player, DROID_TEMPLATE *psNew)
 {
 	return addTemplateToList(psNew, &apsDroidTemplates[player]);
 }
@@ -390,154 +362,14 @@ void addTemplateBack(unsigned player, DROID_TEMPLATE *psNew)
 
 // ////////////////////////////////////////////////////////////////////////////
 // setup templates
-BOOL multiTemplateSetup(void)
+bool multiTemplateSetup(void)
 {
 	// do nothing now
 	return true;
 }
 
 // ////////////////////////////////////////////////////////////////////////////
-// remove structures from map before campaign play.
-static BOOL cleanMap(UDWORD player)
-{
-	DROID		*psD,*psD2;
-	STRUCTURE	*psStruct;
-	BOOL		firstFact,firstRes;
-
-	bMultiPlayer = false;
-	bMultiMessages = false;
-
-	firstFact = true;
-	firstRes = true;
-
-	switch(game.base)
-	{
-	case CAMP_CLEAN:									//clean map
-		psStruct = apsStructLists[player];
-		while (psStruct)						//strip away structures.
-		{
-			if ((psStruct->pStructureType->type != REF_WALL && psStruct->pStructureType->type != REF_WALLCORNER
-			     && psStruct->pStructureType->type != REF_DEFENSE && psStruct->pStructureType->type != REF_GATE
-			     && psStruct->pStructureType->type != REF_RESOURCE_EXTRACTOR)
-			    || NetPlay.players[player].difficulty != DIFFICULTY_INSANE || NetPlay.players[player].allocated)
-			{
-				removeStruct(psStruct, true);
-				psStruct = apsStructLists[player];			//restart,(list may have changed).
-			}
-			else
-			{
-				psStruct = psStruct->psNext;
-			}
-		}
-		psD = apsDroidLists[player];					// remove all but construction droids.
-		while(psD)
-		{
-			psD2=psD->psNext;
-			if (psD->droidType != DROID_CONSTRUCT && psD->droidType != DROID_CYBORG_CONSTRUCT)
-			{
-				killDroid(psD);
-			}
-			psD = psD2;
-		}
-		break;
-
-	case CAMP_BASE:												//just structs, no walls
-		psStruct = apsStructLists[player];
-		while(psStruct)
-		{
-			if (((psStruct->pStructureType->type == REF_WALL || psStruct->pStructureType->type == REF_WALLCORNER
-			      || psStruct->pStructureType->type == REF_DEFENSE || psStruct->pStructureType->type == REF_GATE)
-			     && (NetPlay.players[player].difficulty != DIFFICULTY_INSANE || NetPlay.players[player].allocated))
-			    || psStruct->pStructureType->type == REF_BLASTDOOR
-			    || psStruct->pStructureType->type == REF_CYBORG_FACTORY
-			    || psStruct->pStructureType->type == REF_COMMAND_CONTROL)
-			{
-				removeStruct(psStruct, true);
-				psStruct= apsStructLists[player];			//restart,(list may have changed).
-			}
-			else if( (psStruct->pStructureType->type == REF_FACTORY)
-				   ||(psStruct->pStructureType->type == REF_RESEARCH)
-				   ||(psStruct->pStructureType->type == REF_POWER_GEN))
-			{
-				if(psStruct->pStructureType->type == REF_FACTORY )
-				{
-					if(firstFact == true)
-					{
-						firstFact = false;
-						removeStruct(psStruct, true);
-						psStruct= apsStructLists[player];
-					}
-					else	// don't delete, just rejig!
-					{
-						if(((FACTORY*)psStruct->pFunctionality)->capacity != 0)
-						{
-							((FACTORY*)psStruct->pFunctionality)->capacity = 0;
-							((FACTORY*)psStruct->pFunctionality)->productionOutput = (UBYTE)((PRODUCTION_FUNCTION*)psStruct->pStructureType->asFuncList[0])->productionOutput;
-
-							psStruct->sDisplay.imd	= psStruct->pStructureType->pIMD;
-							psStruct->body			= (UWORD)(structureBody(psStruct));
-
-						}
-						psStruct				= psStruct->psNext;
-					}
-				}
-				else if(psStruct->pStructureType->type == REF_RESEARCH)
-				{
-					if(firstRes == true)
-					{
-						firstRes = false;
-						removeStruct(psStruct, true);
-						psStruct= apsStructLists[player];
-					}
-					else
-					{
-						if(((RESEARCH_FACILITY*)psStruct->pFunctionality)->capacity != 0)
-						{	// downgrade research
-							((RESEARCH_FACILITY*)psStruct->pFunctionality)->capacity = 0;
-							((RESEARCH_FACILITY*)psStruct->pFunctionality)->researchPoints = ((RESEARCH_FUNCTION*)psStruct->pStructureType->asFuncList[0])->researchPoints;
-							psStruct->sDisplay.imd	= psStruct->pStructureType->pIMD;
-							psStruct->body			= (UWORD)(structureBody(psStruct));
-						}
-						psStruct=psStruct->psNext;
-					}
-				}
-				else if(psStruct->pStructureType->type == REF_POWER_GEN)
-				{
-						if(((POWER_GEN*)psStruct->pFunctionality)->capacity != 0)
-						{	// downgrade powergen.
-							((POWER_GEN*)psStruct->pFunctionality)->capacity = 0;
-
-							psStruct->sDisplay.imd	= psStruct->pStructureType->pIMD;
-							psStruct->body			= (UWORD)(structureBody(psStruct));
-						}
-						structurePowerUpgrade(psStruct);
-						psStruct=psStruct->psNext;
-				}
-			}
-
-			else
-			{
-				psStruct=psStruct->psNext;
-			}
-		}
-		break;
-
-
-	case CAMP_WALLS:												//everything.
-		break;
-	default:
-		debug( LOG_FATAL, "Unknown Campaign Style" );
-		abort();
-		break;
-	}
-
-	bMultiPlayer = true;
-	bMultiMessages = true;
-	return true;
-}
-
-// ////////////////////////////////////////////////////////////////////////////
-static BOOL gameInit(void)
+static bool gameInit(void)
 {
 	UDWORD			player;
 
@@ -551,11 +383,6 @@ static BOOL gameInit(void)
 		intAddReticule();
 
 		return true;
-	}
-
-	for(player = 0;player<game.maxPlayers;player++)			// clean up only to the player limit for this map..
-	{
-		cleanMap(player);
 	}
 
 	for (player = 1; player < MAX_PLAYERS; player++)
@@ -603,7 +430,7 @@ void playerResponding(void)
 
 // ////////////////////////////////////////////////////////////////////////////
 //called when the game finally gets fired up.
-BOOL multiGameInit(void)
+bool multiGameInit(void)
 {
 	UDWORD player;
 
@@ -620,9 +447,10 @@ BOOL multiGameInit(void)
 
 ////////////////////////////////
 // at the end of every game.
-BOOL multiGameShutdown(void)
+bool multiGameShutdown(void)
 {
 	PLAYERSTATS	st;
+	uint32_t        time;
 
 	debug(LOG_NET,"%s is shutting down.",getPlayerName(selectedPlayer));
 
@@ -634,7 +462,11 @@ BOOL multiGameShutdown(void)
 	saveMultiStats(getPlayerName(selectedPlayer), getPlayerName(selectedPlayer), &st);
 
 	// if we terminate the socket too quickly, then, it is possible not to get the leave message
-	SDL_Delay(1000);
+	time = wzGetTicks();
+	while (wzGetTicks() - time < 1000)
+	{
+		wzYieldCurrentThread();  // TODO Make a wzDelay() function?
+	}
 	// close game
 	NETclose();
 	NETremRedirects();

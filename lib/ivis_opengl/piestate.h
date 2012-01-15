@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2010  Warzone 2100 Project
+	Copyright (C) 2005-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -40,16 +40,17 @@
  */
 /***************************************************************************/
 
-typedef struct	RENDER_STATE
-				{
-					BOOL				fogEnabled;
-					BOOL				fog;
+struct RENDER_STATE
+{
+					bool				fogEnabled;
+					bool				fog;
 					PIELIGHT			fogColour;
 					SDWORD				texPage;
 					REND_MODE			rendMode;
-					BOOL				keyingOn;
-				}
-				RENDER_STATE;
+					bool				keyingOn;
+};
+
+void rendStatesRendModeHack();  // Sets rendStates.rendMode = REND_ALPHA; (Added during merge, since the renderStates is now static.)
 
 /***************************************************************************/
 /*
@@ -68,30 +69,31 @@ extern void pie_SetDefaultStates(void);//Sets all states
 extern void pie_SetDepthBufferStatus(DEPTH_MODE depthMode);
 extern void pie_SetDepthOffset(float offset);
 //fog available
-extern void pie_EnableFog(BOOL val);
-extern BOOL pie_GetFogEnabled(void);
+extern void pie_EnableFog(bool val);
+extern bool pie_GetFogEnabled(void);
 //fog currently on
-extern void pie_SetFogStatus(BOOL val);
-extern BOOL pie_GetFogStatus(void);
+extern void pie_SetFogStatus(bool val);
+extern bool pie_GetFogStatus(void);
 extern void pie_SetFogColour(PIELIGHT colour);
 extern PIELIGHT pie_GetFogColour(void) WZ_DECL_PURE;
 extern void pie_UpdateFogDistance(float begin, float end);
 //render states
 extern void pie_SetTexturePage(SDWORD num);
-extern void pie_SetAlphaTest(BOOL keyingOn);
+extern void pie_SetAlphaTest(bool keyingOn);
 extern void pie_SetRendMode(REND_MODE rendMode);
 
-extern void pie_InitColourMouse(IMAGEFILE* img, const uint16_t cursorIDs[CURSOR_MAX]);
-extern void pie_SetMouse(CURSOR cursor, bool coloured);
-extern void pie_DrawMouse(unsigned int X, unsigned int Y);
-extern void pie_ShowMouse(bool visible);
-
 // Shaders control center
+extern bool pie_GetShaderAvailability(void);
+extern void pie_SetShaderAvailability(bool);
 bool pie_LoadShaders(void);
 // Actual shaders (we do not want to export these calls)
 void pie_DeactivateShader(void);
-void pie_ActivateShader(SHADER_MODE shaderMode, PIELIGHT teamcolour, int maskpage);
+void pie_DeactivateFallback(void);
+void pie_ActivateShader(SHADER_MODE shaderMode, iIMDShape* shape, PIELIGHT teamcolour, PIELIGHT colour);
+void pie_ActivateFallback(SHADER_MODE shaderMode, iIMDShape* shape, PIELIGHT teamcolour, PIELIGHT colour);
 void pie_SetShaderStretchDepth(float stretch);
+void pie_SetShaderTime(uint32_t shaderTime);
+void pie_SetShaderEcmEffect(bool value);
 
 /* Errors control routine */
 #define glErrors() \

@@ -1,6 +1,6 @@
 /*
 	This file is part of Warzone 2100.
-	Copyright (C) 2005-2010  Warzone 2100 Project
+	Copyright (C) 2005-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -19,7 +19,11 @@
 #ifndef _physfs_ext_h
 #define _physfs_ext_h
 
-#include <physfs.h>
+#if defined(__MACOSX__)
+# include <PhysFS/physfs.h>
+#else
+# include <physfs.h>
+#endif
 
 #define PHYSFS_APPEND 1
 #define PHYSFS_PREPEND 0

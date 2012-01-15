@@ -30,17 +30,16 @@
 ;--------------------------------
 ;General
   CRCCheck on   ;make sure this isn't corrupted
-  SetCompressor /SOLID  lzma
 
   ;Name and file
   Name "${PACKAGE_NAME}"
   OutFile "${OUTFILE}"
 
   ;Default installation folder
-  InstallDir "$PROGRAMFILES\${PACKAGE_NAME} Trunk"
+  InstallDir "$PROGRAMFILES\${PACKAGE_NAME}-${PACKAGE_VERSION}"
 
   ;Get installation folder from registry if available
-  InstallDirRegKey HKLM "Software\${PACKAGE_NAME} Trunk" ""
+  InstallDirRegKey HKLM "Software\${PACKAGE_NAME}-${PACKAGE_VERSION}" ""
 
   ;Request application privileges for Windows Vista
   RequestExecutionLevel admin
@@ -53,7 +52,7 @@ VIAddVersionKey "CompanyName"		"Warzone 2100 Project"
 VIAddVersionKey "FileDescription"	"${PACKAGE_NAME} Installer"
 VIAddVersionKey "FileVersion"		"${PACKAGE_VERSION}"
 VIAddVersionKey "InternalName"		"${PACKAGE_NAME}"
-VIAddVersionKey "LegalCopyright"	"Copyright © 2006-2010 Warzone 2100 Project"
+VIAddVersionKey "LegalCopyright"	"Copyright © 2006-2011 Warzone 2100 Project"
 VIAddVersionKey "OriginalFilename"	"${PACKAGE}-${PACKAGE_VERSION}.exe"
 VIAddVersionKey "ProductName"		"${PACKAGE_NAME}"
 VIAddVersionKey "ProductVersion"	"${PACKAGE_VERSION}"
@@ -70,7 +69,8 @@ VIAddVersionKey "ProductVersion"	"${PACKAGE_VERSION}"
   !define MUI_HEADERIMAGE
   !define MUI_HEADERIMAGE_BITMAP "${TOP_SRCDIR}\icons\wz2100header.bmp"
   !define MUI_HEADERIMAGE_RIGHT
-  
+  !define MUI_WELCOMEPAGE_TITLE "Welcome to Warzone 2100 v. ${PACKAGE_VERSION}"
+  !define MUI_WELCOMEPAGE_TEXT   "$(WZWelcomeText)"
   !define MUI_WELCOMEFINISHPAGE_BITMAP "${TOP_SRCDIR}\icons\wz2100welcome.bmp"
   !define MUI_UNWELCOMEFINISHPAGE_BITMAP "${TOP_SRCDIR}\icons\wz2100welcome.bmp"
 
@@ -81,17 +81,23 @@ VIAddVersionKey "ProductVersion"	"${PACKAGE_VERSION}"
 
   ;Start Menu Folder Page Configuration (for MUI_PAGE_STARTMENU)
   !define MUI_STARTMENUPAGE_REGISTRY_ROOT "HKLM"
-  !define MUI_STARTMENUPAGE_REGISTRY_KEY "Software\${PACKAGE_NAME}"
+  !define MUI_STARTMENUPAGE_REGISTRY_KEY "Software\${PACKAGE_NAME}-${PACKAGE_VERSION}"
   !define MUI_STARTMENUPAGE_REGISTRY_VALUENAME "Start Menu Folder"
 
   ; These indented statements modify settings for MUI_PAGE_FINISH
   !define MUI_FINISHPAGE_NOAUTOCLOSE
   !define MUI_UNFINISHPAGE_NOAUTOCLOSE
-
+  
+  !define MUI_LICENSEPAGE_RADIOBUTTONS
+  !define MUI_LICENSEPAGE_RADIOBUTTONS_TEXT_ACCEPT "$(WZ_GPL_NEXT)"
+  
 ;--------------------------------
 ;Pages
 
+  !define MUI_PAGE_CUSTOMFUNCTION_PRE WelcomePageSetupLinkPre
+  !define MUI_PAGE_CUSTOMFUNCTION_SHOW WelcomePageSetupLinkShow
   !insertmacro MUI_PAGE_WELCOME
+  !insertmacro MUI_PAGE_LICENSE "${TOP_SRCDIR}\COPYING"
   !insertmacro MUI_PAGE_COMPONENTS
   !insertmacro MUI_PAGE_DIRECTORY
   !insertmacro MUI_PAGE_STARTMENU "Application" $STARTMENU_FOLDER
@@ -119,7 +125,28 @@ VIAddVersionKey "ProductVersion"	"${PACKAGE_VERSION}"
   ;Only for solid compression (by default, solid compression is enabled for BZIP2 and LZMA)
 
   !insertmacro MUI_RESERVEFILE_LANGDLL
+Function WelcomePageSetupLinkPre
+  !insertmacro MUI_INSTALLOPTIONS_WRITE "ioSpecial.ini" "Field 3" "Bottom" "142" ; limit size of the upper label
+  !insertmacro MUI_INSTALLOPTIONS_WRITE "ioSpecial.ini" "Settings" "Numfields" "4" ; increase counter
+  !insertmacro MUI_INSTALLOPTIONS_WRITE "ioSpecial.ini" "Field 4" "Type" "Link"
+  !insertmacro MUI_INSTALLOPTIONS_WRITE "ioSpecial.ini" "Field 4" "Text" "Visit our Official Homepage http://wz2100.net"
+  !insertmacro MUI_INSTALLOPTIONS_WRITE "ioSpecial.ini" "Field 4" "State" "http://wz2100.net/"
+  !insertmacro MUI_INSTALLOPTIONS_WRITE "ioSpecial.ini" "Field 4" "Left" "120"
+  !insertmacro MUI_INSTALLOPTIONS_WRITE "ioSpecial.ini" "Field 4" "Right" "300"
+  !insertmacro MUI_INSTALLOPTIONS_WRITE "ioSpecial.ini" "Field 4" "Top" "160"
+  !insertmacro MUI_INSTALLOPTIONS_WRITE "ioSpecial.ini" "Field 4" "Bottom" "172"
+FunctionEnd
 
+Function WelcomePageSetupLinkShow
+  Push $0
+  GetDlgItem $0 $MUI_HWND 1203
+  SetCtlColors $0 "0000FF" "FFFFFF"
+  ; underline font
+  CreateFont $1 "$(^Font)" "$(^FontSize)" "400" /UNDERLINE
+  SendMessage $0 ${WM_SETFONT} $1 1
+  Pop $0
+
+FunctionEnd
 ;--------------------------------
 ;Installer Sections
 
@@ -155,35 +182,43 @@ Section $(TEXT_SecBase) SecBase
   Push "ChangeLog"
   Push "ChangeLog.txt"
   Call unix2dos
-	
+
   File "${TOP_SRCDIR}\AUTHORS"
   Push "AUTHORS"
   Push "Authors.txt"
   Call unix2dos
 
-  File "${TOP_SRCDIR}\COPYING"
-  Push "COPYING"
-  Push "License.txt"
+  File "${TOP_SRCDIR}\COPYING.NONGPL"
+  Push "COPYING.NONGPL"
+  Push "COPYING.NONGPL.txt"
   Call unix2dos
 
-  File "${TOP_SRCDIR}\doc\Readme.en"
-  Push "Readme.en"
-  Push "Readme.en.txt"
+  File "${TOP_SRCDIR}\COPYING"
+  Push "COPYING"
+  Push "COPYING.txt"
   Call unix2dos
-  
-  File "${TOP_SRCDIR}\doc\Readme.de"
-  Push "Readme.de"
-  Push "Readme.de.txt"
+
+  File "${TOP_SRCDIR}\COPYING.README"
+  Push "COPYING.README"
+  Push "COPYING.README.txt"
   Call unix2dos
-  
-  File "/oname=Readme.en.html" "${TOP_SRCDIR}\doc\Readme.en.xhtml"
-  File "/oname=Readme.de.html" "${TOP_SRCDIR}\doc\Readme.de.xhtml"
 
   ; Create mod directories
   CreateDirectory "$INSTDIR\mods\campaign"
   CreateDirectory "$INSTDIR\mods\music"
   CreateDirectory "$INSTDIR\mods\global"
   CreateDirectory "$INSTDIR\mods\multiplay"
+
+  SetOutPath "$INSTDIR\doc"
+  File "${TOP_SRCDIR}\doc\Readme.en"
+  Push "Readme.en"
+  Push "Readme.en.txt"
+  Call unix2dos
+  File "${TOP_SRCDIR}\doc\quickstartguide.html"
+  File "${TOP_SRCDIR}\doc\quickstartguide.pdf"
+  File "${TOP_SRCDIR}\doc\docbook-xsl.css"
+  SetOutPath "$INSTDIR\doc\images"
+  File "${TOP_SRCDIR}\doc\images\*.*"
 
   ; Music files
   SetOutPath "$INSTDIR\music"
@@ -193,29 +228,24 @@ Section $(TEXT_SecBase) SecBase
   File "${TOP_SRCDIR}\data\music\track3.ogg"
   File "${TOP_SRCDIR}\data\music\music.wpl"
 
-  SetOutPath "$INSTDIR\styles"
-
-  File "/oname=readme.print.css" "${TOP_SRCDIR}\doc\styles\readme.print.css"
-  File "/oname=readme.screen.css" "${TOP_SRCDIR}\doc\styles\readme.screen.css"
-
   SetOutPath "$INSTDIR\fonts"
   File "/oname=fonts.conf" "${EXTDIR}\etc\fonts\fonts.conf.wd_disable"
   File "${EXTDIR}\etc\fonts\DejaVuSans.ttf"
   File "${EXTDIR}\etc\fonts\DejaVuSans-Bold.ttf"
 
   ;Store installation folder
-  WriteRegStr HKLM "Software\${PACKAGE_NAME}" "" $INSTDIR
+  WriteRegStr HKLM "Software\${PACKAGE_NAME}-${PACKAGE_VERSION}" "" $INSTDIR
 
   ; Write the Windows-uninstall keys
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PACKAGE_NAME}" "DisplayName" "${PACKAGE_NAME}"
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PACKAGE_NAME}" "DisplayVersion" "${PACKAGE_VERSION}"
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PACKAGE_NAME}" "DisplayIcon" "$INSTDIR\${PACKAGE}.exe,0"
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PACKAGE_NAME}" "Publisher" "Warzone 2100 Project"
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PACKAGE_NAME}" "URLInfoAbout" "${PACKAGE_BUGREPORT}"
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PACKAGE_NAME}" "InstallLocation" "$INSTDIR"
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PACKAGE_NAME}" "UninstallString" "$INSTDIR\uninstall.exe"
-  WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PACKAGE_NAME}" "NoModify" 1
-  WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PACKAGE_NAME}" "NoRepair" 1
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PACKAGE_NAME}-${PACKAGE_VERSION}" "DisplayName" "${PACKAGE_NAME}-${PACKAGE_VERSION}"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PACKAGE_NAME}-${PACKAGE_VERSION}" "DisplayVersion" "${PACKAGE_VERSION}"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PACKAGE_NAME}-${PACKAGE_VERSION}" "DisplayIcon" "$INSTDIR\${PACKAGE}.exe,0"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PACKAGE_NAME}-${PACKAGE_VERSION}" "Publisher" "Warzone 2100 Project"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PACKAGE_NAME}-${PACKAGE_VERSION}" "URLInfoAbout" "${PACKAGE_BUGREPORT}"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PACKAGE_NAME}-${PACKAGE_VERSION}" "InstallLocation" "$INSTDIR"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PACKAGE_NAME}-${PACKAGE_VERSION}" "UninstallString" "$INSTDIR\uninstall.exe"
+  WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PACKAGE_NAME}-${PACKAGE_VERSION}" "NoModify" 1
+  WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PACKAGE_NAME}-${PACKAGE_VERSION}" "NoRepair" 1
 
   ;Create uninstaller
   WriteUninstaller "$INSTDIR\uninstall.exe"
@@ -223,14 +253,16 @@ Section $(TEXT_SecBase) SecBase
   !insertmacro MUI_STARTMENU_WRITE_BEGIN Application
     SetOutPath "$INSTDIR"	
     ;Create shortcuts
-    CreateDirectory "$SMPROGRAMS\$STARTMENU_FOLDER"
-    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\Uninstall.lnk" "$INSTDIR\uninstall.exe"
-    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\${PACKAGE_NAME}.lnk" "$INSTDIR\${PACKAGE}.exe"
+    CreateDirectory "$SMPROGRAMS\$STARTMENU_FOLDER-${PACKAGE_VERSION}"
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER-${PACKAGE_VERSION}\Uninstall.lnk" "$INSTDIR\uninstall.exe"
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER-${PACKAGE_VERSION}\${PACKAGE_NAME}.lnk" "$INSTDIR\${PACKAGE}.exe"
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER-${PACKAGE_VERSION}\Quick Start Guide (html).lnk" "$INSTDIR\doc\quickstartguide.html"
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER-${PACKAGE_VERSION}\Quick Start Guide (pdf).lnk" "$INSTDIR\doc\quickstartguide.pdf"
 
   !insertmacro MUI_STARTMENU_WRITE_END
 
   SetOutPath "$INSTDIR"	
-  CreateShortCut "$DESKTOP\${PACKAGE_NAME}.lnk" "$INSTDIR\${PACKAGE}.exe"
+  CreateShortCut "$DESKTOP\${PACKAGE_NAME}-${PACKAGE_VERSION}.lnk" "$INSTDIR\${PACKAGE}.exe"
 SectionEnd
 
 
@@ -254,7 +286,7 @@ Section $(TEXT_SecOriginalMod) SecOriginalMod
   SetOutPath "$INSTDIR"
 
   !insertmacro MUI_STARTMENU_WRITE_BEGIN "Application"
-    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\${PACKAGE_NAME} - Old 1.10 Balance.lnk" "$INSTDIR\${PACKAGE}.exe" "--mod_mp=old-1.10-balance.wz"
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER-${PACKAGE_VERSION}\${PACKAGE_NAME}- Old 1.10 Balance.lnk" "$INSTDIR\${PACKAGE}.exe" "--mod_mp=old-1.10-balance.wz"
   !insertmacro MUI_STARTMENU_WRITE_END
 
 SectionEnd
@@ -263,10 +295,21 @@ SectionGroupEnd
 
 SectionGroup $(TEXT_SecFMVs) SecFMVs
 
+
+Section /o $(TEXT_SecFMVs_EngHi) SecFMVs_EngHi
+
+  IfFileExists "sequences.wz" +5
+    NSISdl::download "http://downloads.sourceforge.net/project/warzone2100/warzone2100/Videos/high-quality-en/sequences.wz"               "sequences.wz"
+    Pop $R0 ; Get the return value
+    StrCmp $R0 "success" +2
+      MessageBox MB_OK|MB_ICONSTOP "Download of videos failed: $R0"
+
+SectionEnd
+
 Section /o $(TEXT_SecFMVs_Eng) SecFMVs_Eng
 
   IfFileExists "sequences.wz" +5
-    NSISdl::download "http://downloads.sourceforge.net/project/warzone2100/warzone2100/Videos/2.2/standard-quality-en/sequences.wz"               "sequences.wz"
+    NSISdl::download "http://downloads.sourceforge.net/project/warzone2100/warzone2100/Videos/standard-quality-en/sequences.wz"               "sequences.wz"
     Pop $R0 ; Get the return value
     StrCmp $R0 "success" +2
       MessageBox MB_OK|MB_ICONSTOP "Download of videos failed: $R0"
@@ -276,7 +319,7 @@ SectionEnd
 Section /o $(TEXT_SecFMVs_EngLo) SecFMVs_EngLo
 
   IfFileExists "sequences.wz" +5
-    NSISdl::download "http://downloads.sourceforge.net/project/warzone2100/warzone2100/Videos/2.2/low-quality-en/sequences.wz"               "sequences.wz"
+    NSISdl::download "http://downloads.sourceforge.net/project/warzone2100/warzone2100/Videos/low-quality-en/sequences.wz"               "sequences.wz"
     Pop $R0 ; Get the return value
     StrCmp $R0 "success" +2
       MessageBox MB_OK|MB_ICONSTOP "Download of videos failed: $R0"
@@ -298,6 +341,9 @@ SectionGroupEnd
 SectionGroup $(TEXT_SecNLS) SecNLS
 
 Section "-NLS files" SecNLS_files
+  SetOutPath "$INSTDIR\locale\ca\LC_MESSAGES"
+  File "/oname=${PACKAGE}.mo" "${TOP_SRCDIR}\po\ca_ES.gmo"
+
   SetOutPath "$INSTDIR\locale\cs\LC_MESSAGES"
   File "/oname=${PACKAGE}.mo" "${TOP_SRCDIR}\po\cs.gmo"
 
@@ -330,6 +376,9 @@ Section "-NLS files" SecNLS_files
 
   SetOutPath "$INSTDIR\locale\hr\LC_MESSAGES"
   File "/oname=${PACKAGE}.mo" "${TOP_SRCDIR}\po\hr.gmo"
+
+  SetOutPath "$INSTDIR\locale\hu\LC_MESSAGES"
+  File "/oname=${PACKAGE}.mo" "${TOP_SRCDIR}\po\hu.gmo"
 
   SetOutPath "$INSTDIR\locale\it\LC_MESSAGES"
   File "/oname=${PACKAGE}.mo" "${TOP_SRCDIR}\po\it.gmo"
@@ -399,6 +448,11 @@ SectionGroupEnd
 Function .onInit
   !insertmacro MUI_LANGDLL_DISPLAY
   
+  # increase required size of section 'SecFMVs_EngHi' by file size
+  SectionGetSize ${SecFMVs_EngHi} $0
+  IntOp $0 $0 + 671938;135
+  SectionSetSize ${SecFMVs_EngHi} $0
+
   # increase required size of section 'SecFMVs_Eng' by file size
   SectionGetSize ${SecFMVs_Eng} $0
   IntOp $0 $0 + 571937;134
@@ -421,14 +475,17 @@ Function .onInit
   SectionSetFlags ${SecFMVs} $0
   
   ;FIXME: Select default video sub-component
+  ; Default is still set to standard instead of high, since there is a ~450MB difference
   StrCpy $5 ${SecFMVs_Eng}
 FunctionEnd
 
 Function .onSelChange
 ${If} ${SectionIsSelected} ${SecFMVs_Eng}
+${OrIf} ${SectionIsSelected} ${SecFMVs_EngHi}
 ${OrIf} ${SectionIsSelected} ${SecFMVs_EngLo}
 ;${OrIf} ${SectionIsSelected} ${SecFMVs_Ger}
 	!insertmacro StartRadioButtons $5
+		!insertmacro RadioButton ${SecFMVs_EngHi}
 		!insertmacro RadioButton ${SecFMVs_Eng}
 		!insertmacro RadioButton ${SecFMVs_EngLo}
 ;		!insertmacro RadioButton ${SecFMVs_Ger}
@@ -478,6 +535,10 @@ FunctionEnd
 ;Descriptions
 
   ;English
+  LangString WZWelcomeText ${LANG_ENGLISH} "This wizard will guide you through the installation of Warzone 2100.\r\n\r\nIt is recommended that you close all other applications before continuing this installation. This will make it possible to update relevant system files without having to reboot your computer.\r\n\r\nWarzone 2100 is 100% free, if you paid for it, let us know!\r\n\r\nClick Next to continue."
+  LangString WZ_GPL_NEXT ${LANG_ENGLISH} "Next"
+
+
   LangString TEXT_SecBase ${LANG_ENGLISH} "Core files"
   LangString DESC_SecBase ${LANG_ENGLISH} "The core files required to run Warzone 2100."
 
@@ -490,12 +551,15 @@ FunctionEnd
   LangString TEXT_SecFMVs ${LANG_ENGLISH} "Videos"
   LangString DESC_SecFMVs ${LANG_ENGLISH} "Download and install in-game cutscenes."
 
+  LangString TEXT_SecFMVs_EngHi ${LANG_ENGLISH} "English (HQ)"
+  LangString DESC_SecFMVs_EngHi ${LANG_ENGLISH} "Download and install higher-quality English in-game cutscenes (920 MB)."
+
   LangString TEXT_SecFMVs_Eng ${LANG_ENGLISH} "English"
   LangString DESC_SecFMVs_Eng ${LANG_ENGLISH} "Download and install English in-game cutscenes (545 MB)."
-  
+
   LangString TEXT_SecFMVs_EngLo ${LANG_ENGLISH} "English (LQ)"
   LangString DESC_SecFMVs_EngLo ${LANG_ENGLISH} "Download and install a low-quality version of English in-game cutscenes (162 MB)."
-  
+
   LangString TEXT_SecFMVs_Ger ${LANG_ENGLISH} "German"
   LangString DESC_SecFMVs_Ger ${LANG_ENGLISH} "Download and install German in-game cutscenes (460 MB)."
   
@@ -509,6 +573,10 @@ FunctionEnd
   LangString DESC_SecOriginalMod ${LANG_ENGLISH} "Play the game as it was back in the 1.10 days."
 
   ;Dutch
+  LangString WZWelcomeText ${LANG_DUTCH} "Deze installatiewizard leidt u door het installatieproces van Warzone 2100.\r\n\r\nHet is aangeraden om alle andere applicaties te sluiten alvorens verder te gaan met deze installatie. Dit maakt het mogelijk om de betreffende systeembestanden te vervangen zonder uw computer opnieuw op te starten" 
+  LangString WZ_GPL_NEXT ${LANG_DUTCH} "volgende"
+
+
   LangString TEXT_SecBase ${LANG_DUTCH} "Core files"
   LangString DESC_SecBase ${LANG_DUTCH} "The core files required to run Warzone 2100."
 
@@ -521,12 +589,15 @@ FunctionEnd
   LangString TEXT_SecFMVs ${LANG_DUTCH} "Videos"
   LangString DESC_SecFMVs ${LANG_DUTCH} "Download and install in-game cutscenes."
 
+  LangString TEXT_SecFMVs_EngHi ${LANG_DUTCH} "English (HQ)"
+  LangString DESC_SecFMVs_EngHi ${LANG_DUTCH} "Download and install higher-quality English in-game cutscenes (920 MB)."
+
   LangString TEXT_SecFMVs_Eng ${LANG_DUTCH} "English"
   LangString DESC_SecFMVs_Eng ${LANG_DUTCH} "Download and install English in-game cutscenes (545 MB)."
-  
+
   LangString TEXT_SecFMVs_EngLo ${LANG_DUTCH} "English (LQ)"
   LangString DESC_SecFMVs_EngLo ${LANG_DUTCH} "Download and install a low-quality version of English in-game cutscenes (162 MB)."
-  
+
   LangString TEXT_SecFMVs_Ger ${LANG_DUTCH} "German"
   LangString DESC_SecFMVs_Ger ${LANG_DUTCH} "Download and install German in-game cutscenes (460 MB)."
 
@@ -540,6 +611,10 @@ FunctionEnd
   LangString DESC_SecOriginalMod ${LANG_DUTCH} "Speel het spel met de originele 1.10 versie balans stats."
 
   ;German
+  LangString WZWelcomeText ${LANG_GERMAN} "Dieser Wizard wird Sie durch die Warzone-2100-Installation fьhren.\r\n\r\nEs wird empfohlen sдmtliche anderen Anwendungen zu schlieЯen, bevor Sie das Setup starten. Dies ermцglicht es relevante Systemdateien zu aktualisieren, ohne neustarten zu mьssen.\r\n\r\nWarzone 2100 ist zu 100% kostenlos, falls Sie dafьr gezahlt haben, lassen Sie es uns wissen!\r\n\r\nKlicken Sie auf Weiter, um fortzufahren."
+  LangString WZ_GPL_NEXT ${LANG_GERMAN} "nдchste"
+
+
   LangString TEXT_SecBase ${LANG_GERMAN} "Core files"
   LangString DESC_SecBase ${LANG_GERMAN} "Die Kerndateien, die fьr Warzone 2100 benцtigt werden."
 
@@ -552,12 +627,15 @@ FunctionEnd
   LangString TEXT_SecFMVs ${LANG_GERMAN} "Videos"
   LangString DESC_SecFMVs ${LANG_GERMAN} "Videos herunterladen und installieren."
 
+  LangString TEXT_SecFMVs_EngHi ${LANG_GERMAN} "English (HQ)"
+  LangString DESC_SecFMVs_EngHi ${LANG_GERMAN} "Videos in besserer Qualitдt und auf Englisch herunterladen und installieren (920 MiB)."
+
   LangString TEXT_SecFMVs_Eng ${LANG_GERMAN} "English"
   LangString DESC_SecFMVs_Eng ${LANG_GERMAN} "Die englischen Videos herunterladen und installieren (545 MiB)."
-  
+
   LangString TEXT_SecFMVs_EngLo ${LANG_GERMAN} "English (LQ)"
   LangString DESC_SecFMVs_EngLo ${LANG_GERMAN} "Die englischen Videos in geringer Qualitдt herunterladen und installieren (162 MiB)."
-  
+
   LangString TEXT_SecFMVs_Ger ${LANG_GERMAN} "German"
   LangString DESC_SecFMVs_Ger ${LANG_GERMAN} "Die deutschen Videos herunterladen und installieren (460 MiB)."
   
@@ -571,6 +649,10 @@ FunctionEnd
   LangString DESC_SecOriginalMod ${LANG_GERMAN} "Spielen Sie das Spiel mit dem Balancing aus der Originalversion 1.10."
 
   ;Russian
+  LangString WZWelcomeText ${LANG_RUSSIAN} "Этот помощник установки поможет вам установить Warzone2100.\r\n\r\nПеред началом рекомендуем закрыть все другие приложения. Это позволит обновить соответствующие системные файлы без перезагрузки системы.\r\n\r\nWarzone2100 100% бесплатный, если вы за него заплатили сообщите нам!\r\n\r\nНажмите Далее для продолжения."  
+  LangString WZ_GPL_NEXT ${LANG_RUSSIAN} "Согласен"
+
+
   LangString TEXT_SecBase ${LANG_RUSSIAN} "Базовые файлы"
   LangString DESC_SecBase ${LANG_RUSSIAN} "Файлы требуемые для запуска Warzone 2100."
 
@@ -583,15 +665,18 @@ FunctionEnd
   LangString TEXT_SecFMVs ${LANG_RUSSIAN} "Видео"
   LangString DESC_SecFMVs ${LANG_RUSSIAN} "Скачать и установить внутриигровые ролики."
 
+  LangString TEXT_SecFMVs_EngHi ${LANG_RUSSIAN} "Английские (HQ)"
+  LangString DESC_SecFMVs_EngHi ${LANG_RUSSIAN} "Download and install higher-quality English in-game cutscenes (920 MB)."
+
   LangString TEXT_SecFMVs_Eng ${LANG_RUSSIAN} "Английские"
   LangString DESC_SecFMVs_Eng ${LANG_RUSSIAN} "Скачать и установить внутриигровые ролики на английском языке (545 MB)."
-  
+
   LangString TEXT_SecFMVs_EngLo ${LANG_RUSSIAN} "Английские (LQ)"
   LangString DESC_SecFMVs_EngLo ${LANG_RUSSIAN} "Скачать и установить внутриигровые ролики (низкого качества) на английском языке (162 MB)."
-  
+
   LangString TEXT_SecFMVs_Ger ${LANG_RUSSIAN} "Немецкие"
   LangString DESC_SecFMVs_Ger ${LANG_RUSSIAN} "Скачать и установить внутриигровые ролики на немецком языке (460 MB)."
-  
+
   LangString TEXT_SecNLS ${LANG_RUSSIAN} "Языковые файлы"
   LangString DESC_SecNLS ${LANG_RUSSIAN} "Поддержка Русского и других языков."
 
@@ -612,6 +697,7 @@ FunctionEnd
 	
     !insertmacro MUI_DESCRIPTION_TEXT ${SecFMVs} $(DESC_SecFMVs)
 	!insertmacro MUI_DESCRIPTION_TEXT ${SecFMVs_Eng} $(DESC_SecFMVs_Eng)
+	!insertmacro MUI_DESCRIPTION_TEXT ${SecFMVs_EngHi} $(DESC_SecFMVs_EngHi)
 	!insertmacro MUI_DESCRIPTION_TEXT ${SecFMVs_EngLo} $(DESC_SecFMVs_EngLo)
 ;	!insertmacro MUI_DESCRIPTION_TEXT ${SecFMVs_Ger} $(DESC_SecFMVs_Ger)
 
@@ -640,10 +726,14 @@ Section "Uninstall"
   Delete "$INSTDIR\stderr.txt"
   Delete "$INSTDIR\stdout.txt"
 
-  Delete "$INSTDIR\Readme.en.txt"
-  Delete "$INSTDIR\Readme.de.txt"
-  Delete "$INSTDIR\Readme.en.html"
-  Delete "$INSTDIR\Readme.de.html"
+  Delete "$INSTDIR\COPYING.NONGPL.txt"
+  Delete "$INSTDIR\COPYING.README.txt"
+  Delete "$INSTDIR\COPYING.txt"
+
+  Delete "$INSTDIR\doc\images\*.*"
+  Delete "$INSTDIR\doc\*.*"
+  RMDir "$INSTDIR\doc\images"
+  RMDIR "$INSTDIR\doc"
 
   Delete "$INSTDIR\License.txt"
   Delete "$INSTDIR\Authors.txt"
@@ -657,10 +747,6 @@ Section "Uninstall"
   RMDir "$INSTDIR\music"
 
   Delete "$INSTDIR\uninstall.exe"
-
-  Delete "$INSTDIR\styles\readme.print.css"
-  Delete "$INSTDIR\styles\readme.screen.css"
-  RMDir "$INSTDIR\styles"
 
   Delete "$INSTDIR\fonts\fonts.conf"
   Delete "$INSTDIR\fonts\DejaVuSansMono.ttf"
@@ -682,6 +768,10 @@ Section "Uninstall"
   RMDir "$INSTDIR\mods"
 
 ; remove all the locales
+
+  Delete "$INSTDIR\locale\ca\LC_MESSAGES\${PACKAGE}.mo"
+  RMDir "$INSTDIR\locale\ca\LC_MESSAGES"
+  RMDir "$INSTDIR\locale\ca"
 
   Delete "$INSTDIR\locale\cs\LC_MESSAGES\${PACKAGE}.mo"
   RMDir "$INSTDIR\locale\cs\LC_MESSAGES"
@@ -726,6 +816,10 @@ Section "Uninstall"
   Delete "$INSTDIR\locale\hr\LC_MESSAGES\${PACKAGE}.mo"
   RMDir "$INSTDIR\locale\hr\LC_MESSAGES"
   RMDir "$INSTDIR\locale\hr"
+
+  Delete "$INSTDIR\locale\hu\LC_MESSAGES\${PACKAGE}.mo"
+  RMDir "$INSTDIR\locale\hu\LC_MESSAGES"
+  RMDir "$INSTDIR\locale\hu"
 
   Delete "$INSTDIR\locale\it\LC_MESSAGES\${PACKAGE}.mo"
   RMDir "$INSTDIR\locale\it\LC_MESSAGES"
@@ -802,18 +896,20 @@ Section "Uninstall"
   
 ; remove the desktop shortcut icon
 
-  Delete "$DESKTOP\${PACKAGE_NAME}.lnk"
+  Delete "$DESKTOP\${PACKAGE_NAME}-${PACKAGE_VERSION}.lnk"
 
 ; and now, lets really remove the startmenu entries...
 
   !insertmacro MUI_STARTMENU_GETFOLDER Application $MUI_TEMP
 
-  Delete "$SMPROGRAMS\$MUI_TEMP\Uninstall.lnk"
-  Delete "$SMPROGRAMS\$MUI_TEMP\${PACKAGE_NAME}.lnk"
-  Delete "$SMPROGRAMS\$MUI_TEMP\${PACKAGE_NAME} - Old 1.10 Balance.lnk"
+  Delete "$SMPROGRAMS\$MUI_TEMP-${PACKAGE_VERSION}\Uninstall.lnk"
+  Delete "$SMPROGRAMS\$MUI_TEMP-${PACKAGE_VERSION}\${PACKAGE_NAME}.lnk"
+  Delete "$SMPROGRAMS\$MUI_TEMP-${PACKAGE_VERSION}\${PACKAGE_NAME}- Old 1.10 Balance.lnk"
+  Delete "$SMPROGRAMS\$MUI_TEMP-${PACKAGE_VERSION}\Quick Start Guide (html).lnk"
+  Delete "$SMPROGRAMS\$MUI_TEMP-${PACKAGE_VERSION}\Quick Start Guide (pdf).lnk"
 
   ;Delete empty start menu parent diretories
-  StrCpy $MUI_TEMP "$SMPROGRAMS\$MUI_TEMP"
+  StrCpy $MUI_TEMP "$SMPROGRAMS\$MUI_TEMP-${PACKAGE_VERSION}"
 
   startMenuDeleteLoop:
 	ClearErrors
@@ -825,12 +921,12 @@ Section "Uninstall"
     StrCmp $MUI_TEMP $SMPROGRAMS startMenuDeleteLoopDone startMenuDeleteLoop
   startMenuDeleteLoopDone:
 
-  DeleteRegValue HKLM "Software\${PACKAGE_NAME}" "Start Menu Folder"
-  DeleteRegValue HKLM "Software\${PACKAGE_NAME}" ""
-  DeleteRegKey /ifempty HKLM "Software\${PACKAGE_NAME}"
+  DeleteRegValue HKLM "Software\${PACKAGE_NAME}-${PACKAGE_VERSION}" "Start Menu Folder"
+  DeleteRegValue HKLM "Software\${PACKAGE_NAME}-${PACKAGE_VERSION}" ""
+  DeleteRegKey /ifempty HKLM "Software\${PACKAGE_NAME}-${PACKAGE_VERSION}"
 
   ; Unregister with Windows' uninstall system
-  DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PACKAGE_NAME}"
+  DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PACKAGE_NAME}-${PACKAGE_VERSION}"
 
 SectionEnd
 

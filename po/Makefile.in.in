@@ -91,8 +91,8 @@ CATALOGS = @CATALOGS@
 .po.gmo:
 	@lang=`echo $* | sed -e 's,.*/,,'`; \
 	test "$(builddir)" = . && cdcmd="" || cdcmd="cd $(builddir) && "; \
-	echo "$${cdcmd}rm -f $${lang}.gmo && $(GMSGFMT) -c --statistics -o $${lang}.gmo $(srcdir)/$${lang}.po"; \
-	cd $(builddir) && rm -f $${lang}.gmo && $(GMSGFMT) -c --statistics -o t-$${lang}.gmo $(srcdir)/$${lang}.po && mv t-$${lang}.gmo $${lang}.gmo
+	echo "cd $(srcdir) && rm -f $${lang}.gmo && $(GMSGFMT) -c --statistics -o $${lang}.gmo $${lang}.po"; \
+	cd $(srcdir) && rm -f $${lang}.gmo && $(GMSGFMT) -c --statistics -o t-$${lang}.gmo $${lang}.po && mv t-$${lang}.gmo $${lang}.gmo
 
 .sin.sed:
 	sed -e '/^#/d' $< > t-$@
@@ -101,7 +101,7 @@ CATALOGS = @CATALOGS@
 
 all: check-macro-version all-@USE_NLS@
 
-all-yes: stamp-po
+all-yes:
 all-no:
 
 # Ensure that the gettext macros and this Makefile.in.in are in sync.
@@ -203,7 +203,7 @@ $(POFILES): $(srcdir)/$(DOMAIN).pot
 	fi
 
 
-install: install-exec install-data
+install: $(CATALOGS) install-exec install-data
 install-exec:
 install-data: install-data-@USE_NLS@
 	if test "$(PACKAGE)" = "gettext-tools"; then \
@@ -383,10 +383,13 @@ POTFILES.in: $(srcdir)/update-po.sh
 
 update-po-custom: POTFILES.in
 
-update-po: Makefile update-po-custom
+update-po: Makefile update-po-custom stamp-po
 	$(MAKE) $(DOMAIN).pot-update
 	test -z "$(UPDATEPOFILES)" || $(MAKE) $(UPDATEPOFILES)
 	$(MAKE) update-gmo
+
+update-custom:
+	(cd $(srcdir); ./update-custom.py push; ./update-custom.py pull)
 
 # General rule for creating PO files.
 

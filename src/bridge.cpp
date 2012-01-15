@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2010  Warzone 2100 Project
+	Copyright (C) 2005-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -52,7 +52,7 @@ one of the axes must share the same values.
 */
 bool bridgeValid(int startX, int startY, int endX, int endY)
 {
-	BOOL	xBridge, yBridge;
+	bool	xBridge, yBridge;
 	int	bridgeLength, i, minX, minY, maxX, maxY;
 
 	/* Establish axes allignment */
@@ -112,9 +112,8 @@ bool bridgeValid(int startX, int startY, int endX, int endY)
 	at a height stored in their structure - as they're above the ground
 	and wouldn't be much use if they weren't, bridge wise.
 */
-BOOL	renderBridgeSection(STRUCTURE *psStructure)
+bool	renderBridgeSection(STRUCTURE *psStructure)
 {
-	SDWORD			rx, rz;
 	Vector3i dv;
 
 	/* Bomb out if it's not visible */
@@ -124,8 +123,8 @@ BOOL	renderBridgeSection(STRUCTURE *psStructure)
 	}
 
 	/* Establish where it is in the world */
-	dv.x = (psStructure->pos.x - player.p.x) - terrainMidX * TILE_UNITS;
-	dv.z = terrainMidY * TILE_UNITS - (psStructure->pos.y - player.p.z);
+	dv.x = psStructure->pos.x - player.p.x;
+	dv.z = -(psStructure->pos.y - player.p.z);
 	dv.y = psStructure->pos.z;
 
 	/* Push the indentity matrix */
@@ -133,13 +132,6 @@ BOOL	renderBridgeSection(STRUCTURE *psStructure)
 
 	/* Translate */
 	pie_TRANSLATE(dv.x, dv.y, dv.z);
-
-	/* Get the x,z translation components */
-	rx = map_round(player.p.x);
-	rz = map_round(player.p.z);
-
-	/* Translate */
-	pie_TRANSLATE(rx, 0, -rz);
 
 	pie_Draw3DShape(psStructure->sDisplay.imd, 0, 0, WZCOL_WHITE, 0, 0);
 

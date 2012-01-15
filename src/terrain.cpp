@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2010  Warzone 2100 Project
+	Copyright (C) 2005-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -26,13 +26,13 @@
  * The technique used it called "texture splatting".
  * Every layer only draws the spots where that terrain is, and additive blending is used to make transitions smooth.
  * Decals are a kind of hack now, as for some tiles (where decal == true) the old tile is just drawn.
- * The water is drawn using the hardcoded page-80 and page-81 textures. 
+ * The water is drawn using the hardcoded page-80 and page-81 textures.
  */
 
-#include <GLee.h>
 #include <string.h>
 
 #include "lib/framework/frame.h"
+#include "lib/framework/opengl.h"
 #include "lib/ivis_opengl/ivisdef.h"
 #include "lib/ivis_opengl/imd.h"
 #include "lib/ivis_opengl/piefunc.h"
@@ -53,7 +53,7 @@
  * The actual geometry and texture data is not stored in here but in large VBO's.
  * The sector only stores the index and length of the pieces it's going to use.
  */
-typedef struct
+struct Sector
 {
 	int geometryOffset;      ///< The point in the geometry VBO where our geometry starts
 	int geometrySize;        ///< The size of our geometry
@@ -71,25 +71,25 @@ typedef struct
 	int decalSize;           ///< Size of the part of the decal VBO we are going to use
 	bool draw;               ///< Do we draw this sector this frame?
 	bool dirty;              ///< Do we need to update the geometry for this sector?
-} Sector;
+};
 
 /// A vertex with just a position
-typedef struct
+struct RenderVertex
 {
 	GLfloat x, y, z;        // Vertex
-} RenderVertex;
+};
 
 /// A vertex with a position and texture coordinates
-typedef struct
+struct DecalVertex
 {
 	GLfloat x, y, z;
 	GLfloat u, v;          // uv
-} DecalVertex;
+};
 
 /// The lightmap texture
 static GLuint lightmap_tex_num;
 /// When are we going to update the lightmap next?
-static unsigned int lightmapNextUpdate;
+static unsigned int lightmapLastUpdate;
 /// How big is the lightmap?
 static int lightmapWidth;
 static int lightmapHeight;
@@ -639,6 +639,8 @@ static void updateSectorGeometry(int x, int y)
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 
 	free (decaldata);
+
+	glBindBuffer(GL_ARRAY_BUFFER, 0);  // HACK Must unbind GL_ARRAY_BUFFER (don't know if it has to be unbound everywhere), otherwise text rendering may mysteriously crash.
 }
 
 /**
@@ -751,8 +753,9 @@ bool initTerrain(void)
 		}
 		debug(LOG_WARNING, "decreasing sector size to %i to fit graphics card constraints", sectorSize);
 	}
-	
-	terrainDistance = 1.5*((visibleTiles.x+visibleTiles.y)/4+sectorSize/2);
+
+	// +4 = +1 for iHypot rounding, +1 for sector size rounding, +2 for edge of visibility
+	terrainDistance = iHypot(visibleTiles.x/2, visibleTiles.y/2)+4+sectorSize/2;
 	debug(LOG_TERRAIN, "visible tiles x:%i y: %i", visibleTiles.x, visibleTiles.y);
 	debug(LOG_TERRAIN, "terrain view distance: %i", terrainDistance);
 	
@@ -801,22 +804,35 @@ bool initTerrain(void)
 					{
 						continue; // off map, so skip
 					}
+
+					/* One tile is composed of 4 triangles,
+					 * we need _2_ vertices per tile (1)
+					 * 		e.g. center and bottom left
+					 * 	the other 3 vertices are from the adjacent tiles
+					 * 	on their top and right.
+					 * (1) The top row and right column of tiles need 4 vertices per tile
+					 * 	because they do not have adjacent tiles on their top and right,
+					 * 	that is why we add _1_ row and _1_ column to provide the geometry
+					 * 	for these tiles.
+					 * This is the source of the '*2' and '+1' in the index math below.
+					 */
 #define q(i,j,center) ((x*ySectors+y)*(sectorSize+1)*(sectorSize+1)*2 + ((i)*(sectorSize+1)+(j))*2+(center))
-					geometryIndex[geometryIndexSize+0]  = q(i  ,j  ,1);
-					geometryIndex[geometryIndexSize+1]  = q(i  ,j  ,0);
-					geometryIndex[geometryIndexSize+2]  = q(i+1,j  ,0);
-					
-					geometryIndex[geometryIndexSize+3]  = q(i  ,j  ,1);
-					geometryIndex[geometryIndexSize+4]  = q(i  ,j+1,0);
-					geometryIndex[geometryIndexSize+5]  = q(i  ,j  ,0);
-					
-					geometryIndex[geometryIndexSize+6]  = q(i  ,j  ,1);
-					geometryIndex[geometryIndexSize+7]  = q(i+1,j+1,0);
-					geometryIndex[geometryIndexSize+8]  = q(i  ,j+1,0);
-					
-					geometryIndex[geometryIndexSize+9]  = q(i  ,j  ,1);
-					geometryIndex[geometryIndexSize+10] = q(i+1,j  ,0);
-					geometryIndex[geometryIndexSize+11] = q(i+1,j+1,0);
+					// First triangle
+					geometryIndex[geometryIndexSize+0]  = q(i  ,j  ,1);	// Center vertex
+					geometryIndex[geometryIndexSize+1]  = q(i  ,j  ,0);	// Bottom left
+					geometryIndex[geometryIndexSize+2]  = q(i+1,j  ,0);	// Bottom right
+					// Second triangle
+					geometryIndex[geometryIndexSize+3]  = q(i  ,j  ,1);	// Center vertex
+					geometryIndex[geometryIndexSize+4]  = q(i  ,j+1,0);	// Top left
+					geometryIndex[geometryIndexSize+5]  = q(i  ,j  ,0);	// Bottom left
+					// Third triangle
+					geometryIndex[geometryIndexSize+6]  = q(i  ,j  ,1);	// Center vertex
+					geometryIndex[geometryIndexSize+7]  = q(i+1,j+1,0);	// Top right
+					geometryIndex[geometryIndexSize+8]  = q(i  ,j+1,0);	// Top left
+					// Fourth triangle
+					geometryIndex[geometryIndexSize+9]  = q(i  ,j  ,1);	// Center vertex
+					geometryIndex[geometryIndexSize+10] = q(i+1,j  ,0);	// Bottom right
+					geometryIndex[geometryIndexSize+11] = q(i+1,j+1,0);	// Top right
 					geometryIndexSize += 12;
 					if (isWater(i+x*sectorSize,j+y*sectorSize))
 					{
@@ -999,7 +1015,7 @@ bool initTerrain(void)
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	
 	lightmap_tex_num = 0;
-	lightmapNextUpdate = 0;
+	lightmapLastUpdate = 0;
 	lightmapWidth = 1;
 	lightmapHeight = 1;
 	// determine the smallest power-of-two size we can use for the lightmap
@@ -1029,7 +1045,9 @@ bool initTerrain(void)
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, lightmapWidth, lightmapHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, lightmapPixmap);
 
 	terrainInitalised = true;
-	
+
+	glBindBuffer(GL_ARRAY_BUFFER, 0);  // HACK Must unbind GL_ARRAY_BUFFER (in this function, at least), otherwise text rendering may mysteriously crash.
+
 	return true;
 }
 
@@ -1081,17 +1099,17 @@ void drawTerrain(void)
 	const GLfloat paramsY[4] = {0, 0, -1.0f/world_coord(mapHeight)*((float)mapHeight/lightmapHeight), 0};
 
 	///////////////////////////////////
+	glError();	// clear error codes
 	// set up the lightmap texture
-
 	glActiveTexture(GL_TEXTURE1);
 	// bind the texture
 	glBindTexture(GL_TEXTURE_2D, lightmap_tex_num);
 	glEnable(GL_TEXTURE_2D);
 
 	// we limit the framerate of the lightmap, because updating a texture is an expensive operation
-	if (gameTime >= lightmapNextUpdate)
+	if (realTime - lightmapLastUpdate >= LIGHTMAP_REFRESH)
 	{
-		lightmapNextUpdate = gameTime + LIGHTMAP_REFRESH;
+		lightmapLastUpdate = realTime;
 
 		for (j = 0; j < mapHeight; ++j)
 		{
@@ -1106,13 +1124,13 @@ void drawTerrain(void)
 				if (!pie_GetFogStatus())
 				{
 					// fade to black at the edges of the visible terrain area
-					const float playerX = (float)player.p.x/TILE_UNITS+visibleTiles.x/2;
-					const float playerY = (float)player.p.z/TILE_UNITS+visibleTiles.y/2;
+					const float playerX = map_coordf(player.p.x);
+					const float playerY = map_coordf(player.p.z);
 
-					const float distA = visibleTiles.x/2-(i-playerX);
-					const float distB = (i-playerX)+visibleTiles.x/2;
-					const float distC = visibleTiles.y/2-(j-playerY);
-					const float distD = (j-playerY)+visibleTiles.y/2;
+					const float distA = i-(playerX-visibleTiles.x/2);
+					const float distB = (playerX+visibleTiles.x/2)-i;
+					const float distC = j-(playerY-visibleTiles.y/2);
+					const float distD = (playerY+visibleTiles.y/2)-j;
 					float darken, distToEdge;
 
 					// calculate the distance to the closest edge of the visible map
@@ -1151,8 +1169,8 @@ void drawTerrain(void)
 		{
 			xPos = world_coord(x*sectorSize+sectorSize/2);
 			yPos = world_coord(y*sectorSize+sectorSize/2);
-			distance = pow(player.p.x+world_coord(visibleTiles.x/2) - xPos, 2) + pow(player.p.z+world_coord(visibleTiles.y/2) - yPos, 2);
-			//debug(LOG_TERRAIN, "culling: %i,%i player x: %i, player z: %i, xPos: %f, yPos: %f, distance = %f, max = %f",  x,y,player.p.x, player.p.z, xPos, yPos, distance, pow(world_coord(terrainDistance),2));
+			distance = pow(player.p.x - xPos, 2) + pow(player.p.z - yPos, 2);
+
 			if (distance > pow((double)world_coord(terrainDistance), 2))
 			{
 				sectors[x*ySectors + y].draw = false;
@@ -1251,8 +1269,8 @@ void drawTerrain(void)
 	///////////////////////////////////
 	// terrain
 
- 	glEnableClientState(GL_COLOR_ARRAY);
- 
+	glEnableClientState(GL_COLOR_ARRAY);
+
 	// set up for texture coord generation
 	glEnable(GL_TEXTURE_GEN_S);
 	glEnable(GL_TEXTURE_GEN_T);
@@ -1322,14 +1340,6 @@ void drawTerrain(void)
 	glDisable(GL_TEXTURE_GEN_S); glError();
 	glDisable(GL_TEXTURE_GEN_T); glError();
 
-#ifdef MESA_BUG
-	// prevent the terrain from getting corrupted by the decal drawing code
-	// (something with VBO + changing the texture)
-	// this happens on radeon + mesa
-	// FIXME: remove this after the driver is fixed
-	glFlush();
-#endif
-
 	//////////////////////////////////
 	// decals
 
@@ -1392,6 +1402,8 @@ void drawTerrain(void)
 	glDisableClientState(GL_VERTEX_ARRAY);
 
 	glDepthMask(GL_TRUE);
+
+	//glBindBuffer(GL_ARRAY_BUFFER, 0);  // HACK Must unbind GL_ARRAY_BUFFER (don't know if it has to be unbound everywhere), otherwise text rendering may mysteriously crash.
 }
 
 /**
@@ -1507,4 +1519,6 @@ void drawWater(void)
 	glMatrixMode(GL_MODELVIEW);
 	glDisable(GL_TEXTURE_GEN_S);
 	glDisable(GL_TEXTURE_GEN_T);
+
+	//glBindBuffer(GL_ARRAY_BUFFER, 0);  // HACK Must unbind GL_ARRAY_BUFFER (don't know if it has to be unbound everywhere), otherwise text rendering may mysteriously crash.
 }

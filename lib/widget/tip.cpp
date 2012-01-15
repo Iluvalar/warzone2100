@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2010  Warzone 2100 Project
+	Copyright (C) 2005-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
  */
 
 #include "lib/framework/frame.h"
+#include "lib/framework/wzapp.h"
 #include "lib/framework/frameint.h"
 #include "widget.h"
 #include "widgint.h"
@@ -95,7 +96,7 @@ void tipStart(WIDGET *psSource, const char *pNewTip, enum iV_fonts NewFontID,
 		"tipStart: Invalid colours pointer" );
 
 	tipState = TIP_WAIT;
-	startTime = SDL_GetTicks();
+	startTime = wzGetTicks();
 	mx = mouseX();
 	my = mouseY();
 	wx = x; wy = y;
@@ -140,7 +141,7 @@ void tipDisplay(void)
 		/* See if the tip has to be shown */
 		newMX = mouseX();
 		newMY = mouseY();
-		currTime = SDL_GetTicks();
+		currTime = wzGetTicks();
 		if (newMX == mx &&
 			newMY == my &&
 			(currTime - startTime > TIP_PAUSE))
@@ -187,7 +188,7 @@ void tipDisplay(void)
 
 
 			/* Note the time */
-			startTime = SDL_GetTicks();
+			startTime = wzGetTicks();
 		}
 		else if (newMX != mx ||
 				 newMY != my ||

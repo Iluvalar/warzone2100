@@ -1,6 +1,6 @@
 /*
 	This file is part of Warzone 2100.
-	Copyright (C) 2008-2010  Warzone 2100 Project
+	Copyright (C) 2008-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -25,5 +25,12 @@ void   Timer_start(void);					// start timer
 void   Timer_stop(void);					// stop the timer
 double Timer_getElapsedMilliSecs(void);		// get elapsed time in milliseconds
 double Timer_getElapsedMicroSecs(void);		// get elapsed time in microseconds
+
+#if defined(WZ_OS_WIN)
+# include <winsock2.h> /* for struct timeval */
+
+struct timezone;
+extern int gettimeofday(struct timeval* tv, struct timezone* tz);
+#endif
 
 #endif // __INCLUDED_LIB_SEQUENCE_TIMER_H__

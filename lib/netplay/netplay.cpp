@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2010  Warzone 2100 Project
+	Copyright (C) 2005-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -24,15 +24,15 @@
  */
 
 #include "lib/framework/frame.h"
+#include "lib/framework/wzapp.h"
 #include "lib/framework/string_ext.h"
 #include "lib/framework/crc.h"
 #include "lib/framework/file.h"
 #include "lib/gamelib/gtime.h"
+#include "src/console.h"
 #include "src/component.h"		// FIXME: we need to handle this better
 #include "src/modding.h"		// FIXME: we need to handle this better
 #include <time.h>			// for stats
-#include <SDL_timer.h>
-#include <SDL_thread.h>
 #include <physfs.h>
 #include <string.h>
 #include <memory>
@@ -41,9 +41,9 @@
 #include "netlog.h"
 #include "netsocket.h"
 
-#include "miniupnpc/miniwget.h"
-#include "miniupnpc/miniupnpc.h"
-#include "miniupnpc/upnpcommands.h"
+#include <miniupnpc/miniwget.h>
+#include <miniupnpc/miniupnpc.h>
+#include <miniupnpc/upnpcommands.h>
 #include "lib/exceptionhandler/dumpinfo.h"
 
 #include "src/multistat.h"
@@ -51,18 +51,11 @@
 #include "src/multiint.h"
 #include "src/multiplay.h"
 #include "src/warzoneconfig.h"
+#include "src/version.h"
 
 #ifdef WZ_OS_LINUX
 #include <execinfo.h>  // Nonfatal runtime backtraces.
 #endif //WZ_OS_LINUX
-
-// For /(hton|ntoh)[sh]/.
-#if   defined(WZ_OS_UNIX)
-# include <arpa/inet.h>
-#endif
-#ifdef WZ_OS_WIN
-# include <winsock2.h>
-#endif
 
 // WARNING !!! This is initialised via configuration.c !!!
 char masterserver_name[255] = {'\0'};
@@ -97,27 +90,27 @@ SYNC_COUNTER sync_counter;		// keeps track on how well we are in sync
 // ////////////////////////////////////////////////////////////////////////
 // Types
 
-typedef struct		// data regarding the last one second or so.
+struct NETSTATS  // data regarding the last one second or so.
 {
 	UDWORD		bytesRecvd;
 	UDWORD		bytesSent;	// number of bytes sent in about 1 sec.
 	UDWORD		packetsSent;
 	UDWORD		packetsRecvd;
-} NETSTATS;
+};
 
-typedef struct
+struct NET_PLAYER_DATA
 {
 	uint16_t        size;
 	void*           data;
 	size_t          buffer_size;
-} NET_PLAYER_DATA;
+};
 
 // ////////////////////////////////////////////////////////////////////////
 // Variables
 
 NETPLAY	NetPlay;
 PLAYER_IP	*IPlist = NULL;
-static BOOL		allow_joining = false;
+static bool		allow_joining = false;
 static	bool server_not_there = false;
 static GAMESTRUCT	gamestruct;
 
@@ -140,21 +133,19 @@ static SocketSet* socket_set = NULL;
 // UPnP
 static int upnp = false;
 static bool upnp_done = false;
-SDL_Thread *upnpdiscover;
+WZ_THREAD *upnpdiscover;
 
 static struct UPNPUrls urls;
 static struct IGDdatas data;
 
 // local ip address
 static char lanaddr[16];
-static char clientAddress[40] = { '\0' };
 /**
  * Used for connections with clients.
  */
 static Socket* tmp_socket[MAX_TMP_SOCKETS] = { NULL };
 
 static SocketSet* tmp_socket_set = NULL;
-static char*		hostname;
 static NETSTATS		nStats = { 0, 0, 0, 0 };
 static int32_t          NetGameFlags[4] = { 0, 0, 0, 0 };
 char iptoconnect[PATH_MAX] = "\0"; // holds IP/hostname from command line
@@ -162,25 +153,19 @@ char iptoconnect[PATH_MAX] = "\0"; // holds IP/hostname from command line
 unsigned NET_PlayerConnectionStatus[CONNECTIONSTATUS_NORMAL][MAX_PLAYERS];
 
 // ////////////////////////////////////////////////////////////////////////////
-#define VersionStringSize 80
 /************************************************************************************
- **  NOTE (!)  Change the VersionString when net code changes!!
+ **  NOTE (!)  Change the versionString when net code changes!!
  **            ie ("trunk", "2.1.3", "3.0", ...)
  ************************************************************************************
 **/
-char VersionString[VersionStringSize] = "master, netcode 4.1009";
-static int NETCODE_VERSION_MAJOR = 4;
-static int NETCODE_VERSION_MINOR = 1009;
+static char const *versionString = version_getVersionString();
+static int NETCODE_VERSION_MAJOR = 6;
+static int NETCODE_VERSION_MINOR = 2;
 
 bool NETisCorrectVersion(uint32_t game_version_major, uint32_t game_version_minor)
 {
 	return (NETCODE_VERSION_MAJOR == game_version_major && NETCODE_VERSION_MINOR == game_version_minor);
 }
-bool NETgameIsCorrectVersion(GAMESTRUCT* check_game)
-{
-	return (NETCODE_VERSION_MAJOR == check_game->game_version_major && NETCODE_VERSION_MINOR == check_game->game_version_minor);
-}
-
 //	Sets if the game is password protected or not
 void NETGameLocked( bool flag)
 {
@@ -507,7 +492,7 @@ void NETplayerKicked(UDWORD index)
 
 // ////////////////////////////////////////////////////////////////////////
 // rename the local player
-BOOL NETchangePlayerName(UDWORD index, char *newName)
+bool NETchangePlayerName(UDWORD index, char *newName)
 {
 	if(!NetPlay.bComms)
 	{
@@ -595,7 +580,7 @@ static void NETsendGameFlags(void)
 
 // ////////////////////////////////////////////////////////////////////////
 // Set a game flag
-BOOL NETsetGameFlags(UDWORD flag, SDWORD value)
+bool NETsetGameFlags(UDWORD flag, SDWORD value)
 {
 	if(!NetPlay.bComms)
 	{
@@ -716,7 +701,7 @@ static bool NETsendGAMESTRUCT(Socket* sock, const GAMESTRUCT* ourgamestruct)
 	buffer += sizeof(uint32_t);
 
 	// Copy 32bit large big endian numbers
-	*(uint32_t*)buffer = htonl(ourgamestruct->future2);
+	*(uint32_t*)buffer = htonl(ourgamestruct->limits);
 	buffer += sizeof(uint32_t);
 
 	// Copy 32bit large big endian numbers
@@ -771,7 +756,7 @@ static bool NETrecvGAMESTRUCT(GAMESTRUCT* ourgamestruct)
 	 || !socketReadReady(tcp_socket)
 	 || (result = readNoInt(tcp_socket, buf, sizeof(buf))) != sizeof(buf))
 	{
-		unsigned int time = SDL_GetTicks();
+		unsigned int time = wzGetTicks();
 		if (result == SOCKET_ERROR)
 		{
 			debug(LOG_ERROR, "Server socket (%p) ecountered error: %s", tcp_socket, strSockError(getSockErr()));
@@ -781,7 +766,7 @@ static bool NETrecvGAMESTRUCT(GAMESTRUCT* ourgamestruct)
 			return false;
 		}
 		i = result;
-		while (i < sizeof(buf) && SDL_GetTicks() < time + 2500)
+		while (i < sizeof(buf) && wzGetTicks() < time + 2500)
 		{
 			result = readNoInt(tcp_socket, buf+i, sizeof(buf)-i);
 			if (result == SOCKET_ERROR
@@ -871,14 +856,14 @@ static bool NETrecvGAMESTRUCT(GAMESTRUCT* ourgamestruct)
 	ourgamestruct->Mods = ntohl(*(uint32_t*)buffer);
 	buffer += sizeof(uint32_t);
 	ourgamestruct->gameId = ntohl(*(uint32_t*)buffer);
-	buffer += sizeof(uint32_t);	
-	ourgamestruct->future2 = ntohl(*(uint32_t*)buffer);
-	buffer += sizeof(uint32_t);	
+	buffer += sizeof(uint32_t);
+	ourgamestruct->limits = ntohl(*(uint32_t*)buffer);
+	buffer += sizeof(uint32_t);
 	ourgamestruct->future3 = ntohl(*(uint32_t*)buffer);
-	buffer += sizeof(uint32_t);	
+	buffer += sizeof(uint32_t);
 	ourgamestruct->future4 = ntohl(*(uint32_t*)buffer);
-	buffer += sizeof(uint32_t);	
-	
+	buffer += sizeof(uint32_t);
+
 	// cat the modstring (if there is one) to the version string to display it for the end-user
 	if (ourgamestruct->modlist[0] != '\0')
 	{
@@ -964,9 +949,9 @@ static bool upnp_add_redirect(int port)
 	int r;
 
 	debug(LOG_NET, "upnp_add_redir(%d)\n", port);
-	UPNP_GetExternalIPAddress(urls.controlURL, data.servicetype, externalIP);
+	UPNP_GetExternalIPAddress(urls.controlURL, data.first.servicetype, externalIP);
 	sprintf(port_str, "%d", port);
-	r = UPNP_AddPortMapping(urls.controlURL, data.servicetype,
+	r = UPNP_AddPortMapping(urls.controlURL, data.first.servicetype,
 			port_str, port_str, lanaddr, "Warzone 2100", "TCP", 0);
 	if (r != UPNPCOMMAND_SUCCESS)
 	{
@@ -982,7 +967,7 @@ static void upnp_rem_redirect(int port)
 	char port_str[16];
 	debug(LOG_NET, "upnp_rem_redir(%d)", port);
 	sprintf(port_str, "%d", port);
-	UPNP_DeletePortMapping(urls.controlURL, data.servicetype, port_str, "TCP", 0);
+	UPNP_DeletePortMapping(urls.controlURL, data.first.servicetype, port_str, "TCP", 0);
 }
 
 void NETaddRedirects(void)
@@ -990,7 +975,7 @@ void NETaddRedirects(void)
 	debug(LOG_NET, "%s\n", __FUNCTION__);
 	if (!upnp_done)
 	{
-		SDL_WaitThread(upnpdiscover, &upnp);
+		upnp = wzThreadJoin(upnpdiscover);
 		upnp_done = true;
 	}
 	if (upnp) {
@@ -1009,15 +994,14 @@ void NETremRedirects(void)
 
 void NETdiscoverUPnPDevices(void)
 {
-	upnpdiscover = SDL_CreateThread(&upnp_init, NULL);
+	upnpdiscover = wzThreadCreate(&upnp_init, NULL);
+	wzThreadStart(upnpdiscover);
 }
 
 // ////////////////////////////////////////////////////////////////////////
 // setup stuff
-int NETinit(BOOL bFirstCall)
+int NETinit(bool bFirstCall)
 {
-	UDWORD i;
-
 	debug(LOG_NET, "NETinit");
 	NETlogEntry("NETinit!", SYNC_FLAG, selectedPlayer);
 	NET_InitPlayers();
@@ -1028,10 +1012,7 @@ int NETinit(BOOL bFirstCall)
 	{
 		debug(LOG_NET, "NETPLAY: Init called, MORNIN'");
 
-		for(i = 0; i < MAX_PLAYERS; i++)
-		{
-			memset(&NetPlay.games[i], 0, sizeof(NetPlay.games[i]));
-		}
+		memset(&NetPlay.games, 0, sizeof(NetPlay.games));
 		// NOTE NetPlay.isUPNP is already set in configuration.c!
 		NetPlay.bComms = true;
 		NetPlay.GamePassworded = false;
@@ -1350,7 +1331,7 @@ void NETflush()
 
 ///////////////////////////////////////////////////////////////////////////
 // Check if a message is a system message
-static BOOL NETprocessSystemMessage(NETQUEUE playerQueue, uint8_t type)
+static bool NETprocessSystemMessage(NETQUEUE playerQueue, uint8_t type)
 {
 	switch (type)
 	{
@@ -1561,7 +1542,7 @@ static BOOL NETprocessSystemMessage(NETQUEUE playerQueue, uint8_t type)
 				debug(LOG_NET, "Broadcast leaving message to everyone else");
 				NETbeginEncode(NETbroadcastQueue(), NET_PLAYER_LEAVING);
 				{
-					BOOL host = NetPlay.isHost;
+					bool host = NetPlay.isHost;
 					uint32_t id = index;
 
 					NETuint32_t(&id);
@@ -1662,7 +1643,7 @@ static void NETcheckPlayers(void)
 // Receive a message over the current connection. We return true if there
 // is a message for the higher level code to process, and false otherwise.
 // We should not block here.
-BOOL NETrecvNet(NETQUEUE *queue, uint8_t *type)
+bool NETrecvNet(NETQUEUE *queue, uint8_t *type)
 {
 	uint32_t current;
 
@@ -1739,7 +1720,7 @@ checkMessages:
 	return false;
 }
 
-BOOL NETrecvGame(NETQUEUE *queue, uint8_t *type)
+bool NETrecvGame(NETQUEUE *queue, uint8_t *type)
 {
 	uint32_t current;
 	for (current = 0; current < MAX_PLAYERS; ++current)
@@ -1773,30 +1754,6 @@ BOOL NETrecvGame(NETQUEUE *queue, uint8_t *type)
 	}
 
 	return false;
-}
-
-// ////////////////////////////////////////////////////////////////////////
-// ////////////////////////////////////////////////////////////////////////
-// Protocol functions
-
-BOOL NETsetupTCPIP(const char *machine)
-{
-	debug(LOG_NET, "NETsetupTCPIP(%s)", machine ? machine : "NULL");
-
-	if (   hostname != NULL
-	    && hostname != masterserver_name)
-	{
-		free(hostname);
-	}
-	if (   machine != NULL
-	    && machine[0] != '\0')
-	{
-		hostname = strdup(machine);
-	} else {
-		hostname = masterserver_name;
-	}
-
-	return true;
 }
 
 // ////////////////////////////////////////////////////////////////////////
@@ -1885,7 +1842,7 @@ UBYTE NETrecvFile(NETQUEUE queue)
 				debug(LOG_NET, "We are leaving 'nicely' after a fatal error");
 				NETbeginEncode(NETnetQueue(NET_HOST_ONLY), NET_PLAYER_LEAVING);
 				{
-					BOOL host = NetPlay.isHost;
+					bool host = NetPlay.isHost;
 					uint32_t id = selectedPlayer;
 
 					NETuint32_t(&id);
@@ -2079,7 +2036,8 @@ static void NETregisterServer(int state)
 				{
 					debug(LOG_ERROR, "Cannot connect to masterserver \"%s:%d\": %s", masterserver_name, masterserver_port, strSockError(getSockErr()));
 					free(NetPlay.MOTD);
-					if (asprintf(&NetPlay.MOTD, _("Could not communicate with lobby server! Is TCP port %u open for outgoing traffic?"), masterserver_port) == -1)
+					if (asprintf(&NetPlay.MOTD, _("Error connecting to the lobby server: %s.\nMake sure port %d can receive incoming connections.\nIf you're using a router configure it to use UPnP\n or to forward the port to your system."),
+					    strSockError(getSockErr()), masterserver_port) == -1)
 						NetPlay.MOTD = NULL;
 					server_not_there = true;
 					return;
@@ -2148,13 +2106,14 @@ static void NETregisterServer(int state)
 
 // ////////////////////////////////////////////////////////////////////////
 // Host a game with a given name and player name. & 4 user game flags
-
 static void NETallowJoining(void)
 {
 	unsigned int i;
-	UDWORD numgames = htonl(1);	// always 1 on normal server
-	char buffer[5];
-	ssize_t recv_result = 0;
+	char buffer[sizeof(int32_t) * 2];
+	char* p_buffer;
+	int32_t result;
+	bool connectFailed = true;
+	int32_t major, minor;
 
 	if (allow_joining == false) return;
 	ASSERT(NetPlay.isHost, "Cannot receive joins if not host!");
@@ -2202,56 +2161,64 @@ static void NETallowJoining(void)
 	{
 		NETinitQueue(NETnetTmpQueue(i));
 		SocketSet_AddSocket(tmp_socket_set, tmp_socket[i]);
+
+		p_buffer = buffer;
 		if (checkSockets(tmp_socket_set, NET_TIMEOUT_DELAY) > 0
 		    && socketReadReady(tmp_socket[i])
-		    && (recv_result = readNoInt(tmp_socket[i], buffer, 5))
-		    && recv_result != SOCKET_ERROR)
+		    && readNoInt(tmp_socket[i], p_buffer, 5) != SOCKET_ERROR)
 		{
-			if(strcmp(buffer, "list")==0)
+			// A 2.3.7 client sends a "list" command first,
+			// we just close the socket so he sees a "Connection Error".
+			if (strcmp(buffer, "list") == 0)
 			{
-				debug(LOG_NET, "cmd: list.  Sending game list");
-				if (writeAll(tmp_socket[i], &numgames, sizeof(numgames)) == SOCKET_ERROR)
-				{
-					// Write error, most likely client disconnect.
-					debug(LOG_ERROR, "Failed to send message: %s", strSockError(getSockErr()));
-					debug(LOG_ERROR, "Couldn't get list from server. Make sure required ports are open. (TCP 9998-9999)");
-				}
-				else
-				{
-					// get the correct player count after kicks / leaves
-					gamestruct.desc.dwCurrentPlayers = NetPlay.playercount;
-					debug(LOG_NET, "Sending update to server to reflect new player count %d", NetPlay.playercount);
-					NETsendGAMESTRUCT(tmp_socket[i], &gamestruct);
-				}
-
-				debug(LOG_NET, "freeing temp socket %p (%d)", tmp_socket[i], __LINE__);
-				SocketSet_DelSocket(tmp_socket_set, tmp_socket[i]);
-				socketClose(tmp_socket[i]);
-				tmp_socket[i] = NULL;
-			}
-			else if (strcmp(buffer, "join") == 0)
-			{
-				debug(LOG_NET, "cmd: join.  Sending GAMESTRUCT");
-				if (!NETsendGAMESTRUCT(tmp_socket[i], &gamestruct))
-				{
-					debug(LOG_ERROR, "Failed to respond (with GAMESTRUCT) to 'join' command, socket (%p) error: %s", tmp_socket[i], strSockError(getSockErr()));
-					SocketSet_DelSocket(tmp_socket_set, tmp_socket[i]);
-					socketClose(tmp_socket[i]);
-					tmp_socket[i] = NULL;
-				}
-				socketBeginCompression(tmp_socket[i]);
+				debug(LOG_ERROR, "An old client tried to connect, closing the socket.");
 			}
 			else
 			{
-				debug(LOG_NET, "freeing temp socket %p (%d)", tmp_socket[i], __LINE__);
-				SocketSet_DelSocket(tmp_socket_set, tmp_socket[i]);
-				socketClose(tmp_socket[i]);
-				tmp_socket[i] = NULL;
+				// New clients send NETCODE_VERSION_MAJOR and NETCODE_VERSION_MINOR
+				// Check these numbers with our own.
+
+				// Read another 3 bytes into the buffer
+				p_buffer += 5;
+
+				if (readNoInt(tmp_socket[i], p_buffer, 3) != SOCKET_ERROR)
+				{
+					p_buffer = buffer;
+					memcpy(&major, p_buffer, sizeof(int32_t));
+					major = ntohl(major);
+					p_buffer += sizeof(uint32_t);
+					memcpy(&minor, p_buffer, sizeof(int32_t));
+					minor = ntohl(minor);
+
+					if (NETisCorrectVersion(major, minor))
+					{
+						result = htonl(ERROR_NOERROR);
+						memcpy(&buffer, &result, sizeof(result));
+						writeAll(tmp_socket[i], &buffer, sizeof(result));
+						socketBeginCompression(tmp_socket[i]);
+
+						// Connection is successful.
+						connectFailed = false;
+					}
+					else
+					{
+						// Commented out as each masterserver check creates an error.
+						debug(LOG_ERROR, "Received an invalid version \"%d.%d\".", major, minor);
+						result = htonl(ERROR_WRONGVERSION);
+						memcpy(&buffer, &result, sizeof(result));
+						writeAll(tmp_socket[i], &buffer, sizeof(result));
+					}
+				}
+				else
+				{
+					debug(LOG_NET, "Socket error while reading clients version.");
+				}
 			}
 		}
-		else
+
+		// Remove a failed connection.
+		if (connectFailed)
 		{
-			debug(LOG_NET, "freeing temp socket %p (%d)", tmp_socket[i], __LINE__);
 			SocketSet_DelSocket(tmp_socket_set, tmp_socket[i]);
 			socketClose(tmp_socket[i]);
 			tmp_socket[i] = NULL;
@@ -2297,40 +2264,28 @@ static void NETallowJoining(void)
 					int tmp;
 
 					char name[64];
-					int32_t MajorVersion = 0;
-					int32_t MinorVersion = 0;
 					char ModList[modlist_string_size] = { '\0' };
 					char GamePassword[password_string_size] = { '\0' };
 
-					if (onBanList(clientAddress))
-					{
-						char buf[256] = {'\0'};
-
-						ssprintf(buf, "** A player that you have kicked tried to rejoin the game, and was rejected. IP:%s", clientAddress );
-						debug(LOG_INFO, "%s", buf);
-						NETlogEntry(buf, SYNC_FLAG, i);
-						SocketSet_DelSocket(tmp_socket_set, tmp_socket[i]);
-						socketClose(tmp_socket[i]);
-						tmp_socket[i] = NULL;
-						sync_counter.rejected++;
-						return;
-					}
-
 					NETbeginDecode(NETnetTmpQueue(i), NET_JOIN);
 						NETstring(name, sizeof(name));
-						NETint32_t(&MajorVersion);	// NETCODE_VERSION_MAJOR
-						NETint32_t(&MinorVersion);	// NETCODE_VERSION_MINOR
 						NETstring(ModList, sizeof(ModList));
 						NETstring(GamePassword, sizeof(GamePassword));
 					NETend();
-					NETpop(NETnetTmpQueue(i));
 
 					tmp = NET_CreatePlayer(name);
 
 					if (tmp == -1)
 					{
-						// FIXME: No room. Dropping the player without warning since protocol doesn't seem to support rejection at this point
-						debug(LOG_ERROR, "freeing temp socket %p, couldn't create player!", tmp_socket[i]);
+ 						debug(LOG_ERROR, "freeing temp socket %p, couldn't create player!", tmp_socket[i]);
+
+ 						// Tell the player that we are full.
+						NETbeginEncode(NETnetTmpQueue(i), NET_REJECTED);
+							NETuint8_t((uint8_t *)ERROR_FULL);
+						NETend();
+						NETflush();
+						NETpop(NETnetTmpQueue(i));
+
 						SocketSet_DelSocket(tmp_socket_set, tmp_socket[i]);
 						socketClose(tmp_socket[i]);
 						tmp_socket[i] = NULL;
@@ -2338,6 +2293,7 @@ static void NETallowJoining(void)
 						return;
 					}
 
+					NETpop(NETnetTmpQueue(i));
 					index = tmp;
 
 					debug(LOG_NET, "freeing temp socket %p (%d), creating permanent socket.", tmp_socket[i], __LINE__);
@@ -2347,10 +2303,18 @@ static void NETallowJoining(void)
 					SocketSet_AddSocket(socket_set, connected_bsocket[index]);
 					NETmoveQueue(NETnetTmpQueue(i), NETnetQueue(index));
 
-					if (!NETisCorrectVersion(MajorVersion, MinorVersion))
+					// Copy players ip Address.
+					sstrcpy(NetPlay.players[index].IPtextAddress, getSocketTextAddress(connected_bsocket[index]));
+
+					if (onBanList(NetPlay.players[index].IPtextAddress))
 					{
-						// Wrong version. Reject.
-						rejected = (uint8_t)ERROR_WRONGVERSION;
+						char buf[256] = {'\0'};
+						ssprintf(buf, "** A player that you have kicked tried to rejoin the game, and was rejected. IP: %s", NetPlay.players[index].IPtextAddress);
+						debug(LOG_INFO, "%s", buf);
+						NETlogEntry(buf, SYNC_FLAG, i);
+
+						// Player has been kicked before, kick again.
+						rejected = (uint8_t)ERROR_KICKED;
 					}
 					else if (NetPlay.GamePassworded && strcmp(NetPlay.gamePassword, GamePassword) != 0)
 					{
@@ -2370,7 +2334,7 @@ static void NETallowJoining(void)
 
 					if (rejected)
 					{
-						debug(LOG_INFO, "We were rejected, reason (%u)", (unsigned int) rejected);
+						debug(LOG_INFO, "Rejecting new player, reason (%u).", (unsigned int) rejected);
 						//NETlogEntry(buf, SYNC_FLAG, index);  // buf undeclared in newnet branch.
 						NETbeginEncode(NETnetQueue(index), NET_REJECTED);
 							NETuint8_t(&rejected);
@@ -2387,13 +2351,6 @@ static void NETallowJoining(void)
 						return;
 					}
 
-					sstrcpy(NetPlay.players[index].IPtextAddress, clientAddress);
-					{
-						char buf[250] = {'\0'};
-						snprintf(buf, sizeof(buf), "Player %d has joined, IP is:%s", index, clientAddress);
-						NETlogEntry(buf, SYNC_FLAG, index);
-					}
-
 					NETbeginEncode(NETnetQueue(index), NET_ACCEPTED);
 					NETuint8_t(&index);
 					NETend();
@@ -2402,6 +2359,11 @@ static void NETallowJoining(void)
 					NETSendAllPlayerInfoTo(index);
 					// then send info about newcomer to all players.
 					NETBroadcastPlayerInfo(index);
+
+					char buf[250] = {'\0'};
+					snprintf(buf, sizeof(buf), "Player %s has joined, IP is: %s", name, NetPlay.players[index].IPtextAddress);
+					debug(LOG_INFO, buf);
+					NETlogEntry(buf, SYNC_FLAG, index);
 
 					debug(LOG_NET, "Player, %s, with index of %u has joined using socket %p", name, (unsigned int)index, connected_bsocket[index]);
 
@@ -2449,7 +2411,7 @@ static void NETallowJoining(void)
 	}
 }
 
-BOOL NEThostGame(const char* SessionName, const char* PlayerName,
+bool NEThostGame(const char* SessionName, const char* PlayerName,
 		 SDWORD one, SDWORD two, SDWORD three, SDWORD four,
 		 UDWORD plyrs)	// # of players.
 {
@@ -2528,7 +2490,7 @@ BOOL NEThostGame(const char* SessionName, const char* PlayerName,
 	sstrcpy(gamestruct.extra, "Extra");						// extra string (future use)
 	sstrcpy(gamestruct.mapname, game.map);					// map we are hosting
 	sstrcpy(gamestruct.hostname, PlayerName);
-	sstrcpy(gamestruct.versionstring, VersionString);		// version (string)
+	sstrcpy(gamestruct.versionstring, versionString);		// version (string)
 	sstrcpy(gamestruct.modlist, getModList());				// List of mods
 	gamestruct.GAMESTRUCT_VERSION = 3;						// version of this structure
 	gamestruct.game_version_major = NETCODE_VERSION_MAJOR;	// Netcode Major version
@@ -2537,7 +2499,7 @@ BOOL NEThostGame(const char* SessionName, const char* PlayerName,
 	gamestruct.pureGame = 0;									// NO mods allowed if true
 	gamestruct.Mods = 0;										// number of concatenated mods?
 	gamestruct.gameId  = 0;
-	gamestruct.future2 = 0xBAD02;								// for future use
+	gamestruct.limits = 0x0;									// used for limits
 	gamestruct.future3 = 0xBAD03;								// for future use
 	gamestruct.future4 = 0xBAD04;								// for future use
 
@@ -2567,7 +2529,7 @@ BOOL NEThostGame(const char* SessionName, const char* PlayerName,
 
 // ////////////////////////////////////////////////////////////////////////
 // Stop the dplay interface from accepting more players.
-BOOL NEThaltJoining(void)
+bool NEThaltJoining(void)
 {
 	debug(LOG_NET, "temporarily locking game to prevent more players");
 
@@ -2579,12 +2541,11 @@ BOOL NEThaltJoining(void)
 
 // ////////////////////////////////////////////////////////////////////////
 // find games on open connection
-BOOL NETfindGame(void)
+bool NETfindGame(void)
 {
 	SocketAddress* hosts;
 	unsigned int gamecount = 0;
 	uint32_t gamesavailable;
-	unsigned int port = (hostname == masterserver_name) ? masterserver_port : gameserver_port;
 	int result = 0;
 	debug(LOG_NET, "Looking for games...");
 	
@@ -2605,27 +2566,9 @@ BOOL NETfindGame(void)
 		NetPlay.hostPlayer	= NET_HOST_ONLY;
 		return true;
 	}
-	// We first check to see if we were given a IP/hostname from the command line
-	if (strlen(iptoconnect) )
+	if ((hosts = resolveHost(masterserver_name, masterserver_port)) == NULL)
 	{
-		hosts = resolveHost(iptoconnect, port);
-		if (hosts == NULL)
-		{
-			debug(LOG_ERROR, "Error connecting to client via hostname provided (%s)",iptoconnect);
-			debug(LOG_ERROR, "Cannot resolve hostname :%s",strSockError(getSockErr()));
-			setLobbyError(ERROR_CONNECTION);
-			return false;
-		}
-		else
-		{
-			// We got a valid ip now
-			hostname = strdup(iptoconnect);		//copy it
-			memset(iptoconnect,0x0,sizeof(iptoconnect));	//reset it (so we don't loop back to this routine)
-		}
-	}
-	else if ((hosts = resolveHost(hostname, port)) == NULL)
-	{
-		debug(LOG_ERROR, "Cannot resolve hostname \"%s\": %s", hostname, strSockError(getSockErr()));
+		debug(LOG_ERROR, "Cannot resolve hostname \"%s\": %s", masterserver_name, strSockError(getSockErr()));
 		setLobbyError(ERROR_CONNECTION);
 		return false;
 	}
@@ -2648,7 +2591,7 @@ BOOL NETfindGame(void)
 
 	if (tcp_socket == NULL)
 	{
-		debug(LOG_ERROR, "Cannot connect to \"%s:%d\": %s", hostname, port, strSockError(getSockErr()));
+		debug(LOG_ERROR, "Cannot connect to \"%s:%d\": %s", masterserver_name, masterserver_port, strSockError(getSockErr()));
 		setLobbyError(ERROR_CONNECTION);
 		return false;
 	}
@@ -2716,65 +2659,59 @@ BOOL NETfindGame(void)
 		++gamecount;
 	}
 
+	if (readLobbyResponse(tcp_socket, NET_TIMEOUT_DELAY) == SOCKET_ERROR)
+	{
+		socketClose(tcp_socket);
+		tcp_socket = NULL;
+		addConsoleMessage(_("Failed to get a lobby response!"), DEFAULT_JUSTIFY, NOTIFY_MESSAGE);
+		return true;		// while there was a problem, this isn't fatal for the function
+	}
+	addConsoleMessage(NetPlay.MOTD, DEFAULT_JUSTIFY, SYSTEM_MESSAGE);
 	return true;
 }
 
 // ////////////////////////////////////////////////////////////////////////
 // ////////////////////////////////////////////////////////////////////////
 // Functions used to setup and join games.
-BOOL NETjoinGame(UDWORD gameNumber, const char* playername)
+bool NETjoinGame(const char* host, uint32_t port, const char* playername)
 {
 	SocketAddress *hosts = NULL;
 	unsigned int i;
+	char buffer[sizeof(int32_t) * 2] = { 0 };
+	char* p_buffer;
+	uint32_t result;
+
+	if (port == 0)
+	{
+		port = gameserver_port;
+	}
 
 	debug(LOG_NET, "resetting sockets.");
 	NETclose();	// just to be sure :)
 
-	debug(LOG_NET, "Trying to join gameNumber (%u)...", gameNumber);
+	debug(LOG_NET, "Trying to join [%s]:%d ...", host, port);
 
 	mapDownloadProgress = 100;
 	netPlayersUpdated = true;
 
-	if (hostname == masterserver_name)
+	hosts = resolveHost(host, port);
+	if (hosts == NULL)
 	{
-		hostname = NULL;
+		debug(LOG_ERROR, "Cannot resolve hostname \"%s\": %s", host, strSockError(getSockErr()));
+		return false;
 	}
 
-	// Loop through all of the hosts, using the first one we can connect to.
-	for (i = 0; i < ARRAY_SIZE(NetPlay.games[gameNumber].secondaryHosts) + 1; ++i)
+	if (tcp_socket != NULL)
 	{
-		free(hostname);
-		if (i > 0)
-		{
-			hostname = strdup(NetPlay.games[gameNumber].secondaryHosts[i - 1]);
-		}
-		else
-		{
-			hostname = strdup(NetPlay.games[gameNumber].desc.host);
-		}
-
-		hosts = resolveHost(hostname, gameserver_port);
-		if (hosts == NULL)
-		{
-			debug(LOG_ERROR, "Cannot resolve hostname \"%s\": %s", hostname, strSockError(getSockErr()));
-			continue;
-		}
-
-		if (tcp_socket != NULL)
-		{
-			socketClose(tcp_socket);
-		}
-
-		tcp_socket = socketOpenAny(hosts, 15000);
-		deleteSocketAddress(hosts);
-		if (tcp_socket != NULL)
-		{
-			break;
-		}
+		socketClose(tcp_socket);
 	}
+
+	tcp_socket = socketOpenAny(hosts, 15000);
+	deleteSocketAddress(hosts);
 
 	if (tcp_socket == NULL)
 	{
+		debug(LOG_ERROR, "Cannot connect to [%s]:%d, %s", host, port, strSockError(getSockErr()));
 		return false;
 	}
 
@@ -2790,33 +2727,34 @@ BOOL NETjoinGame(UDWORD gameNumber, const char* playername)
 	// tcp_socket is used to talk to host machine
 	SocketSet_AddSocket(socket_set, tcp_socket);
 
-	if (writeAll(tcp_socket, "join", sizeof("join")) == SOCKET_ERROR)
+	// Send NETCODE_VERSION_MAJOR and NETCODE_VERSION_MINOR
+	p_buffer = buffer;
+	*(int32_t*)p_buffer = htonl(NETCODE_VERSION_MAJOR);
+	p_buffer += sizeof(uint32_t);
+	*(int32_t*)p_buffer = htonl(NETCODE_VERSION_MINOR);
+
+	if (writeAll(tcp_socket, buffer, sizeof(buffer)) == SOCKET_ERROR
+		|| readAll(tcp_socket, &result, sizeof(result), 1500) != sizeof(result))
 	{
-		debug(LOG_ERROR, "Failed to send 'join' command: %s", strSockError(getSockErr()));
-		SocketSet_DelSocket(socket_set, tcp_socket);
-		socketClose(tcp_socket);
-		tcp_socket = NULL;
-		deleteSocketSet(socket_set);
-		socket_set = NULL;
+		debug(LOG_ERROR, "Couldn't send my version.");
 		return false;
 	}
 
-	if (NETrecvGAMESTRUCT(&NetPlay.games[gameNumber])
-	 && NetPlay.games[gameNumber].desc.host[0] == '\0')
+	result = ntohl(result);
+	if (result != ERROR_NOERROR)
 	{
-		strncpy(NetPlay.games[gameNumber].desc.host, getSocketTextAddress(tcp_socket), sizeof(NetPlay.games[gameNumber].desc.host));
-	}
-	if (NetPlay.games[gameNumber].desc.dwCurrentPlayers >= NetPlay.games[gameNumber].desc.dwMaxPlayers)
-	{
-		// Shouldn't join; game is full
+		debug(LOG_ERROR, "Receveid error %d", result);
+
 		SocketSet_DelSocket(socket_set, tcp_socket);
 		socketClose(tcp_socket);
 		tcp_socket = NULL;
 		deleteSocketSet(socket_set);
 		socket_set = NULL;
-		setLobbyError(ERROR_FULL);
+
+		setLobbyError((LOBBY_ERROR_TYPES)result);
 		return false;
 	}
+
 	// Allocate memory for a new socket
 	NETinitQueue(NETnetQueue(NET_HOST_ONLY));
 	// NOTE: tcp_socket = bsocket now!
@@ -2826,8 +2764,6 @@ BOOL NETjoinGame(UDWORD gameNumber, const char* playername)
 	// Send a join message to the host
 	NETbeginEncode(NETnetQueue(NET_HOST_ONLY), NET_JOIN);
 		NETstring(playername, 64);
-		NETint32_t(&NETCODE_VERSION_MAJOR);
-		NETint32_t(&NETCODE_VERSION_MINOR);
 		NETstring(getModList(), modlist_string_size);
 		NETstring(NetPlay.gamePassword, sizeof(NetPlay.gamePassword));
 	NETend();
@@ -2837,7 +2773,7 @@ BOOL NETjoinGame(UDWORD gameNumber, const char* playername)
 	}
 	socketFlush(bsocket);  // Make sure the message was completely sent.
 
-	i = SDL_GetTicks();
+	i = wzGetTicks();
 	// Loop until we've been accepted into the game
 	for (;;)
 	{
@@ -2845,7 +2781,7 @@ BOOL NETjoinGame(UDWORD gameNumber, const char* playername)
 		uint8_t type;
 
 		// FIXME: shouldn't there be some sort of rejection message?
-		if (SDL_GetTicks() > i + 5000)
+		if (wzGetTicks() > i + 5000)
 		{
 			// timeout
 			return false;
@@ -2962,19 +2898,19 @@ void NETsetPlayerConnectionStatus(CONNECTION_STATUS status, unsigned player)
 	const int timeouts[] = {GAME_TICKS_PER_SEC*10, GAME_TICKS_PER_SEC*10, GAME_TICKS_PER_SEC, GAME_TICKS_PER_SEC/6};
 	ASSERT(ARRAY_SIZE(timeouts) == CONNECTIONSTATUS_NORMAL, "Connection status timeout array too small.");
 
-	if (status == CONNECTIONSTATUS_NORMAL)
-	{
-		for (n = 0; n < CONNECTIONSTATUS_NORMAL; ++n)
-		{
-			NET_PlayerConnectionStatus[n][player] = 0;
-		}
-		return;
-	}
 	if (player == NET_ALL_PLAYERS)
 	{
 		for (n = 0; n < MAX_PLAYERS; ++n)
 		{
 			NETsetPlayerConnectionStatus(status, n);
+		}
+		return;
+	}
+	if (status == CONNECTIONSTATUS_NORMAL)
+	{
+		for (n = 0; n < CONNECTIONSTATUS_NORMAL; ++n)
+		{
+			NET_PlayerConnectionStatus[n][player] = 0;
 		}
 		return;
 	}
@@ -3012,16 +2948,254 @@ bool NETcheckPlayerConnectionStatus(CONNECTION_STATUS status, unsigned player)
 	return realTime < NET_PlayerConnectionStatus[status][player];
 }
 
+struct SyncDebugEntry
+{
+	char const *function;
+};
+
+struct SyncDebugString : public SyncDebugEntry
+{
+	void set(uint32_t &crc, char const *f, char const *string)
+	{
+		function = f;
+		crc = crcSum(crc, function, strlen(function) + 1);
+		crc = crcSum(crc, string,   strlen(string) + 1);
+	}
+	int snprint(char *buf, size_t bufSize, char const *&string) const
+	{
+		int ret = snprintf(buf, bufSize, "[%s] %s\n", function, string);
+		string += strlen(string) + 1;
+		return ret;
+	}
+};
+
+struct SyncDebugValueChange : public SyncDebugEntry
+{
+	void set(uint32_t &crc, char const *f, char const *vn, int nv, int i)
+	{
+		function = f;
+		variableName = vn;
+		newValue = nv;
+		id = i;
+		uint32_t valueBytes = htonl(newValue);
+		crc = crcSum(crc, function,     strlen(function) + 1);
+		crc = crcSum(crc, variableName, strlen(variableName) + 1);
+		crc = crcSum(crc, &valueBytes,  4);
+	}
+	int snprint(char *buf, size_t bufSize) const
+	{
+		if (id != -1)
+		{
+			return snprintf(buf, bufSize, "[%s] %d %s = %d\n", function, id, variableName, newValue);
+		}
+		return snprintf(buf, bufSize, "[%s] %s = %d\n", function, variableName, newValue);
+	}
+
+	int         newValue;
+	int         id;
+	char const *variableName;
+};
+
+struct SyncDebugIntList : public SyncDebugEntry
+{
+	void set(uint32_t &crc, char const *f, char const *s, int const *ints, size_t num)
+	{
+		function = f;
+		string = s;
+		uint32_t valueBytes[40];
+		numInts = std::min(num, ARRAY_SIZE(valueBytes));
+		for (unsigned n = 0; n < numInts; ++n)
+		{
+			valueBytes[n] = htonl(ints[n]);
+		}
+		crc = crcSum(crc, valueBytes, 4*numInts);
+	}
+	int snprint(char *buf, size_t bufSize, int const *&ints) const
+	{
+		size_t index = 0;
+		if (index < bufSize)
+		{
+			index += snprintf(buf + index, bufSize - index, "[%s] ", function);
+		}
+		if (index < bufSize)
+		{
+			switch (numInts)
+			{
+				case  0: index += snprintf(buf + index, bufSize - index, string); break;
+				case  1: index += snprintf(buf + index, bufSize - index, string, ints[0]); break;
+				case  2: index += snprintf(buf + index, bufSize - index, string, ints[0], ints[1]); break;
+				case  3: index += snprintf(buf + index, bufSize - index, string, ints[0], ints[1], ints[2]); break;
+				case  4: index += snprintf(buf + index, bufSize - index, string, ints[0], ints[1], ints[2], ints[3]); break;
+				case  5: index += snprintf(buf + index, bufSize - index, string, ints[0], ints[1], ints[2], ints[3], ints[4]); break;
+				case  6: index += snprintf(buf + index, bufSize - index, string, ints[0], ints[1], ints[2], ints[3], ints[4], ints[5]); break;
+				case  7: index += snprintf(buf + index, bufSize - index, string, ints[0], ints[1], ints[2], ints[3], ints[4], ints[5], ints[6]); break;
+				case  8: index += snprintf(buf + index, bufSize - index, string, ints[0], ints[1], ints[2], ints[3], ints[4], ints[5], ints[6], ints[7]); break;
+				case  9: index += snprintf(buf + index, bufSize - index, string, ints[0], ints[1], ints[2], ints[3], ints[4], ints[5], ints[6], ints[7], ints[8]); break;
+				case 10: index += snprintf(buf + index, bufSize - index, string, ints[0], ints[1], ints[2], ints[3], ints[4], ints[5], ints[6], ints[7], ints[8], ints[9]); break;
+				case 11: index += snprintf(buf + index, bufSize - index, string, ints[0], ints[1], ints[2], ints[3], ints[4], ints[5], ints[6], ints[7], ints[8], ints[9], ints[10]); break;
+				case 12: index += snprintf(buf + index, bufSize - index, string, ints[0], ints[1], ints[2], ints[3], ints[4], ints[5], ints[6], ints[7], ints[8], ints[9], ints[10], ints[11]); break;
+				case 13: index += snprintf(buf + index, bufSize - index, string, ints[0], ints[1], ints[2], ints[3], ints[4], ints[5], ints[6], ints[7], ints[8], ints[9], ints[10], ints[11], ints[12]); break;
+				case 14: index += snprintf(buf + index, bufSize - index, string, ints[0], ints[1], ints[2], ints[3], ints[4], ints[5], ints[6], ints[7], ints[8], ints[9], ints[10], ints[11], ints[12], ints[13]); break;
+				case 15: index += snprintf(buf + index, bufSize - index, string, ints[0], ints[1], ints[2], ints[3], ints[4], ints[5], ints[6], ints[7], ints[8], ints[9], ints[10], ints[11], ints[12], ints[13], ints[14]); break;
+				case 16: index += snprintf(buf + index, bufSize - index, string, ints[0], ints[1], ints[2], ints[3], ints[4], ints[5], ints[6], ints[7], ints[8], ints[9], ints[10], ints[11], ints[12], ints[13], ints[14], ints[15]); break;
+				case 17: index += snprintf(buf + index, bufSize - index, string, ints[0], ints[1], ints[2], ints[3], ints[4], ints[5], ints[6], ints[7], ints[8], ints[9], ints[10], ints[11], ints[12], ints[13], ints[14], ints[15], ints[16]); break;
+				case 18: index += snprintf(buf + index, bufSize - index, string, ints[0], ints[1], ints[2], ints[3], ints[4], ints[5], ints[6], ints[7], ints[8], ints[9], ints[10], ints[11], ints[12], ints[13], ints[14], ints[15], ints[16], ints[17]); break;
+				case 19: index += snprintf(buf + index, bufSize - index, string, ints[0], ints[1], ints[2], ints[3], ints[4], ints[5], ints[6], ints[7], ints[8], ints[9], ints[10], ints[11], ints[12], ints[13], ints[14], ints[15], ints[16], ints[17], ints[18]); break;
+				case 20: index += snprintf(buf + index, bufSize - index, string, ints[0], ints[1], ints[2], ints[3], ints[4], ints[5], ints[6], ints[7], ints[8], ints[9], ints[10], ints[11], ints[12], ints[13], ints[14], ints[15], ints[16], ints[17], ints[18], ints[19]); break;
+				case 21: index += snprintf(buf + index, bufSize - index, string, ints[0], ints[1], ints[2], ints[3], ints[4], ints[5], ints[6], ints[7], ints[8], ints[9], ints[10], ints[11], ints[12], ints[13], ints[14], ints[15], ints[16], ints[17], ints[18], ints[19], ints[20]); break;
+				case 22: index += snprintf(buf + index, bufSize - index, string, ints[0], ints[1], ints[2], ints[3], ints[4], ints[5], ints[6], ints[7], ints[8], ints[9], ints[10], ints[11], ints[12], ints[13], ints[14], ints[15], ints[16], ints[17], ints[18], ints[19], ints[20], ints[21]); break;
+				case 23: index += snprintf(buf + index, bufSize - index, string, ints[0], ints[1], ints[2], ints[3], ints[4], ints[5], ints[6], ints[7], ints[8], ints[9], ints[10], ints[11], ints[12], ints[13], ints[14], ints[15], ints[16], ints[17], ints[18], ints[19], ints[20], ints[21], ints[22]); break;
+				case 24: index += snprintf(buf + index, bufSize - index, string, ints[0], ints[1], ints[2], ints[3], ints[4], ints[5], ints[6], ints[7], ints[8], ints[9], ints[10], ints[11], ints[12], ints[13], ints[14], ints[15], ints[16], ints[17], ints[18], ints[19], ints[20], ints[21], ints[22], ints[23]); break;
+				case 25: index += snprintf(buf + index, bufSize - index, string, ints[0], ints[1], ints[2], ints[3], ints[4], ints[5], ints[6], ints[7], ints[8], ints[9], ints[10], ints[11], ints[12], ints[13], ints[14], ints[15], ints[16], ints[17], ints[18], ints[19], ints[20], ints[21], ints[22], ints[23], ints[24]); break;
+				case 26: index += snprintf(buf + index, bufSize - index, string, ints[0], ints[1], ints[2], ints[3], ints[4], ints[5], ints[6], ints[7], ints[8], ints[9], ints[10], ints[11], ints[12], ints[13], ints[14], ints[15], ints[16], ints[17], ints[18], ints[19], ints[20], ints[21], ints[22], ints[23], ints[24], ints[25]); break;
+				case 27: index += snprintf(buf + index, bufSize - index, string, ints[0], ints[1], ints[2], ints[3], ints[4], ints[5], ints[6], ints[7], ints[8], ints[9], ints[10], ints[11], ints[12], ints[13], ints[14], ints[15], ints[16], ints[17], ints[18], ints[19], ints[20], ints[21], ints[22], ints[23], ints[24], ints[25], ints[26]); break;
+				case 28: index += snprintf(buf + index, bufSize - index, string, ints[0], ints[1], ints[2], ints[3], ints[4], ints[5], ints[6], ints[7], ints[8], ints[9], ints[10], ints[11], ints[12], ints[13], ints[14], ints[15], ints[16], ints[17], ints[18], ints[19], ints[20], ints[21], ints[22], ints[23], ints[24], ints[25], ints[26], ints[27]); break;
+				case 29: index += snprintf(buf + index, bufSize - index, string, ints[0], ints[1], ints[2], ints[3], ints[4], ints[5], ints[6], ints[7], ints[8], ints[9], ints[10], ints[11], ints[12], ints[13], ints[14], ints[15], ints[16], ints[17], ints[18], ints[19], ints[20], ints[21], ints[22], ints[23], ints[24], ints[25], ints[26], ints[27], ints[28]); break;
+				case 30: index += snprintf(buf + index, bufSize - index, string, ints[0], ints[1], ints[2], ints[3], ints[4], ints[5], ints[6], ints[7], ints[8], ints[9], ints[10], ints[11], ints[12], ints[13], ints[14], ints[15], ints[16], ints[17], ints[18], ints[19], ints[20], ints[21], ints[22], ints[23], ints[24], ints[25], ints[26], ints[27], ints[28], ints[29]); break;
+				case 31: index += snprintf(buf + index, bufSize - index, string, ints[0], ints[1], ints[2], ints[3], ints[4], ints[5], ints[6], ints[7], ints[8], ints[9], ints[10], ints[11], ints[12], ints[13], ints[14], ints[15], ints[16], ints[17], ints[18], ints[19], ints[20], ints[21], ints[22], ints[23], ints[24], ints[25], ints[26], ints[27], ints[28], ints[29], ints[30]); break;
+				case 32: index += snprintf(buf + index, bufSize - index, string, ints[0], ints[1], ints[2], ints[3], ints[4], ints[5], ints[6], ints[7], ints[8], ints[9], ints[10], ints[11], ints[12], ints[13], ints[14], ints[15], ints[16], ints[17], ints[18], ints[19], ints[20], ints[21], ints[22], ints[23], ints[24], ints[25], ints[26], ints[27], ints[28], ints[29], ints[30], ints[31]); break;
+				case 33: index += snprintf(buf + index, bufSize - index, string, ints[0], ints[1], ints[2], ints[3], ints[4], ints[5], ints[6], ints[7], ints[8], ints[9], ints[10], ints[11], ints[12], ints[13], ints[14], ints[15], ints[16], ints[17], ints[18], ints[19], ints[20], ints[21], ints[22], ints[23], ints[24], ints[25], ints[26], ints[27], ints[28], ints[29], ints[30], ints[31], ints[32]); break;
+				case 34: index += snprintf(buf + index, bufSize - index, string, ints[0], ints[1], ints[2], ints[3], ints[4], ints[5], ints[6], ints[7], ints[8], ints[9], ints[10], ints[11], ints[12], ints[13], ints[14], ints[15], ints[16], ints[17], ints[18], ints[19], ints[20], ints[21], ints[22], ints[23], ints[24], ints[25], ints[26], ints[27], ints[28], ints[29], ints[30], ints[31], ints[32], ints[33]); break;
+				case 35: index += snprintf(buf + index, bufSize - index, string, ints[0], ints[1], ints[2], ints[3], ints[4], ints[5], ints[6], ints[7], ints[8], ints[9], ints[10], ints[11], ints[12], ints[13], ints[14], ints[15], ints[16], ints[17], ints[18], ints[19], ints[20], ints[21], ints[22], ints[23], ints[24], ints[25], ints[26], ints[27], ints[28], ints[29], ints[30], ints[31], ints[32], ints[33], ints[34]); break;
+				case 36: index += snprintf(buf + index, bufSize - index, string, ints[0], ints[1], ints[2], ints[3], ints[4], ints[5], ints[6], ints[7], ints[8], ints[9], ints[10], ints[11], ints[12], ints[13], ints[14], ints[15], ints[16], ints[17], ints[18], ints[19], ints[20], ints[21], ints[22], ints[23], ints[24], ints[25], ints[26], ints[27], ints[28], ints[29], ints[30], ints[31], ints[32], ints[33], ints[34], ints[35]); break;
+				case 37: index += snprintf(buf + index, bufSize - index, string, ints[0], ints[1], ints[2], ints[3], ints[4], ints[5], ints[6], ints[7], ints[8], ints[9], ints[10], ints[11], ints[12], ints[13], ints[14], ints[15], ints[16], ints[17], ints[18], ints[19], ints[20], ints[21], ints[22], ints[23], ints[24], ints[25], ints[26], ints[27], ints[28], ints[29], ints[30], ints[31], ints[32], ints[33], ints[34], ints[35], ints[36]); break;
+				case 38: index += snprintf(buf + index, bufSize - index, string, ints[0], ints[1], ints[2], ints[3], ints[4], ints[5], ints[6], ints[7], ints[8], ints[9], ints[10], ints[11], ints[12], ints[13], ints[14], ints[15], ints[16], ints[17], ints[18], ints[19], ints[20], ints[21], ints[22], ints[23], ints[24], ints[25], ints[26], ints[27], ints[28], ints[29], ints[30], ints[31], ints[32], ints[33], ints[34], ints[35], ints[36], ints[37]); break;
+				case 39: index += snprintf(buf + index, bufSize - index, string, ints[0], ints[1], ints[2], ints[3], ints[4], ints[5], ints[6], ints[7], ints[8], ints[9], ints[10], ints[11], ints[12], ints[13], ints[14], ints[15], ints[16], ints[17], ints[18], ints[19], ints[20], ints[21], ints[22], ints[23], ints[24], ints[25], ints[26], ints[27], ints[28], ints[29], ints[30], ints[31], ints[32], ints[33], ints[34], ints[35], ints[36], ints[37], ints[38]); break;
+				case 40: index += snprintf(buf + index, bufSize - index, string, ints[0], ints[1], ints[2], ints[3], ints[4], ints[5], ints[6], ints[7], ints[8], ints[9], ints[10], ints[11], ints[12], ints[13], ints[14], ints[15], ints[16], ints[17], ints[18], ints[19], ints[20], ints[21], ints[22], ints[23], ints[24], ints[25], ints[26], ints[27], ints[28], ints[29], ints[30], ints[31], ints[32], ints[33], ints[34], ints[35], ints[36], ints[37], ints[38], ints[39]); break;
+				default: index += snprintf(buf + index, bufSize - index, "Too many ints in intlist."); break;
+			}
+		}
+		if (index < bufSize)
+		{
+			index += snprintf(buf + index, bufSize - index, "\n");
+		}
+		ints += numInts;
+		return index;
+	}
+
+	char const *string;
+	unsigned numInts;
+};
+
+struct SyncDebugLog
+{
+	SyncDebugLog() : time(0), crc(0x00000000) {}
+	void clear()
+	{
+		log.clear();
+		time = 0;
+		crc = 0x00000000;
+		//printf("Freeing %d strings, %d valueChanges, %d intLists, %d chars, %d ints\n", (int)strings.size(), (int)valueChanges.size(), (int)intLists.size(), (int)chars.size(), (int)ints.size());
+		strings.clear();
+		valueChanges.clear();
+		intLists.clear();
+		chars.clear();
+		ints.clear();
+	}
+	void string(char const *f, char const *s)
+	{
+		size_t offset = chars.size();
+		chars.resize(chars.size() + strlen(s) + 1);
+		char *buf = &chars[offset];
+		strcpy(buf, s);
+
+		strings.resize(strings.size() + 1);
+		strings.back().set(crc, f, buf);
+
+		log.push_back('s');
+	}
+	void valueChange(char const *f, char const *vn, int nv, int i)
+	{
+		valueChanges.resize(valueChanges.size() + 1);
+		valueChanges.back().set(crc, f, vn, nv, i);
+		log.push_back('v');
+	}
+	void intList(char const *f, char const *s, int *begin, size_t num)
+	{
+		size_t offset = ints.size();
+		ints.resize(ints.size() + num);
+		int *buf = &ints[offset];
+		std::copy(begin, begin + num, buf);
+
+		intLists.resize(intLists.size() + 1);
+		intLists.back().set(crc, f, s, buf, num);
+		log.push_back('i');
+	}
+	int snprint(char *buf, size_t bufSize)
+	{
+		SyncDebugString const *stringPtr = strings.empty()? NULL : &strings[0];  // .empty() check, since &strings[0] is undefined if strings is empty(), even if it's likely to work, anyway.
+		SyncDebugValueChange const *valueChangePtr = valueChanges.empty()? NULL : &valueChanges[0];
+		SyncDebugIntList const *intListPtr = intLists.empty()? NULL : &intLists[0];
+		char const *charPtr = chars.empty()? NULL : &chars[0];
+		int const *intPtr = ints.empty()? NULL : &ints[0];
+
+		int index = 0;
+		for (size_t n = 0; n < log.size() && (size_t)index < bufSize; ++n)
+		{
+			char type = log[n];
+			switch (type)
+			{
+				case 's':
+					index += stringPtr++->snprint(buf + index, bufSize - index, charPtr);
+					break;
+				case 'v':
+					index += valueChangePtr++->snprint(buf + index, bufSize - index);
+					break;
+				case 'i':
+					index += intListPtr++->snprint(buf + index, bufSize - index, intPtr);
+					break;
+				default:
+					abort();
+					break;
+			}
+		}
+		return index;
+	}
+	uint32_t getGameTime() const
+	{
+		return time;
+	}
+	uint32_t getCrc() const
+	{
+		return ~crc;  // Invert bits, since everyone else seems to do that with CRCs...
+	}
+	unsigned getNumEntries() const
+	{
+		return log.size();
+	}
+	void setGameTime(uint32_t newTime)
+	{
+		time = newTime;
+	}
+	void setCrc(uint32_t newCrc)
+	{
+		crc = ~newCrc;  // Invert bits, since everyone else seems to do that with CRCs...
+	}
+
+private:
+	std::vector<char> log;
+	uint32_t time;
+	uint32_t crc;
+
+	std::vector<SyncDebugString> strings;
+	std::vector<SyncDebugValueChange> valueChanges;
+	std::vector<SyncDebugIntList> intLists;
+
+	std::vector<char> chars;
+	std::vector<int> ints;
+
+private:
+	SyncDebugLog(SyncDebugLog const &)/* = delete*/;
+	SyncDebugLog &operator =(SyncDebugLog const &)/* = delete*/;
+};
+
 #define MAX_LEN_LOG_LINE 512  // From debug.c - no use printing something longer.
-#define MAX_SYNC_MESSAGES 20000
 #define MAX_SYNC_HISTORY 12
 
 static unsigned syncDebugNext = 0;
-static uint32_t syncDebugNum[MAX_SYNC_HISTORY];
-static uint32_t syncDebugGameTime[MAX_SYNC_HISTORY + 1];
-static char const *syncDebugFunctions[MAX_SYNC_HISTORY][MAX_SYNC_MESSAGES];
-static char *syncDebugStrings[MAX_SYNC_HISTORY][MAX_SYNC_MESSAGES];
-static uint32_t syncDebugCrcs[MAX_SYNC_HISTORY + 1];
+static SyncDebugLog syncDebugLog[MAX_SYNC_HISTORY];
+static uint32_t syncDebugExtraGameTime;
+static uint32_t syncDebugExtraCrc;
 
 void _syncDebug(const char *function, const char *str, ...)
 {
@@ -3036,14 +3210,16 @@ void _syncDebug(const char *function, const char *str, ...)
 	vssprintf(outputBuffer, str, ap);
 	va_end(ap);
 
-	if (syncDebugNum[syncDebugNext] < MAX_SYNC_MESSAGES)
-	{
-		syncDebugFunctions[syncDebugNext][syncDebugNum[syncDebugNext]] = function;  // Function names are link-time constants, no need to duplicate.
-		syncDebugStrings[syncDebugNext][syncDebugNum[syncDebugNext]] = strdup(outputBuffer);
-		syncDebugCrcs[syncDebugNext] = crcSum(syncDebugCrcs[syncDebugNext], function,     strlen(function)     + 1);
-		syncDebugCrcs[syncDebugNext] = crcSum(syncDebugCrcs[syncDebugNext], outputBuffer, strlen(outputBuffer) + 1);
-		++syncDebugNum[syncDebugNext];
-	}
+	syncDebugLog[syncDebugNext].string(function, outputBuffer);
+}
+
+void _syncDebugIntList(const char *function, const char *str, int *ints, size_t numInts)
+{
+#ifdef WZ_CC_MSVC
+	char const *f = function; while (*f != '\0') if (*f++ == ':') function = f;  // Strip "Class::" from "Class::myFunction".
+#endif
+
+	syncDebugLog[syncDebugNext].intList(function, str, ints, numInts);
 }
 
 void _syncDebugBacktrace(const char *function)
@@ -3052,7 +3228,7 @@ void _syncDebugBacktrace(const char *function)
 	char const *f = function; while (*f != '\0') if (*f++ == ':') function = f;  // Strip "Class::" from "Class::myFunction".
 #endif
 
-	uint32_t backupCrc = syncDebugCrcs[syncDebugNext];  // Ignore CRC changes from _syncDebug(), since identical backtraces can be printed differently.
+	uint32_t backupCrc = syncDebugLog[syncDebugNext].getCrc();  // Ignore CRC changes from _syncDebug(), since identical backtraces can be printed differently.
 
 #ifdef WZ_OS_LINUX
 	void *btv[20];
@@ -3069,47 +3245,33 @@ void _syncDebugBacktrace(const char *function)
 #endif
 
 	// Use CRC of something platform-independent, to avoid false positive desynchs.
-	syncDebugCrcs[syncDebugNext] = crcSum(backupCrc, function, strlen(function) + 1);
-}
-
-static void clearSyncDebugNext(void)
-{
-	unsigned i;
-
-	for (i = 0; i != syncDebugNum[syncDebugNext]; ++i)
-	{
-		free(syncDebugStrings[syncDebugNext][i]);
-		syncDebugFunctions[syncDebugNext][i] = NULL;  // Function names are link-time constants, and therefore shouldn't and can't be freed.
-		syncDebugStrings[syncDebugNext][i] = NULL;
-	}
-	syncDebugNum[syncDebugNext] = 0;
-	syncDebugGameTime[syncDebugNext] = 0;
-	syncDebugCrcs[syncDebugNext] = 0x00000000;
+	backupCrc = ~crcSum(~backupCrc, function, strlen(function) + 1);
+	syncDebugLog[syncDebugNext].setCrc(backupCrc);
 }
 
 void resetSyncDebug()
 {
-	for (syncDebugNext = 0; syncDebugNext < MAX_SYNC_HISTORY; ++syncDebugNext)
+	for (unsigned i = 0; i < MAX_SYNC_HISTORY; ++i)
 	{
-		clearSyncDebugNext();
+		syncDebugLog[i].clear();
 	}
 
-	syncDebugGameTime[MAX_SYNC_HISTORY] = 0;
-	syncDebugCrcs[MAX_SYNC_HISTORY] = 0x00000000;
+	syncDebugExtraGameTime = 0;
+	syncDebugExtraCrc = 0xFFFFFFFF;
 
 	syncDebugNext = 0;
 }
 
 uint32_t nextDebugSync(void)
 {
-	uint32_t ret = ~syncDebugCrcs[syncDebugNext];  // Invert bits, since everyone else seems to do that with CRCs...
+	uint32_t ret = syncDebugLog[syncDebugNext].getCrc();
 
 	// Save gameTime, so we know which CRC to compare with, later.
-	syncDebugGameTime[syncDebugNext] = gameTime;
+	syncDebugLog[syncDebugNext].setGameTime(gameTime);
 
 	// Go to next position, and free it ready for use.
 	syncDebugNext = (syncDebugNext + 1)%MAX_SYNC_HISTORY;
-	clearSyncDebugNext();
+	syncDebugLog[syncDebugNext].clear();
 
 	return ret;
 }
@@ -3157,22 +3319,20 @@ static void recvDebugSync(NETQUEUE queue)
 
 bool checkDebugSync(uint32_t checkGameTime, uint32_t checkCrc)
 {
-	unsigned index;
-	unsigned i;
 	static uint32_t numDumps = 0;
-	size_t bufSize = 0;
 
-	if (checkGameTime == syncDebugGameTime[syncDebugNext])  // Can't happen - and syncDebugGameTime[] == 0, until just before sending the CRC, anyway.
+	if (checkGameTime == syncDebugLog[syncDebugNext].getGameTime())  // Can't happen - and syncDebugGameTime[] == 0, until just before sending the CRC, anyway.
 	{
 		debug(LOG_ERROR, "Huh? We aren't done yet...");
 		return true;
 	}
 
-	for (index = 0; index < MAX_SYNC_HISTORY + 1; ++index)
+	unsigned logIndex;
+	for (logIndex = 0; logIndex < MAX_SYNC_HISTORY; ++logIndex)
 	{
-		if (syncDebugGameTime[index] == checkGameTime)
+		if (syncDebugLog[logIndex].getGameTime() == checkGameTime)
 		{
-			if (~syncDebugCrcs[index] == checkCrc)  // Invert bits, since everyone else seems to do that with CRCs...
+			if (syncDebugLog[logIndex].getCrc() == checkCrc)  // Invert bits, since everyone else seems to do that with CRCs...
 			{
 				return true;                    // Check passed. (So far... There might still be more players to compare CRCs with.)
 			}
@@ -3181,37 +3341,40 @@ bool checkDebugSync(uint32_t checkGameTime, uint32_t checkCrc)
 		}
 	}
 
-	if (index >= MAX_SYNC_HISTORY)
+	if (logIndex >= MAX_SYNC_HISTORY && syncDebugExtraGameTime == checkGameTime)
+	{
+		if (syncDebugExtraCrc == checkCrc)
+		{
+			return true;
+		}
+	}
+
+	if (logIndex >= MAX_SYNC_HISTORY)
 	{
 		return false;                                   // Couldn't check. May have dumped already, or MAX_SYNC_HISTORY isn't big enough compared to the maximum latency.
 	}
 
+	size_t bufIndex = 0;
 	// Dump our version, and also erase it, so we only dump it at most once.
-	debug(LOG_ERROR, "Inconsistent sync debug at gameTime %u. My version has %u lines, CRC = 0x%08X.", syncDebugGameTime[index], syncDebugNum[index], ~syncDebugCrcs[index] & 0xFFFFFFFF);
-	bufSize += snprintf((char *)debugSyncTmpBuf + bufSize, ARRAY_SIZE(debugSyncTmpBuf) - bufSize, "===== BEGIN gameTime=%u, %u lines, CRC 0x%08X =====\n", syncDebugGameTime[index], syncDebugNum[index], ~syncDebugCrcs[index] & 0xFFFFFFFF);
-	bufSize = MIN(bufSize, ARRAY_SIZE(debugSyncTmpBuf));  // snprintf will not overflow debugSyncTmpBuf, but returns as much as it would have printed if possible.
-	for (i = 0; i < syncDebugNum[index]; ++i)
-	{
-		bufSize += snprintf((char *)debugSyncTmpBuf + bufSize, ARRAY_SIZE(debugSyncTmpBuf) - bufSize, "[%s] %s\n", syncDebugFunctions[index][i], syncDebugStrings[index][i]);
-		bufSize = MIN(bufSize, ARRAY_SIZE(debugSyncTmpBuf));  // snprintf will not overflow debugSyncTmpBuf, but returns as much as it would have printed if possible.
-		free(syncDebugStrings[index][i]);
-	}
-	bufSize += snprintf((char *)debugSyncTmpBuf + bufSize, ARRAY_SIZE(debugSyncTmpBuf) - bufSize, "===== END gameTime=%u, %u lines, CRC 0x%08X =====\n", syncDebugGameTime[index], syncDebugNum[index], ~syncDebugCrcs[index] & 0xFFFFFFFF);
-	bufSize = MIN(bufSize, ARRAY_SIZE(debugSyncTmpBuf));  // snprintf will not overflow debugSyncTmpBuf, but returns as much as it would have printed if possible.
+	debug(LOG_ERROR, "Inconsistent sync debug at gameTime %u. My version has %u entries, CRC = 0x%08X.", syncDebugLog[logIndex].getGameTime(), syncDebugLog[logIndex].getNumEntries(), syncDebugLog[logIndex].getCrc());
+	bufIndex += snprintf((char *)debugSyncTmpBuf + bufIndex, ARRAY_SIZE(debugSyncTmpBuf) - bufIndex, "===== BEGIN gameTime=%u, %u entries, CRC 0x%08X =====\n", syncDebugLog[logIndex].getGameTime(), syncDebugLog[logIndex].getNumEntries(), syncDebugLog[logIndex].getCrc());
+	bufIndex = MIN(bufIndex, ARRAY_SIZE(debugSyncTmpBuf));  // snprintf will not overflow debugSyncTmpBuf, but returns as much as it would have printed if possible.
+	bufIndex += syncDebugLog[logIndex].snprint((char *)debugSyncTmpBuf + bufIndex, ARRAY_SIZE(debugSyncTmpBuf) - bufIndex);
+	bufIndex = MIN(bufIndex, ARRAY_SIZE(debugSyncTmpBuf));  // snprintf will not overflow debugSyncTmpBuf, but returns as much as it would have printed if possible.
+	bufIndex += snprintf((char *)debugSyncTmpBuf + bufIndex, ARRAY_SIZE(debugSyncTmpBuf) - bufIndex, "===== END gameTime=%u, %u entries, CRC 0x%08X =====\n", syncDebugLog[logIndex].getGameTime(), syncDebugLog[logIndex].getNumEntries(), syncDebugLog[logIndex].getCrc());
+	bufIndex = MIN(bufIndex, ARRAY_SIZE(debugSyncTmpBuf));  // snprintf will not overflow debugSyncTmpBuf, but returns as much as it would have printed if possible.
 	if (numDumps < 5)
 	{
 		++numDumps;
-		sendDebugSync(debugSyncTmpBuf, bufSize, syncDebugGameTime[index]);
+		sendDebugSync(debugSyncTmpBuf, bufIndex, syncDebugLog[logIndex].getGameTime());
 	}
 
 	// Backup correct CRC for checking against remaining players, even though we erased the logs (which were dumped already).
-	syncDebugGameTime[MAX_SYNC_HISTORY] = syncDebugGameTime[index];
-	syncDebugCrcs[MAX_SYNC_HISTORY]     = syncDebugCrcs[index];
+	syncDebugExtraGameTime = syncDebugLog[logIndex].getGameTime();
+	syncDebugExtraCrc      = syncDebugLog[logIndex].getCrc();
 
 	// Finish erasing our version.
-	syncDebugNum[index] = 0;
-	syncDebugGameTime[index] = 0;
-	syncDebugCrcs[index] = 0x00000000;
+	syncDebugLog[logIndex].clear();
 
 	return false;  // Ouch.
 }
@@ -3222,11 +3385,12 @@ const char *messageTypeToString(unsigned messageType_)
 
 	switch (messageType)
 	{
-		// Search:  \s*([\w_]+).*
+		// Search:  ^\s*([\w_]+).*
 		// Replace: case \1:                             return "\1";
 		// Search:  (case ...............................) *(return "[\w_]+";)
 		// Replace: \t\t\1\2
 
+		// Net-related messages.
 		case NET_MIN_TYPE:                  return "NET_MIN_TYPE";
 		case NET_PING:                      return "NET_PING";
 		case NET_PLAYER_STATS:              return "NET_PLAYER_STATS";
@@ -3259,32 +3423,35 @@ const char *messageTypeToString(unsigned messageType_)
 		case NET_DEBUG_SYNC:                return "NET_DEBUG_SYNC";
 		case NET_MAX_TYPE:                  return "NET_MAX_TYPE";
 
+		// Game-state-related messages, must be processed by all clients at the same game time.
 		case GAME_MIN_TYPE:                 return "GAME_MIN_TYPE";
-		case GAME_DROID:                    return "GAME_DROID";
 		case GAME_DROIDINFO:                return "GAME_DROIDINFO";
+		case GAME_STRUCTUREINFO:            return "GAME_STRUCTUREINFO";
+		case GAME_RESEARCHSTATUS:           return "GAME_RESEARCHSTATUS";
 		case GAME_TEMPLATE:                 return "GAME_TEMPLATE";
 		case GAME_TEMPLATEDEST:             return "GAME_TEMPLATEDEST";
-		case GAME_FEATUREDEST:              return "GAME_FEATUREDEST";
-		case GAME_RESEARCH:                 return "GAME_RESEARCH";
-		case GAME_FEATURES:                 return "GAME_FEATURES";
-		case GAME_SECONDARY:                return "GAME_SECONDARY";
 		case GAME_ALLIANCE:                 return "GAME_ALLIANCE";
 		case GAME_GIFT:                     return "GAME_GIFT";
 		case GAME_ARTIFACTS:                return "GAME_ARTIFACTS";
-		case GAME_RESEARCHSTATUS:           return "GAME_RESEARCHSTATUS";
-		case GAME_STRUCTUREINFO:            return "GAME_STRUCTUREINFO";
 		case GAME_LASSAT:                   return "GAME_LASSAT";
 		case GAME_GAME_TIME:                return "GAME_GAME_TIME";
 		case GAME_PLAYER_LEFT:              return "GAME_PLAYER_LEFT";
+		// The following messages (not including GAME_MAX_TYPE) are currently redundant, and should probably at some point not be
+		// sent, except (some of them) when using cheats in debug mode.
+		case GAME_DROID:                    return "GAME_DROID";
+		case GAME_BUILDFINISHED:            return "GAME_BUILDFINISHED";
+		case GAME_FEATURES:                 return "GAME_FEATURES";
 		case GAME_DROIDDEST:                return "GAME_DROIDDEST";
+		case GAME_STRUCTDEST:               return "GAME_STRUCTDEST";
+		case GAME_FEATUREDEST:              return "GAME_FEATUREDEST";
+		case GAME_RESEARCH:                 return "GAME_RESEARCH";
 		case GAME_CHECK_DROID:              return "GAME_CHECK_DROID";
 		case GAME_CHECK_STRUCT:             return "GAME_CHECK_STRUCT";
 		case GAME_CHECK_POWER:              return "GAME_CHECK_POWER";
-		case GAME_STRUCTDEST:               return "GAME_STRUCTDEST";
-		case GAME_BUILDFINISHED:            return "GAME_BUILDFINISHED";
 		case GAME_DEMOLISH:                 return "GAME_DEMOLISH";
 		case GAME_DROIDEMBARK:              return "GAME_DROIDEMBARK";
 		case GAME_DROIDDISEMBARK:           return "GAME_DROIDDISEMBARK";
+		// End of redundant messages.
 		case GAME_MAX_TYPE:                 return "GAME_MAX_TYPE";
 	}
 	return "(INVALID MESSAGE TYPE)";

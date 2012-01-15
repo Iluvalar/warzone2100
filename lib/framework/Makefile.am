@@ -1,94 +1,82 @@
-%.tab.hpp %.tab.cpp:: %.y
-	$(YACC) $(YFLAGS) $(AM_YFLAGS) -o$@ $<
-
-%.lex.cpp:: %.l
-	$(LEX) $(LFLAGS) $(AM_LFLAGS) -o$@ $<
-
-AM_CPPFLAGS = -DYY_NO_INPUT $(SDL_CFLAGS) $(WZ_CPPFLAGS)
+AM_CPPFLAGS = -DYY_NO_INPUT $(SDL_CFLAGS) $(WZ_CPPFLAGS) $(QT4_CFLAGS)
 AM_CFLAGS = $(WZ_CFLAGS)
-AM_CXXFLAGS = $(WZ_CXXFLAGS)
+AM_CXXFLAGS = $(WZ_CXXFLAGS) $(QT4_CFLAGS)
 AM_LFLAGS = $(FLEX_FLAGS)
 AM_YFLAGS = -d
+
+MOCHEADER = \
+	wzconfig.h
+MOCEDFILES = $(MOCHEADER:%.h=%_moc.cpp)
+
+%_moc.cpp: %.h
+	$(MOC4) -o $@ $<
+
 BUILT_SOURCES = \
-	resource_lexer.lex.cpp \
-	resource_parser.tab.cpp \
-	resource_parser.tab.hpp \
-	strres_lexer.lex.cpp \
-	strres_parser.tab.cpp \
-	strres_parser.tab.hpp
+	resource_parser.h \
+	strres_parser.h
 
 CLEANFILES = \
-	resource_lexer.lex.cpp \
-	resource_parser.tab.cpp \
-	resource_parser.tab.hpp \
-	strres_lexer.lex.cpp \
-	strres_parser.tab.cpp \
-	strres_parser.tab.hpp
+	$(MOCEDFILES)
 
 EXTRA_DIST = \
-	resource_lexer.l resource_parser.y \
-	strres_lexer.l strres_parser.y
+	cocoa_wrapper.h cocoa_wrapper.mm
 
 noinst_LIBRARIES = libframework.a
 noinst_HEADERS = \
-	strres_parser.tab.hpp \
-	resource_parser.tab.hpp \
-	configfile.h \
+	$(MOCHEADER) \
+	config-macosx.h \
 	crc.h \
 	cursors.h \
 	debug.h \
+	endian_hack.h \
 	file.h \
 	fixedpoint.h \
 	frame.h \
 	frameint.h \
 	frameresource.h \
+	geometry.h \
+	gettext.h \
 	i18n.h \
 	input.h \
 	lexer_input.h \
 	listmacs.h \
+	macros.h \
 	math_ext.h \
 	opengl.h \
 	physfs_ext.h \
+	rational.h \
 	resly.h \
 	stdio_ext.h \
 	string_ext.h \
 	strres.h \
 	strresly.h \
-	tagfile.h \
 	treap.h \
 	trig.h \
 	types.h \
 	utf.h \
 	vector.h \
-	config-macosx.h \
-	endian_hack.h \
-	gettext.h \
-	macros.h \
-	SDL_framerate.h \
-	wz2100icon.h \
-	wzapp_c.h \
+	wzapp.h \
+	wzfs.h \
 	wzglobal.h
 
+nodist_libframework_a_SOURCES = \
+	wzconfig_moc.cpp
+
 libframework_a_SOURCES = \
-	resource_lexer.lex.cpp \
-	resource_parser.tab.cpp \
-	strres_lexer.lex.cpp \
-	strres_parser.tab.cpp \
-	configfile.cpp \
 	crc.cpp \
-	cursors16.cpp \
-	cursors32.cpp \
-	cursors.cpp \
 	debug.cpp \
 	frame.cpp \
 	frameresource.cpp \
+	geometry.cpp \
 	i18n.cpp \
-	input.cpp \
 	lexer_input.cpp \
-	SDL_framerate.cpp \
+	resource_lexer.lpp \
+	resource_parser.ypp \
 	stdio_ext.cpp \
 	strres.cpp \
-	tagfile.cpp \
+	strres_lexer.lpp \
+	strres_parser.ypp \
 	treap.cpp \
 	trig.cpp \
-	utf.cpp
+	utf.cpp \
+	wzconfig.cpp

@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2010  Warzone 2100 Project
+	Copyright (C) 2005-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -26,6 +26,7 @@
 #include <string.h>
 
 #include "lib/framework/frame.h"
+#include "lib/framework/wzapp.h"
 #include "lib/framework/strres.h"
 #include "lib/widget/widget.h"
 #include "lib/netplay/netplay.h"
@@ -52,15 +53,15 @@
 #include "warzoneconfig.h"
 
 //status bools.(for hci.h)
-BOOL	ClosingInGameOp	= false;
-BOOL	InGameOpUp		= false;
+bool	ClosingInGameOp	= false;
+bool	InGameOpUp		= false;
 bool 	isInGamePopupUp = false;
 // ////////////////////////////////////////////////////////////////////////////
 // functions
 
 // ////////////////////////////////////////////////////////////////////////////
 
-static BOOL addIGTextButton(UDWORD id, UWORD y, UWORD width, const char *string, UDWORD Style)
+static bool addIGTextButton(UDWORD id, UWORD y, UWORD width, const char *string, UDWORD Style)
 {
 	W_BUTINIT sButInit;
 
@@ -82,7 +83,7 @@ static BOOL addIGTextButton(UDWORD id, UWORD y, UWORD width, const char *string,
 	return true;
 }
 
-static BOOL addQuitOptions(void)
+static bool addQuitOptions(void)
 {
 	if (widgGetFromID(psWScreen,INTINGAMEOP))
 	{
@@ -140,7 +141,7 @@ static BOOL addQuitOptions(void)
 }
 
 
-static BOOL addSlideOptions(void)
+static bool addSlideOptions(void)
 {
 	if (widgGetFromID(psWScreen,INTINGAMEOP))
 	{
@@ -200,7 +201,7 @@ static BOOL addSlideOptions(void)
 
 // ////////////////////////////////////////////////////////////////////////////
 
-static BOOL _intAddInGameOptions(void)
+static bool _intAddInGameOptions(void)
 {
 	audio_StopAll();
 
@@ -277,20 +278,19 @@ static BOOL _intAddInGameOptions(void)
 	intMode		= INT_INGAMEOP;			// change interface mode.
 	InGameOpUp	= true;					// inform interface.
 
-	// Using software cursors (when on) for these menus due to a bug in SDL's SDL_ShowCursor()
-	pie_SetMouse(CURSOR_DEFAULT, war_GetColouredCursor());
+	wzSetCursor(CURSOR_DEFAULT);
 
 	return true;
 }
 
 
-BOOL intAddInGameOptions(void)
+bool intAddInGameOptions(void)
 {
 	sliderEnableDrag(true);
 	return _intAddInGameOptions();
 }
 
-// 
+//
 // Quick hack to throw up a ingame 'popup' for when the host drops connection.
 //
 void intAddInGamePopup(void)
@@ -373,7 +373,7 @@ static void ProcessOptionFinished(void)
 
 }
 
-void intCloseInGameOptionsNoAnim(BOOL bResetMissionWidgets)
+void intCloseInGameOptionsNoAnim(bool bResetMissionWidgets)
 {
 	if (NetPlay.isHost)
 	{
@@ -394,7 +394,7 @@ void intCloseInGameOptionsNoAnim(BOOL bResetMissionWidgets)
 
 
 // ////////////////////////////////////////////////////////////////////////////
-BOOL intCloseInGameOptions(BOOL bPutUpLoadSave, BOOL bResetMissionWidgets)
+bool intCloseInGameOptions(bool bPutUpLoadSave, bool bResetMissionWidgets)
 {
 
 	W_TABFORM	*Form;
@@ -491,13 +491,12 @@ void intProcessInGameOptions(UDWORD id)
 //		break;
 	case INTINGAMEOP_LOAD:
 		intCloseInGameOptions(true, false);
-		addLoadSave(LOAD_INGAME,SaveGamePath,"gam",_("Load Saved Game"));	// change mode when loadsave returns//		if(runLoadSave())// check for file name.
+		addLoadSave(LOAD_INGAME, _("Load Saved Game"));	// change mode when loadsave returns
 		break;
 	case INTINGAMEOP_SAVE:
 		intCloseInGameOptions(true, false);
-		addLoadSave(SAVE_INGAME,SaveGamePath,"gam", _("Save Game") );
+		addLoadSave(SAVE_INGAME, _("Save Game"));
 		break;
-
 
 	// GAME OPTIONS KEYS
 	case INTINGAMEOP_FXVOL:
@@ -526,9 +525,9 @@ void intProcessInGameOptions(UDWORD id)
 		{
 			widgSetString(psWScreen, INTINGAMEOP_TUI_TARGET_ORIGIN_SW, _("Tactical UI (Target Origin Icon): Hide"));
 		}
-		
+
 		break;
-		
+
 	default:
 		break;
 	}

@@ -1,6 +1,6 @@
 /*
 	This file is part of Warzone 2100.
-	Copyright (C) 2007-2010  Warzone 2100 Project
+	Copyright (C) 2007-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -28,10 +28,13 @@
 #include "frame.h"
 #include "math_ext.h"
 
+struct Rotation;
+struct Vector3i;
 struct Vector2i
 {
 	Vector2i() {}
 	Vector2i(int x, int y) : x(x), y(y) {}
+	Vector2i(Vector3i const &r); // discards the z value
 
 	int x, y;
 };
@@ -48,7 +51,7 @@ struct Vector3i
 	Vector3i() {}
 	Vector3i(int x, int y, int z) : x(x), y(y), z(z) {}
 	Vector3i(Vector2i const &xy, int z) : x(xy.x), y(xy.y), z(z) {}
-
+	Vector3i(Rotation const &r);
 	int x, y, z;
 };
 struct Vector3f
@@ -56,18 +59,21 @@ struct Vector3f
 	Vector3f() {}
 	Vector3f(float x, float y, float z) : x(x), y(y), z(z) {}
 	Vector3f(Vector3i const &v) : x(v.x), y(v.y), z(v.z) {}
-	Vector3f(Vector2f const &xy, int z) : x(xy.x), y(xy.y), z(z) {}
+	Vector3f(Vector2f const &xy, float z) : x(xy.x), y(xy.y), z(z) {}
 
 	float x, y, z;
 };
 struct Rotation
 {
-	Rotation() {}
+	Rotation() { direction = 0; pitch = 0; roll = 0; }
 	Rotation(int direction, int pitch, int roll) : direction(direction), pitch(pitch), roll(roll) {}
-
+	Rotation(Vector3i xyz) : direction(xyz.x), pitch(xyz.y), roll(xyz.z) {}
 	uint16_t direction, pitch, roll;  ///< Object rotation in 0..64k range
 };
 typedef Vector3i Position;  ///< Map position in world coordinates
+
+inline Vector3i::Vector3i(Rotation const &r) : x(r.direction), y(r.pitch), z(r.roll) {}
+inline Vector2i::Vector2i(Vector3i const &r) : x(r.x), y(r.y) {}
 
 // removeZ(3d_vector) -> 2d_vector
 static inline WZ_DECL_PURE Vector2i removeZ(Vector3i const &a) { return Vector2i(a.x, a.y); }
@@ -156,44 +162,26 @@ static inline Vector2f const &operator +=(Vector2f &a, Vector2f const &b) { retu
 static inline Vector3i const &operator +=(Vector3i &a, Vector3i const &b) { return a = a + b; }
 static inline Vector3f const &operator +=(Vector3f &a, Vector3f const &b) { return a = a + b; }
 
-
-/*!
- * Convert a float vector to integer
- * \param v Vector to convert
- * \return Float vector
- */
-static inline WZ_DECL_CONST Vector2i Vector2f_To2i(const Vector2f v)
-{
-	return Vector2i((int)v.x, (int)v.y);
-}
-
+// vector -= vector
+static inline Vector2i const &operator -=(Vector2i &a, Vector2i const &b) { return a = a - b; }
+static inline Vector2f const &operator -=(Vector2f &a, Vector2f const &b) { return a = a - b; }
+static inline Vector3i const &operator -=(Vector3i &a, Vector3i const &b) { return a = a - b; }
+static inline Vector3f const &operator -=(Vector3f &a, Vector3f const &b) { return a = a - b; }
 
 
 /*!
  * Rotate v
  * \param v vector to rotate
- * \param degrees the amount of degrees to rotate in counterclockwise direction
+ * \param angle the amount * 32768/π to rotate in counterclockwise direction
  * \return Result
  */
-static inline WZ_DECL_PURE Vector2f Vector2f_Rotate2f(Vector2f v, float degrees)
+static inline WZ_DECL_PURE Vector2f Vector2f_Rotate2f(Vector2f v, int angle)
 {
 	Vector2f result;
-	int angle = (int)((degrees*65536 + 180)/360);
 	result.x = (v.x*iCos(angle) - v.y*iSin(angle)) / 65536;
 	result.y = (v.x*iSin(angle) + v.y*iCos(angle)) / 65536;
 
 	return result;
-}
-
-
-/*!
- * Convert a float vector to integer
- * \param v Vector to convert
- * \return Float vector
- */
-static inline WZ_DECL_CONST Vector3i Vector3f_To3i(const Vector3f v)
-{
-	return Vector3i((int)v.x, (int)v.y, (int)v.z);
 }
 
 

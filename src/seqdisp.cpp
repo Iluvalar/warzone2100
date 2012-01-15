@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2010  Warzone 2100 Project
+	Copyright (C) 2005-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -67,43 +67,39 @@
 static int D_W2 = 0;	// Text width offset
 static int D_H2 = 0;	// Text height offset
 
-typedef struct
+struct SEQTEXT
 {
 	char pText[MAX_STR_LENGTH];
 	UDWORD x;
 	UDWORD y;
-	UDWORD startFrame;
-	UDWORD endFrame;
-	BOOL	bSubtitle;
-} SEQTEXT;
+	double startTime;
+	double endTime;
+	bool	bSubtitle;
+};
 
-typedef struct
+struct SEQLIST
 {
 	const char	*pSeq;						//name of the sequence to play
 	const char	*pAudio;					//name of the wav to play
-	BOOL		bSeqLoop;					//loop this sequence
+	bool		bSeqLoop;					//loop this sequence
 	SDWORD		currentText;				//cuurent number of text messages for this seq
 	SEQTEXT		aText[MAX_TEXT_OVERLAYS];	//text data to display for this sequence
-} SEQLIST;
+};
 /***************************************************************************/
 /*
  *	local Variables
  */
 /***************************************************************************/
 
-static BOOL bAudioPlaying = false;
-static BOOL bHoldSeqForAudio = false;
-static BOOL bSeqSubtitles = true;
-static BOOL bSeqPlaying = false;
+static bool bAudioPlaying = false;
+static bool bHoldSeqForAudio = false;
+static bool bSeqSubtitles = true;
+static bool bSeqPlaying = false;
 static const char aHardPath[] = "sequences/";
 static char aVideoName[MAX_STR_LENGTH];
-static char* pVideoBuffer = NULL;
-static char* pVideoPalette = NULL;
-static SDWORD frameSkip = 1;
 static SEQLIST aSeqList[MAX_SEQ_LIST];
 static SDWORD currentSeq = -1;
 static SDWORD currentPlaySeq = -1;
-static BOOL g_bResumeInGame = false;
 
 /***************************************************************************/
 /*
@@ -111,15 +107,13 @@ static BOOL g_bResumeInGame = false;
  */
 /***************************************************************************/
 
-typedef enum
+enum VIDEO_RESOLUTION
 {
 	VIDEO_PRESELECTED_RESOLUTION,
 	VIDEO_USER_CHOSEN_RESOLUTION,
-} VIDEO_RESOLUTION;
+};
 
 static bool seq_StartFullScreenVideo(const char* videoName, const char* audioName, VIDEO_RESOLUTION resolution);
-BOOL seq_SetupVideoBuffers(void);
-BOOL seq_ReleaseVideoBuffers(void);
 
 /***************************************************************************/
 /*
@@ -157,7 +151,7 @@ bool seq_RenderVideoToBuffer(const char* sequenceName, int seqCommand)
 	{
 		//start the ball rolling
 
-		iV_SetFont(font_regular);
+		iV_SetFont(font_scaled);
 		iV_SetTextColour(WZCOL_TEXT_BRIGHT);
 
 		/* We do *NOT* want to use the user-choosen resolution when we
@@ -184,19 +178,6 @@ bool seq_RenderVideoToBuffer(const char* sequenceName, int seqCommand)
 	return true;
 }
 
-BOOL seq_ReleaseVideoBuffers(void)
-{
-	free(pVideoBuffer);
-	free(pVideoPalette);
-	pVideoBuffer = NULL;
-	pVideoPalette = NULL;
-	return true;
-}
-
-BOOL seq_SetupVideoBuffers(void)
-{
-	return true;
-}
 
 static void seq_SetUserResolution(void)
 {
@@ -246,7 +227,7 @@ static bool seq_StartFullScreenVideo(const char* videoName, const char* audioNam
 	}
 
 	cdAudio_Pause();
-	iV_SetFont(font_regular);
+	iV_SetFont(font_scaled);
 	iV_SetTextColour(WZCOL_TEXT_BRIGHT);
 
 	/* We do not want to enter loop_SetVideoPlaybackMode() when we are
@@ -260,7 +241,7 @@ static bool seq_StartFullScreenVideo(const char* videoName, const char* audioNam
 			// check to see if we need to pause, and set font each time
 			cdAudio_Pause();
 			loop_SetVideoPlaybackMode();
-			iV_SetFont(font_regular);
+			iV_SetFont(font_scaled);
 			iV_SetTextColour(WZCOL_TEXT_BRIGHT);
 		}
 
@@ -290,55 +271,39 @@ static bool seq_StartFullScreenVideo(const char* videoName, const char* audioNam
 	return true;
 }
 
-BOOL seq_UpdateFullScreenVideo(int *pbClear)
+bool seq_UpdateFullScreenVideo(int *pbClear)
 {
 	int i;
-	BOOL bMoreThanOneSequenceLine = false;
+	bool bMoreThanOneSequenceLine = false;
 	bool stillPlaying;
 
 	unsigned int subMin = SUBTITLE_BOX_MAX + D_H2;
 	unsigned int subMax = SUBTITLE_BOX_MIN + D_H2;
 
 	//get any text lines over bottom of the video
-	unsigned int realFrame = seq_GetFrameNumber();
-	for(i=0;i<MAX_TEXT_OVERLAYS;i++)
+	double realTime = seq_GetFrameTime();
+	for (i = 0; i < MAX_TEXT_OVERLAYS; i++)
 	{
-		if (aSeqList[currentPlaySeq].aText[i].pText[0] != '\0')
+		SEQTEXT seqtext = aSeqList[currentPlaySeq].aText[i];
+		if (seqtext.pText[0] != '\0')
 		{
-			if (aSeqList[currentPlaySeq].aText[i].bSubtitle)
+			if (seqtext.bSubtitle)
 			{
-				if ((realFrame >= aSeqList[currentPlaySeq].aText[i].startFrame) && (realFrame <= aSeqList[currentPlaySeq].aText[i].endFrame))
+				if (((realTime >= seqtext.startTime) && (realTime <= seqtext.endTime)) ||
+				    aSeqList[currentPlaySeq].bSeqLoop) //if its a looped video always draw the text
 				{
-					if (subMin > aSeqList[currentPlaySeq].aText[i].y)
+					if (subMin > seqtext.y && seqtext.y > SUBTITLE_BOX_MIN)
 					{
-						if (aSeqList[currentPlaySeq].aText[i].y > SUBTITLE_BOX_MIN)
-						{
-							subMin = aSeqList[currentPlaySeq].aText[i].y;
-						}
+						subMin = seqtext.y;
 					}
-					if (subMax < aSeqList[currentPlaySeq].aText[i].y)
+					if (subMax < seqtext.y)
 					{
-						subMax = aSeqList[currentPlaySeq].aText[i].y;
-					}
-				}
-				else if (aSeqList[currentPlaySeq].bSeqLoop)//if its a looped video always draw the text
-				{
-					if (subMin >= aSeqList[currentPlaySeq].aText[i].y)
-					{
-						if (aSeqList[currentPlaySeq].aText[i].y > SUBTITLE_BOX_MIN)
-						{
-							subMin = aSeqList[currentPlaySeq].aText[i].y;
-						}
-					}
-					if (subMax < aSeqList[currentPlaySeq].aText[i].y)
-					{
-						subMax = aSeqList[currentPlaySeq].aText[i].y;
+						subMax = seqtext.y;
 					}
 				}
 			}
 
-			if (realFrame >= aSeqList[currentPlaySeq].aText[i].endFrame
-			 && realFrame < aSeqList[currentPlaySeq].aText[i].endFrame + frameSkip)
+			if (realTime >= seqtext.endTime && realTime < seqtext.endTime)
 			{
 				if (pbClear != NULL)
 				{
@@ -368,43 +333,31 @@ BOOL seq_UpdateFullScreenVideo(int *pbClear)
 	//call sequence player to download last frame
 	stillPlaying = seq_Update();
 	//print any text over the video
-	realFrame = seq_GetFrameNumber();//textFrame + 1;
+	realTime = seq_GetFrameTime();
 
-	for(i=0;i<MAX_TEXT_OVERLAYS;i++)
+	for (i = 0; i < MAX_TEXT_OVERLAYS; i++)
 	{
-		if (aSeqList[currentPlaySeq].aText[i].pText[0] != '\0')
+		SEQTEXT currentText = aSeqList[currentPlaySeq].aText[i];
+		if (currentText.pText[0] != '\0')
 		{
-			if ((realFrame >= aSeqList[currentPlaySeq].aText[i].startFrame) && (realFrame <= aSeqList[currentPlaySeq].aText[i].endFrame))
+			if (((realTime >= currentText.startTime) && (realTime <= currentText.endTime)) ||
+			    (aSeqList[currentPlaySeq].bSeqLoop)) //if its a looped video always draw the text
 			{
 				if (bMoreThanOneSequenceLine)
 				{
-					aSeqList[currentPlaySeq].aText[i].x = 20 + D_W2;
+					currentText.x = 20 + D_W2;
 				}
 				iV_SetTextColour(WZCOL_GREY);
-				iV_DrawText(&(aSeqList[currentPlaySeq].aText[i].pText[0]),
-						aSeqList[currentPlaySeq].aText[i].x + 1, aSeqList[currentPlaySeq].aText[i].y + 1);
-				iV_SetTextColour(WZCOL_TEXT_BRIGHT);
-				iV_DrawText(&(aSeqList[currentPlaySeq].aText[i].pText[0]),
-						aSeqList[currentPlaySeq].aText[i].x, aSeqList[currentPlaySeq].aText[i].y);
+				iV_DrawText(&(currentText.pText[0]), currentText.x - 1, currentText.y - 1);
+				iV_DrawText(&(currentText.pText[0]), currentText.x - 1, currentText.y + 1);
+				iV_DrawText(&(currentText.pText[0]), currentText.x - 1, currentText.y + 1);
+				iV_DrawText(&(currentText.pText[0]), currentText.x + 1, currentText.y + 1);
+				iV_SetTextColour(WZCOL_WHITE);
+				iV_DrawText(&(currentText.pText[0]), currentText.x, currentText.y);
 			}
-			else if (aSeqList[currentPlaySeq].bSeqLoop)//if its a looped video always draw the text
-			{
-				if (bMoreThanOneSequenceLine)
-				{
-					aSeqList[currentPlaySeq].aText[i].x = 20 + D_W2;
-				}
-				iV_SetTextColour(WZCOL_GREY);
-				iV_DrawText(&(aSeqList[currentPlaySeq].aText[i].pText[0]),
-						aSeqList[currentPlaySeq].aText[i].x + 1, aSeqList[currentPlaySeq].aText[i].y + 1);
-				iV_SetTextColour(WZCOL_TEXT_BRIGHT);
-				iV_DrawText(&(aSeqList[currentPlaySeq].aText[i].pText[0]),
-						aSeqList[currentPlaySeq].aText[i].x, aSeqList[currentPlaySeq].aText[i].y);
-			}
-
 		}
 	}
-	if (!stillPlaying
-	 || bHoldSeqForAudio)
+	if (!stillPlaying || bHoldSeqForAudio)
 	{
 		if (bAudioPlaying)
 		{
@@ -432,7 +385,7 @@ BOOL seq_UpdateFullScreenVideo(int *pbClear)
 	return true;
 }
 
-BOOL seq_StopFullScreenVideo(void)
+bool seq_StopFullScreenVideo(void)
 {
 	StopDriverMode();
 	if (!seq_AnySeqLeft())
@@ -442,29 +395,19 @@ BOOL seq_StopFullScreenVideo(void)
 
 	seq_Shutdown();
 
-	if (!seq_AnySeqLeft())
-	{
-		if ( g_bResumeInGame == true )
-		{
-			resetDesignPauseState();
-			intAddReticule();
-			g_bResumeInGame = false;
-		}
-	}
-
 	return true;
 }
 
 // add a string at x,y or add string below last line if x and y are 0
-BOOL seq_AddTextForVideo(const char* pText, SDWORD xOffset, SDWORD yOffset, SDWORD startFrame, SDWORD endFrame, SEQ_TEXT_POSITIONING textJustification)
+bool seq_AddTextForVideo(const char* pText, SDWORD xOffset, SDWORD yOffset, double startTime, double endTime, SEQ_TEXT_POSITIONING textJustification)
 {
 	SDWORD sourceLength, currentLength;
 	char* currentText;
 	static SDWORD lastX;
 	// make sure we take xOffset into account, we don't always start at 0
-	const unsigned int BUFFER_WIDTH = pie_GetVideoBufferWidth() - xOffset;
+	const unsigned int buffer_width = pie_GetVideoBufferWidth() - xOffset;
 
-	iV_SetFont(font_regular);
+	iV_SetFont(font_scaled);
 
 	ASSERT(aSeqList[currentSeq].currentText < MAX_TEXT_OVERLAYS, "too many text lines");
 
@@ -489,7 +432,7 @@ BOOL seq_AddTextForVideo(const char* pText, SDWORD xOffset, SDWORD yOffset, SDWO
 
 	//check the string is shortenough to print
 	//if not take a word of the end and try again
-	while (iV_GetTextWidth(currentText) > BUFFER_WIDTH)
+	while (iV_GetTextWidth(currentText) > buffer_width)
 	{
 		currentLength--;
 		while((pText[currentLength] != ' ') && (currentLength > 0))
@@ -505,8 +448,8 @@ BOOL seq_AddTextForVideo(const char* pText, SDWORD xOffset, SDWORD yOffset, SDWO
 	{
 		aSeqList[currentSeq].aText[aSeqList[currentSeq].currentText].x = lastX;
 		//	aSeqList[currentSeq].aText[aSeqList[currentSeq].currentText-1].x;
-		aSeqList[currentSeq].aText[aSeqList[currentSeq].currentText].y = aSeqList[currentSeq].
-			aText[aSeqList[currentSeq].currentText-1].y + iV_GetTextLineSize();
+		aSeqList[currentSeq].aText[aSeqList[currentSeq].currentText].y =
+			aSeqList[currentSeq].aText[aSeqList[currentSeq].currentText-1].y + iV_GetTextLineSize();
 	}
 	else
 	{
@@ -515,29 +458,26 @@ BOOL seq_AddTextForVideo(const char* pText, SDWORD xOffset, SDWORD yOffset, SDWO
 	}
 	lastX = aSeqList[currentSeq].aText[aSeqList[currentSeq].currentText].x;
 
-	if (textJustification
-	 && currentLength == sourceLength)
+	if (textJustification && currentLength == sourceLength)
 	{
 		static const int MIN_JUSTIFICATION = 40;
 		static const int FOLLOW_ON_JUSTIFICATION = 160;
 		//justify this text
-		const int justification = BUFFER_WIDTH - iV_GetTextWidth(currentText);
+		const int justification = buffer_width - iV_GetTextWidth(currentText);
 
-		if (textJustification == SEQ_TEXT_JUSTIFY
-		 && justification > MIN_JUSTIFICATION)
+		if (textJustification == SEQ_TEXT_JUSTIFY && justification > MIN_JUSTIFICATION)
 		{
 			aSeqList[currentSeq].aText[aSeqList[currentSeq].currentText].x += (justification / 2);
 		}
-		else if (textJustification == SEQ_TEXT_FOLLOW_ON
-		      && justification > FOLLOW_ON_JUSTIFICATION)
+		else if (textJustification == SEQ_TEXT_FOLLOW_ON && justification > FOLLOW_ON_JUSTIFICATION)
 		{
 
 		}
 	}
 
 	//set start and finish times for the objects
-	aSeqList[currentSeq].aText[aSeqList[currentSeq].currentText].startFrame = startFrame;
-	aSeqList[currentSeq].aText[aSeqList[currentSeq].currentText].endFrame = endFrame;
+	aSeqList[currentSeq].aText[aSeqList[currentSeq].currentText].startTime = startTime;
+	aSeqList[currentSeq].aText[aSeqList[currentSeq].currentText].endTime = endTime;
 	aSeqList[currentSeq].aText[aSeqList[currentSeq].currentText].bSubtitle = textJustification;
 
 	aSeqList[currentSeq].currentText++;
@@ -554,37 +494,19 @@ BOOL seq_AddTextForVideo(const char* pText, SDWORD xOffset, SDWORD yOffset, SDWO
 		{
 			textJustification = SEQ_TEXT_POSITION;
 		}
-		seq_AddTextForVideo(&pText[currentLength + 1], 0, 0, startFrame, endFrame, textJustification);
+		seq_AddTextForVideo(&pText[currentLength + 1], 0, 0, startTime, endTime, textJustification);
 	}
 	return true;
 }
 
-BOOL seq_ClearTextForVideo(void)
-{
-	SDWORD i, j;
 
-	for (j=0; j < MAX_SEQ_LIST; j++)
-	{
-		for(i=0;i<MAX_TEXT_OVERLAYS;i++)
-		{
-			aSeqList[j].aText[i].pText[0] = 0;
-			aSeqList[j].aText[i].x = 0;
-			aSeqList[j].aText[i].y = 0;
-			aSeqList[j].aText[i].startFrame = 0;
-			aSeqList[j].aText[i].endFrame = 0;
-			aSeqList[j].aText[i].bSubtitle = 0;
-		}
-		aSeqList[j].currentText = 0;
-	}
-	return true;
-}
-
-static BOOL seq_AddTextFromFile(const char *pTextName, SEQ_TEXT_POSITIONING textJustification)
+static bool seq_AddTextFromFile(const char *pTextName, SEQ_TEXT_POSITIONING textJustification)
 {
 	char aTextName[MAX_STR_LENGTH];
 	char *pTextBuffer, *pCurrentLine, *pText;
 	UDWORD fileSize;
-	SDWORD xOffset, yOffset, startFrame, endFrame;
+	SDWORD xOffset, yOffset;
+	double startTime, endTime;
 	const char *seps = "\n";
 
 	// NOTE: The original game never had a fullscreen mode for FMVs on >640x480 screens.
@@ -602,11 +524,11 @@ static BOOL seq_AddTextFromFile(const char *pTextName, SEQ_TEXT_POSITIONING text
 
 	pTextBuffer = fileLoadBuffer;
 	pCurrentLine = strtok(pTextBuffer,seps);
-	while(pCurrentLine != NULL)
+	while (pCurrentLine != NULL)
 	{
 		if (*pCurrentLine != '/')
 		{
-			if (sscanf(pCurrentLine,"%d %d %d %d", &xOffset, &yOffset, &startFrame, &endFrame) == 4)
+			if (sscanf(pCurrentLine,"%d %d %lf %lf", &xOffset, &yOffset, &startTime, &endTime) == 4)
 			{
 				// Since all the positioning was hardcoded to specific values, we now calculate the
 				// ratio of our screen, compared to what the game expects and multiply that to x, y.
@@ -624,7 +546,7 @@ static BOOL seq_AddTextFromFile(const char *pTextName, SEQ_TEXT_POSITIONING text
 				ASSERT(pText != NULL, "error parsing text file");
 				if (pText != NULL)
 				{
-					seq_AddTextForVideo(_(&pText[1]), xOffset, yOffset, startFrame, endFrame, textJustification);
+					seq_AddTextForVideo(_(&pText[1]), xOffset, yOffset, startTime, endTime, textJustification);
 				}
 			}
 		}
@@ -637,27 +559,17 @@ static BOOL seq_AddTextFromFile(const char *pTextName, SEQ_TEXT_POSITIONING text
 //clear the sequence list
 void seq_ClearSeqList(void)
 {
-	SDWORD i;
-
-	seq_ClearTextForVideo();
-	for(i=0;i<MAX_SEQ_LIST;i++)
-	{
-		aSeqList[i].pSeq = NULL;
-	}
+	memset(&aSeqList, 0, sizeof(aSeqList));
 	currentSeq = -1;
 	currentPlaySeq = -1;
 }
 
 //add a sequence to the list to be played
-void seq_AddSeqToList(const char *pSeqName, const char *pAudioName, const char *pTextName, BOOL bLoop)
+void seq_AddSeqToList(const char *pSeqName, const char *pAudioName, const char *pTextName, bool bLoop)
 {
 	currentSeq++;
 
-	ASSERT(currentSeq < MAX_SEQ_LIST, "too many sequences");
-	if (currentSeq >=  MAX_SEQ_LIST)
-	{
-		return;
-	}
+	ASSERT_OR_RETURN(, currentSeq < MAX_SEQ_LIST, "too many sequences");
 
 	//OK so add it to the list
 	aSeqList[currentSeq].pSeq = pSeqName;
@@ -690,30 +602,21 @@ void seq_AddSeqToList(const char *pSeqName, const char *pAudioName, const char *
 }
 
 /*checks to see if there are any sequences left in the list to play*/
-BOOL seq_AnySeqLeft(void)
+bool seq_AnySeqLeft(void)
 {
-	UBYTE		nextSeq;
-
-	nextSeq = (UBYTE)(currentPlaySeq+1);
+	int nextSeq = currentPlaySeq + 1;
 
 	//check haven't reached end
 	if (nextSeq > MAX_SEQ_LIST)
 	{
 		return false;
 	}
-	else if (aSeqList[nextSeq].pSeq)
-	{
-		return true;
-	}
-	else
-	{
-		return false;
-	}
+	return aSeqList[nextSeq].pSeq;
 }
 
-static void seqDispCDOK( void )
+void seq_StartNextFullScreenVideo(void)
 {
-	BOOL	bPlayedOK;
+	bool	bPlayedOK;
 
 	currentPlaySeq++;
 	if (currentPlaySeq >= MAX_SEQ_LIST)
@@ -725,7 +628,7 @@ static void seqDispCDOK( void )
 		bPlayedOK = seq_StartFullScreenVideo(aSeqList[currentPlaySeq].pSeq, aSeqList[currentPlaySeq].pAudio, VIDEO_USER_CHOSEN_RESOLUTION);
 	}
 
-	if ( bPlayedOK == false )
+	if (bPlayedOK == false)
 	{
 		//don't do the callback if we're playing the win/lose video
 		if (!getScriptWinLoseVideo())
@@ -743,19 +646,13 @@ static void seqDispCDOK( void )
 	}
 }
 
-/*returns the next sequence in the list to play*/
-void seq_StartNextFullScreenVideo(void)
-{
-		seqDispCDOK();
-		return;
-}
 
-void seq_SetSubtitles(BOOL bNewState)
+void seq_SetSubtitles(bool bNewState)
 {
 	bSeqSubtitles = bNewState;
 }
 
-BOOL seq_GetSubtitles(void)
+bool seq_GetSubtitles(void)
 {
 	return bSeqSubtitles;
 }

@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2010  Warzone 2100 Project
+	Copyright (C) 2005-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -25,13 +25,14 @@
 #define __INCLUDED_RESEARCHDEF_H__
 
 #include "lib/framework/frame.h"
+#include "statsdef.h"
 
 /* Research struct type definitions */
-typedef enum
+enum TECH_CODE
 {
 	TC_MAJOR,
 	TC_MINOR,
-} TECH_CODE;
+};
 
 struct RESEARCH : public BASE_STATS
 {
@@ -43,38 +44,25 @@ struct RESEARCH : public BASE_STATS
 	UDWORD			researchPower;		/* Power cost to research */
 	UBYTE			keyTopic;			/* Flag to indicate whether in single player
 										   this topic must be explicitly enabled*/
-	UBYTE			storeCount;			/* used to load in the following lists*/
-	UBYTE			numPRRequired;
-	//needs to be UWORD sized for Patches
-	UWORD			*pPRList;			/* List of research pre-requisites */
-	UBYTE			numStructures;
-	UWORD			*pStructList;		/* List of structures that when built would
-										   enable this research */
-	UBYTE			numFunctions;
-	struct FUNCTION **      pFunctionList;          ///< List of functions that can be performed on completion of research
-	UBYTE			numRedStructs;
-	UWORD			*pRedStructs;		/* List of Structures that become redundant */
-	UBYTE			numRedArtefacts;
-	COMPONENT_STATS	**pRedArtefacts;	/*List of Artefacts that become redundant */
-	UBYTE			numStructResults;
-	UWORD			*pStructureResults;	/*List of Structures that are possible after
-										  this research */
-	UBYTE			numArteResults;
-	COMPONENT_STATS	**pArtefactResults;	/*List of Artefacts that are possible after
-										  this research*/
-	COMPONENT_STATS	**pReplacedArtefacts;/*List of artefacts that are replaced by the above
-										  result - not necessarily any! 1 to 1 relation with
-										  above list */
-	struct _viewdata	*pViewData;		/*data used to display a message in the
-										  Intelligence Screen*/
+	std::vector<UWORD>	pPRList;		///< List of research pre-requisites
+	std::vector<UWORD>	pStructList;		///< List of structures that when built would enable this research
+	std::vector<FUNCTION *> pFunctionList;          ///< List of functions that can be performed on completion of research
+	std::vector<UWORD>	pRedStructs;		///< List of Structures that become redundant
+	std::vector<COMPONENT_STATS *> pRedArtefacts;	///< List of Artefacts that become redundant
+	std::vector<UWORD>	pStructureResults;	///< List of Structures that are possible after this research
+	std::vector<COMPONENT_STATS *> pArtefactResults; ///< List of Artefacts that are possible after this research
+	std::vector<COMPONENT_STATS *> pReplacedArtefacts; ///< List of artefacts that are replaced by the above result
+	const struct VIEWDATA *pViewData;               // data used to display a message in the Intelligence Screen
 	UWORD			iconID;				/* the ID from 'Framer' for which graphic to draw in interface*/
-	BASE_STATS      *psStat;            /* A stat used to define which graphic is
-	                                       drawn instead of the two fields below*/
+	BASE_STATS      *psStat;   /* A stat used to define which graphic is drawn instead of the two fields below */
 	iIMDShape		*pIMD;		/* the IMD to draw for this research topic */
 	iIMDShape		*pIMD2;		/* the 2nd IMD for base plates/turrets*/
+	int index;		///< Unique index for this research, set incrementally
+
+	RESEARCH() : pViewData(NULL), iconID(0), psStat(NULL), pIMD(NULL), pIMD2(NULL) {}
 };
 
-typedef struct _player_research
+struct PLAYER_RESEARCH
 {
 	UDWORD		currentPoints;			// If the research has been suspended then this value contains the number of points generated at the suspension/cancel point
 										// normally it is null
@@ -82,7 +70,7 @@ typedef struct _player_research
 	UBYTE		ResearchStatus;			// Bit flags   ...  see below
 
 	bool            possible;                       ///< is the research possible ... so can enable topics vis scripts
-} PLAYER_RESEARCH;
+};
 
 #define STARTED_RESEARCH           0x01            // research in progress
 #define CANCELLED_RESEARCH         0x02            // research has been canceled

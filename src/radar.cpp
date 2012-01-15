@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2010  Warzone 2100 Project
+	Copyright (C) 2005-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -49,9 +49,9 @@
 #define HIT_NOTIFICATION	(GAME_TICKS_PER_SEC * 2)
 #define RADAR_FRAME_SKIP	10
 
-BOOL bEnemyAllyRadarColor = false;     			/**< Enemy/ally radar color. */
+bool bEnemyAllyRadarColor = false;     			/**< Enemy/ally radar color. */
 RADAR_DRAW_MODE	radarDrawMode = RADAR_MODE_DEFAULT;	/**< Current mini-map mode. */
-BOOL rotateRadar; ///< Rotate the radar?
+bool rotateRadar; ///< Rotate the radar?
 
 static PIELIGHT		colRadarAlly, colRadarMe, colRadarEnemy;
 static PIELIGHT		tileColours[MAX_TILES];
@@ -136,26 +136,22 @@ void radarInitVars(void)
 	radarSize(RadarZoom);
 }
 
-//called for when a new mission is started
-void resetRadarRedraw()
-{
-	// make sure Radar buffer is correct
-	resizeRadar();
-}
-
-BOOL InitRadar(void)
+bool InitRadar(void)
 {
 	// Ally/enemy/me colors
 	colRadarAlly = WZCOL_YELLOW;
 	colRadarEnemy = WZCOL_RED;
 	colRadarMe = WZCOL_WHITE;
-
+	if (mapWidth < 150)	// too small!
+	{
+		RadarZoom = DEFAULT_RADARZOOM * 2;
+	}
 	pie_InitRadar();
 
 	return true;
 }
 
-BOOL resizeRadar(void)
+bool resizeRadar(void)
 {
 	if (radarBuffer)
 	{
@@ -186,7 +182,7 @@ BOOL resizeRadar(void)
 	return true;
 }
 
-BOOL ShutdownRadar(void)
+bool ShutdownRadar(void)
 {
 	pie_ShutdownRadar();
 
@@ -239,7 +235,7 @@ void CalcRadarPosition(int mX, int mY, int *PosX, int *PosY)
 	pos.y = mY - radarCenterY;
 	if (rotateRadar)
 	{
-		pos = Vector2f_Rotate2f(pos, -player.r.y/DEG(1));
+		pos = Vector2f_Rotate2f(pos, -player.r.y);
 	}
 	pos.x += radarWidth/2.0;
 	pos.y += radarHeight/2.0;
@@ -337,8 +333,8 @@ static PIELIGHT appliedRadarColour(RADAR_DRAW_MODE radarDrawMode, MAPTILE *WTile
 {
 	PIELIGHT WScr = WZCOL_BLACK;	// squelch warning
 
-	// draw radar terrain on/off feature
-	if ((getRevealStatus() || radarDrawMode == RADAR_MODE_TERRAIN_SEEN) && !TEST_TILE_VISIBLE(selectedPlayer, WTile))
+	// draw radar on/off feature
+	if (!getRevealStatus() && !TEST_TILE_VISIBLE(selectedPlayer, WTile))
 	{
 		return WZCOL_RADAR_BACKGROUND;
 	}
@@ -346,7 +342,6 @@ static PIELIGHT appliedRadarColour(RADAR_DRAW_MODE radarDrawMode, MAPTILE *WTile
 	switch(radarDrawMode)
 	{
 		case RADAR_MODE_TERRAIN:
-		case RADAR_MODE_TERRAIN_SEEN:
 		{
 			// draw radar terrain on/off feature
 			PIELIGHT col = tileColours[TileNumber_tile(WTile->texture)];
@@ -357,14 +352,20 @@ static PIELIGHT appliedRadarColour(RADAR_DRAW_MODE radarDrawMode, MAPTILE *WTile
 			if (terrainType(WTile) == TER_CLIFFFACE)
 			{
 				col.byte.r /= 2;
-				col.byte.b /= 2;
 				col.byte.g /= 2;
+				col.byte.b /= 2;
 			}
 			if (!hasSensorOnTile(WTile, selectedPlayer))
 			{
+				col.byte.r = col.byte.r * 2 / 3;
+				col.byte.g = col.byte.g * 2 / 3;
+				col.byte.b = col.byte.b * 2 / 3;
+			}
+			if (!TEST_TILE_VISIBLE(selectedPlayer, WTile))
+			{
 				col.byte.r /= 2;
-				col.byte.b /= 2;
 				col.byte.g /= 2;
+				col.byte.b /= 2;
 			}
 			WScr = col;
 		}
@@ -380,14 +381,20 @@ static PIELIGHT appliedRadarColour(RADAR_DRAW_MODE radarDrawMode, MAPTILE *WTile
 			if (terrainType(WTile) == TER_CLIFFFACE)
 			{
 				col.byte.r /= 2;
-				col.byte.b /= 2;
 				col.byte.g /= 2;
+				col.byte.b /= 2;
 			}
 			if (!hasSensorOnTile(WTile, selectedPlayer))
 			{
+				col.byte.r = col.byte.r * 2 / 3;
+				col.byte.g = col.byte.g * 2 / 3;
+				col.byte.b = col.byte.b * 2 / 3;
+			}
+			if (!TEST_TILE_VISIBLE(selectedPlayer, WTile))
+			{
 				col.byte.r /= 2;
-				col.byte.b /= 2;
 				col.byte.g /= 2;
+				col.byte.b /= 2;
 			}
 			WScr = col;
 		}
@@ -575,7 +582,7 @@ static void RotateVector2D(Vector3i *Vector, Vector3i *TVector, Vector3i *Pos, i
 static SDWORD getDistanceAdjust( void )
 {
 	UDWORD	origDistance = MAXDISTANCE;
-	SDWORD	dif = MAX(origDistance - distance, 0);
+	SDWORD	dif = MAX(origDistance - getViewDistance(), 0);
 
 	return dif / 100;
 }
@@ -623,8 +630,8 @@ static void drawViewingWindow(float radarX, float radarY, int x, int y, float pi
 	v[3].x = -shortX;
 	v[3].y = yDrop;
 
-	centre.x = radarX + (x - scrollMinX/2) + ((visibleTiles.x - scrollMinX) * pixSizeH) / 2;
-	centre.y = radarY + (y - scrollMinY/2) + ((visibleTiles.y - scrollMinY) * pixSizeV) / 2;
+	centre.x = radarX + x - scrollMinX*pixSizeH/2;
+	centre.y = radarY + y - scrollMinY*pixSizeV/2;
 
 	RotateVector2D(v,tv,&centre,player.r.y,4);
 
@@ -666,14 +673,14 @@ static void DrawRadarExtras(float radarX, float radarY, float pixSizeH, float pi
 }
 
 /** Does a screen coordinate lie within the radar area? */
-BOOL CoordInRadar(int x,int y)
+bool CoordInRadar(int x,int y)
 {
 	Vector2f pos;
 	pos.x = x - radarCenterX;
 	pos.y = y - radarCenterY;
 	if (rotateRadar)
 	{
-		pos = Vector2f_Rotate2f(pos, -player.r.y/DEG(1));
+		pos = Vector2f_Rotate2f(pos, -player.r.y);
 	}
 	pos.x += radarWidth/2.0;
 	pos.y += radarHeight/2.0;

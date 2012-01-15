@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 2007  Giel van Schijndel
-	Copyright (C) 2007-2010  Warzone 2100 Project
+	Copyright (C) 2007-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -110,5 +110,10 @@ do { \
 	/* Print into our newly created string-buffer */ \
 	sprintf(*var, fmt,  __VA_ARGS__); \
 } while(0)
+
+/// Equivalent to vasprintf, except that strp is NULL instead of undefined, if the function returns -1. Does not give compiler warnings/-Werrors if not checking the return value.
+int vasprintfNull(char** strp, const char* format, va_list ap);
+/// Equivalent to asprintf, except that strp is NULL instead of undefined, if the function returns -1. Does not give compiler warnings/-Werrors if not checking the return value.
+int asprintfNull(char** strp, const char* format, ...);
 
 #endif // STDIO_EXT_H

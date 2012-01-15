@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2010  Warzone 2100 Project
+	Copyright (C) 2005-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -135,9 +135,6 @@ static SDWORD ButtonDrawYOffset;
 
 static void DeleteButtonData(void);
 
-static bool StructureIsResearching(STRUCTURE *Structure);
-static bool StructureIsResearchingPending(STRUCTURE *Structure);
-
 
 // Set audio IDs for form opening/closing anims.
 // Use -1 to dissable audio.
@@ -150,6 +147,65 @@ void SetFormAudioIDs(int OpenID,int CloseID)
 	FormCloseCount = 0;
 }
 
+static void setBarGraphValue(W_BARGRAPH *barGraph, PIELIGHT colour, int value, int range)
+{
+	barGraph->majorCol = colour;
+	barGraph->majorSize = PERNUM(WBAR_SCALE, clip(value, 0, range), range);
+	barGraph->style &= ~WIDG_HIDDEN;
+}
+
+static void formatEmpty(W_BARGRAPH *barGraph)
+{
+	barGraph->text.clear();
+	setBarGraphValue(barGraph, WZCOL_BLACK, 0, 1);
+}
+
+static void formatTimeText(W_BARGRAPH *barGraph, int time)
+{
+	char timeText[20];
+	ssprintf(timeText, "%d:%02d", time/60, time%60);
+	barGraph->text = timeText;
+	barGraph->textCol = WZCOL_CONSTRUCTION_BARTEXT;
+}
+
+static void formatTime(W_BARGRAPH *barGraph, int buildPointsDone, int buildPointsTotal, int buildRate, char const *toolTip)
+{
+	widgSetTipText(barGraph, toolTip);
+
+	if (buildRate != 0)
+	{
+		int timeToBuild = (buildPointsTotal - buildPointsDone) / buildRate;
+
+		formatTimeText(barGraph, timeToBuild);
+	}
+	else
+	{
+		barGraph->text.clear();
+	}
+
+	setBarGraphValue(barGraph, WZCOL_YELLOW, buildPointsDone, buildPointsTotal);
+}
+
+static void formatPowerText(W_BARGRAPH *barGraph, int neededPower)
+{
+	char powerText[20];
+	ssprintf(powerText, "%d", neededPower);
+	barGraph->text = powerText;
+	barGraph->textCol = WZCOL_POWERQUEUE_BARTEXT;
+}
+
+static void formatPower(W_BARGRAPH *barGraph, int neededPower, int powerToBuild)
+{
+	if (neededPower == -1 || powerToBuild == 0)
+	{
+		formatEmpty(barGraph);
+		return;
+	}
+
+	widgSetTipText(barGraph, _("Waiting for Power"));
+	formatPowerText(barGraph, neededPower);
+	setBarGraphValue(barGraph, WZCOL_GREEN, powerToBuild - neededPower, powerToBuild);
+}
 
 // Widget callback to update the progress bar in the object stats screen.
 //
@@ -160,8 +216,6 @@ void intUpdateProgressBar(WIDGET *psWidget, W_CONTEXT *psContext)
 	STRUCTURE			*Structure;
 	FACTORY				*Manufacture;
 	RESEARCH_FACILITY	*Research;
-	PLAYER_RESEARCH		*pPlayerRes;
-	UDWORD				BuildPoints,Range;
 	W_BARGRAPH			*BarGraph = (W_BARGRAPH*)psWidget;
 
 	psObj = (BASE_OBJECT*)BarGraph->pUserData;	// Get the object associated with this widget.
@@ -177,10 +231,13 @@ void intUpdateProgressBar(WIDGET *psWidget, W_CONTEXT *psContext)
 		return;
 	}
 
-	switch (psObj->type) {
+	BarGraph->majorSize = 0;
+	BarGraph->style |= WIDG_HIDDEN;
+
+	switch (psObj->type)
+	{
 		case OBJ_DROID:						// If it's a droid and...
 			Droid = (DROID*)psObj;
-
 
 			if(DroidIsBuilding(Droid))  // Is it a building.
 			{
@@ -191,28 +248,15 @@ void intUpdateProgressBar(WIDGET *psWidget, W_CONTEXT *psContext)
 				if (Structure)
 				{
 					//show progress of build
-					Range =  Structure->pStructureType->buildPoints;	// And how long it takes to build.
-					BuildPoints = Structure->currentBuildPts;			// How near to completion.
-					//set the colour of the bar to yellow
-					BarGraph->majorCol = WZCOL_YELLOW;
-					//and change the tool tip
-					widgSetTipText((WIDGET*)BarGraph, _("Build Progress"));
-
-					if (BuildPoints > Range)
+					if (Structure->currentBuildPts != 0)
 					{
-						BuildPoints = Range;
+						formatTime(BarGraph, Structure->currentBuildPts, Structure->pStructureType->buildPoints, Structure->lastBuildRate, _("Build Progress"));
 					}
-					BarGraph->majorSize = (UWORD)PERNUM(WBAR_SCALE,BuildPoints,Range);
-					BarGraph->style &= ~WIDG_HIDDEN;
+					else
+					{
+						formatPower(BarGraph, checkPowerRequest(Structure), Structure->pStructureType->powerToBuild);
+					}
 				}
-				else
-				{
-					BarGraph->majorSize = 0;
-					BarGraph->style |= WIDG_HIDDEN;
-				}
-			} else {
-				BarGraph->majorSize = 0;
-				BarGraph->style |= WIDG_HIDDEN;
 			}
 			break;
 
@@ -221,92 +265,43 @@ void intUpdateProgressBar(WIDGET *psWidget, W_CONTEXT *psContext)
 
 			if (StructureIsManufacturingPending(Structure))  // Is it manufacturing.
 			{
-				unsigned timeToBuild;
-
 				Manufacture = StructureGetFactory(Structure);
 
-				Range = FactoryGetTemplate(Manufacture)->buildPoints / Manufacture->productionOutput;
-				timeToBuild = Manufacture->psSubject != NULL? Manufacture->timeToBuild : Range;  // If psSubject == NULL, this is not yet synched, and Manufacture->timeToBuild is not set correctly.
-				BuildPoints = Range - timeToBuild;
-				//set the colour of the bar to yellow
-				BarGraph->majorCol = WZCOL_YELLOW;
-				//and change the tool tip
-				widgSetTipText((WIDGET*)BarGraph, _("Construction Progress"));
-
-				if((int) BuildPoints < 0){
-					BuildPoints=0;
-				}
-				else if (BuildPoints > Range)
+				if (Manufacture->psSubject != NULL && Manufacture->buildPointsRemaining < Manufacture->psSubject->buildPoints)
 				{
-					BuildPoints = Range;
-				}
-				// prevent a division by 0 error
-				if (Range == 0)
-				{
-					Range = 1;
-				}
-				BarGraph->majorSize = (UWORD)PERNUM(WBAR_SCALE,BuildPoints,Range);
-				BarGraph->style &= ~WIDG_HIDDEN;
-			}
-			else if(StructureIsResearching(Structure))  // Is it researching.
-			{
-				Research = StructureGetResearch(Structure);
-				pPlayerRes = asPlayerResList[selectedPlayer] +
-				             ((RESEARCH *)Research->psSubject - asResearch);
-				//this is no good if you change which lab is researching the topic and one lab is faster
-				//Range = Research->timeToResearch;
-				Range = ((RESEARCH *)((RESEARCH_FACILITY*)Structure->pFunctionality)->psSubject)->researchPoints;
-				//check started to research
-				if (Research->timeStarted == ACTION_START_TIME)
-				{
-					//BuildPoints = 0;
-					//if not started building show how much power accrued
-					Range = ((RESEARCH *)Research->psSubject)->researchPower;
-					BuildPoints = Research->powerAccrued;
-					//set the colour of the bar to green
-					BarGraph->majorCol = WZCOL_GREEN;
-					//and change the tool tip
-					widgSetTipText((WIDGET*)BarGraph, _("Power Accrued"));
+					// Started production. Set the colour of the bar to yellow.
+					int buildPointsTotal = FactoryGetTemplate(Manufacture)->buildPoints;
+					int buildRate = Manufacture->timeStartHold == 0? Manufacture->productionOutput : 0;
+					formatTime(BarGraph, buildPointsTotal - Manufacture->buildPointsRemaining, buildPointsTotal, buildRate, _("Construction Progress"));
 				}
 				else
 				{
-					//set the colour of the bar to yellow
-					BarGraph->majorCol = WZCOL_YELLOW;
-					//and change the tool tip
-					widgSetTipText((WIDGET*)BarGraph, _("Progress Bar"));
-					//if on hold need to take it into account
-					if (Research->timeStartHold)
-					{
-
-						BuildPoints = ((RESEARCH_FACILITY*)Structure->pFunctionality)->
-						researchPoints * (gameTime - (Research->timeStarted + (
-						gameTime - Research->timeStartHold))) / GAME_TICKS_PER_SEC;
-
-						BuildPoints+= pPlayerRes->currentPoints;
-					}
-					else
-					{
-
-						BuildPoints = ((RESEARCH_FACILITY*)Structure->pFunctionality)->
-						researchPoints * (gameTime - Research->timeStarted) / GAME_TICKS_PER_SEC;
-
-						BuildPoints+= pPlayerRes->currentPoints;
-					}
+					// Not yet started production.
+					int neededPower = checkPowerRequest(Structure);
+					int powerToBuild = Manufacture->psSubject != NULL? Manufacture->psSubject->powerPoints : 0;
+					formatPower(BarGraph, neededPower, powerToBuild);
 				}
-				if (BuildPoints > Range)
+			}
+			else if(structureIsResearchingPending(Structure))  // Is it researching.
+			{
+				Research = StructureGetResearch(Structure);
+				unsigned currentPoints = 0;
+				if (Research->psSubject != NULL)
 				{
-					BuildPoints = Range;
+					currentPoints = asPlayerResList[selectedPlayer][Research->psSubject->index].currentPoints;
 				}
-				// prevent a division by 0 error
-				if (Range == 0)
+				if (currentPoints != 0)
 				{
-					Range = 1;
+					int researchRate = Research->timeStartHold == 0? Research->researchPoints : 0;
+					formatTime(BarGraph, currentPoints, Research->psSubject->researchPoints, researchRate, _("Research Progress"));
 				}
-				BarGraph->majorSize = (UWORD)PERNUM(WBAR_SCALE,BuildPoints,Range);
-				BarGraph->style &= ~WIDG_HIDDEN;
-			} else {
-				BarGraph->majorSize = 0;
-				BarGraph->style |= WIDG_HIDDEN;
+				else
+				{
+					// Not yet started production.
+					int neededPower = checkPowerRequest(Structure);
+					int powerToBuild = Research->psSubject != NULL? Research->psSubject->researchPower : 0;
+					formatPower(BarGraph, neededPower, powerToBuild);
+				}
 			}
 
 			break;
@@ -564,9 +559,15 @@ void intDisplayPowerBar(WIDGET *psWidget, UDWORD xOffset, UDWORD yOffset, WZ_DEC
 	SDWORD		iX,iY;
 	static char		szVal[8];
 
+	double desiredPower = getPowerMinusQueued(selectedPlayer);
+	static double displayPower;
+	static unsigned lastRealTime;
+	displayPower = desiredPower + (displayPower - desiredPower)*exp((realTime - lastRealTime) / -80.);  // If realTime < lastRealTime, then exp() returns 0 due to unsigned overflow.
+	lastRealTime = realTime;
+
 	ManPow = ManuPower / POWERBAR_SCALE;
-	Avail = getPower(selectedPlayer) / POWERBAR_SCALE;
-	realPower = getPower(selectedPlayer) - ManuPower;
+	Avail = (displayPower + 1e-8) / POWERBAR_SCALE;
+	realPower = (displayPower + 1e-8) - ManuPower;
 
 	BarWidth = BarGraph->width;
 	iV_SetFont(font_regular);
@@ -673,15 +674,15 @@ void intDisplayStatusButton(WIDGET *psWidget, UDWORD xOffset, UDWORD yOffset, WZ
 	BASE_OBJECT         *psObj;
 	STRUCTURE           *Structure;
 	DROID               *Droid;
-	BOOL                Down;
+	bool                Down;
 	SDWORD              Image;
-	BOOL                Hilight = false;
+	bool                Hilight = false;
 	BASE_STATS          *Stats, *psResGraphic;
 	RENDERED_BUTTON     *Buffer = (RENDERED_BUTTON*)Form->pUserData;
 	UDWORD              IMDType = 0, compID;
 	UDWORD              Player = selectedPlayer;			// changed by AJL for multiplayer.
 	void                *Object;
-	BOOL	            bOnHold = false;
+	bool	            bOnHold = false;
 
 	OpenButtonRender((UWORD)(xOffset+Form->x), (UWORD)(yOffset+Form->y),(UWORD)Form->width,(UWORD)Form->height);
 
@@ -719,7 +720,7 @@ void intDisplayStatusButton(WIDGET *psWidget, UDWORD xOffset, UDWORD yOffset, WZ
 					if(DroidIsBuilding(Droid)) {
 						Structure = DroidGetBuildStructure(Droid);
 						if(Structure) {
-							Object = Structure;	//(void*)StructureGetIMD(Structure);
+							Object = Structure;
 							IMDType = IMDTYPE_STRUCTURE;
 							RENDERBUTTON_INITIALISED(Buffer);
 						}
@@ -765,7 +766,7 @@ void intDisplayStatusButton(WIDGET *psWidget, UDWORD xOffset, UDWORD yOffset, WZ
 							break;
 
 						case REF_RESEARCH:
-							if (StructureIsResearchingPending(Structure))
+							if (structureIsResearchingPending(Structure))
 							{
 								iIMDShape *shape = (iIMDShape *)Object;
 								Stats = (BASE_STATS*)Buffer->Data2;
@@ -880,8 +881,8 @@ void intDisplayObjectButton(WIDGET *psWidget, UDWORD xOffset, UDWORD yOffset, WZ
 {
 	W_CLICKFORM *Form = (W_CLICKFORM*)psWidget;
 	BASE_OBJECT *psObj;
-	BOOL Down;
-	BOOL Hilight = false;
+	bool Down;
+	bool Hilight = false;
 	RENDERED_BUTTON *Buffer = (RENDERED_BUTTON*)Form->pUserData;
 	UDWORD IMDType = 0;
 	void *Object;
@@ -959,9 +960,9 @@ void intDisplayStatsButton(WIDGET *psWidget, UDWORD xOffset, UDWORD yOffset, WZ_
 {
 	W_CLICKFORM     *Form = (W_CLICKFORM*)psWidget;
 	BASE_STATS      *Stat, *psResGraphic;
-	BOOL            Down;
+	bool            Down;
 	SDWORD          Image, compID;
-	BOOL            Hilight = false;
+	bool            Hilight = false;
 	RENDERED_BUTTON *Buffer = (RENDERED_BUTTON*)Form->pUserData;
 	UDWORD          IMDType = 0;
 	UDWORD          Player = selectedPlayer;		// ajl, changed for multiplayer (from 0)
@@ -1119,17 +1120,17 @@ void intDisplayStatsButton(WIDGET *psWidget, UDWORD xOffset, UDWORD yOffset, WZ_
 
 
 void RenderToButton(IMAGEFILE *ImageFile,UWORD ImageID,void *Object,UDWORD Player,
-					RENDERED_BUTTON *Buffer,BOOL Down, UDWORD IMDType, UDWORD buttonType)
+					RENDERED_BUTTON *Buffer,bool Down, UDWORD IMDType, UDWORD buttonType)
 {
 	CreateIMDButton(ImageFile,ImageID,Object,Player,Buffer,Down,IMDType,buttonType);
 }
 
-void RenderImageToButton(IMAGEFILE *ImageFile,UWORD ImageID,RENDERED_BUTTON *Buffer,BOOL Down, UDWORD buttonType)
+void RenderImageToButton(IMAGEFILE *ImageFile,UWORD ImageID,RENDERED_BUTTON *Buffer,bool Down, UDWORD buttonType)
 {
 	CreateImageButton(ImageFile,ImageID,Buffer,Down,buttonType);
 }
 
-void RenderBlankToButton(RENDERED_BUTTON *Buffer,BOOL Down, UDWORD buttonType)
+void RenderBlankToButton(RENDERED_BUTTON *Buffer,bool Down, UDWORD buttonType)
 {
 	CreateBlankButton(Buffer,Down,buttonType);
 }
@@ -1353,7 +1354,7 @@ void intDisplayImageHilight(WIDGET *psWidget, UDWORD xOffset, UDWORD yOffset, WZ
 	UDWORD x = xOffset+psWidget->x;
 	UDWORD y = yOffset+psWidget->y, flash;
 	UWORD ImageID;
-	BOOL Hilight = false;
+	bool Hilight = false;
 
 	switch(psWidget->type) {
 		case WIDG_FORM:
@@ -1413,7 +1414,7 @@ void intDisplayImageHilight(WIDGET *psWidget, UDWORD xOffset, UDWORD yOffset, WZ
 }
 
 
-static void GetButtonState(WIDGET *psWidget,BOOL *Hilight,UDWORD *Down,BOOL *Grey)
+static void GetButtonState(WIDGET *psWidget,bool *Hilight,UDWORD *Down,bool *Grey)
 {
 	switch(psWidget->type) {
 		case WIDG_FORM:
@@ -1469,8 +1470,8 @@ void intDisplayButtonHilight(WIDGET *psWidget, UDWORD xOffset, UDWORD yOffset, W
 {
 	UDWORD x = xOffset+psWidget->x;
 	UDWORD y = yOffset+psWidget->y;
-	BOOL Hilight = false;
-	BOOL Grey = false;
+	bool Hilight = false;
+	bool Grey = false;
 	UDWORD Down = 0;
 	UWORD ImageID;
 
@@ -1496,7 +1497,7 @@ void intDisplayButtonFlash(WIDGET *psWidget, UDWORD xOffset, UDWORD yOffset, WZ_
 {
 	UDWORD x = xOffset+psWidget->x;
 	UDWORD y = yOffset+psWidget->y;
-	//BOOL Hilight = false;
+	//bool Hilight = false;
 	//UDWORD Down = 0;
 	UWORD ImageID;
 
@@ -1528,8 +1529,8 @@ void intDisplayReticuleButton(WIDGET *psWidget, UDWORD xOffset, UDWORD yOffset, 
 {
 	UDWORD	x = xOffset+psWidget->x;
 	UDWORD	y = yOffset+psWidget->y;
-	BOOL	Hilight = false;
-	BOOL	Down = false;
+	bool	Hilight = false;
+	bool	Down = false;
 	UBYTE	DownTime = UNPACKDWORD_QUAD_C(psWidget->UserData);
 	UBYTE	Index = UNPACKDWORD_QUAD_D(psWidget->UserData);
 	UBYTE	flashing = UNPACKDWORD_QUAD_A(psWidget->UserData);
@@ -1603,7 +1604,7 @@ void intDisplayReticuleButton(WIDGET *psWidget, UDWORD xOffset, UDWORD yOffset, 
 
 
 void intDisplayTab(WIDGET *psWidget,UDWORD TabType, UDWORD Position,
-				   UDWORD Number,BOOL Selected,BOOL Hilight,UDWORD x,UDWORD y,UDWORD Width,UDWORD Height)
+				   UDWORD Number,bool Selected,bool Hilight,UDWORD x,UDWORD y,UDWORD Width,UDWORD Height)
 {
 	TABDEF *Tab = (TABDEF*)psWidget->pUserData;
 
@@ -2105,7 +2106,7 @@ void CloseButtonRender(void)
 
 // Clear a button bitmap. ( copy the button background ).
 //
-void ClearButton(BOOL Down,UDWORD Size, UDWORD buttonType)
+void ClearButton(bool Down,UDWORD Size, UDWORD buttonType)
 {
 	if(Down)
 	{
@@ -2119,7 +2120,7 @@ void ClearButton(BOOL Down,UDWORD Size, UDWORD buttonType)
 
 // Create a button by rendering an IMD object into it.
 //
-void CreateIMDButton(IMAGEFILE *ImageFile, UWORD ImageID, void *Object, UDWORD Player, RENDERED_BUTTON *Buffer, BOOL Down, UDWORD IMDType, UDWORD buttonType)
+void CreateIMDButton(IMAGEFILE *ImageFile, UWORD ImageID, void *Object, UDWORD Player, RENDERED_BUTTON *Buffer, bool Down, UDWORD IMDType, UDWORD buttonType)
 {
 	UDWORD Size;
 	Vector3i Rotation, Position, NullVector;
@@ -2325,7 +2326,7 @@ void CreateIMDButton(IMAGEFILE *ImageFile, UWORD ImageID, void *Object, UDWORD P
 		}
 		else if(IMDType == IMDTYPE_STRUCTURE)
 		{
-			basePlateSize = getStructureSize((STRUCTURE*)Object);
+			basePlateSize = getStructureSizeMax((STRUCTURE*)Object);
 			if(basePlateSize == 1)
 			{
 				Size = 2;//small structure
@@ -2344,7 +2345,7 @@ void CreateIMDButton(IMAGEFILE *ImageFile, UWORD ImageID, void *Object, UDWORD P
 		}
 		else if(IMDType == IMDTYPE_STRUCTURESTAT)
 		{
-			basePlateSize= getStructureStatSize((STRUCTURE_STATS*)Object);
+			basePlateSize = getStructureStatSizeMax((STRUCTURE_STATS*)Object);
 			if(basePlateSize == 1)
 			{
 				Size = 2;//small structure
@@ -2421,7 +2422,7 @@ void CreateIMDButton(IMAGEFILE *ImageFile, UWORD ImageID, void *Object, UDWORD P
 
 // Create a button by rendering an image into it.
 //
-void CreateImageButton(IMAGEFILE *ImageFile,UWORD ImageID,RENDERED_BUTTON *Buffer,BOOL Down, UDWORD buttonType)
+void CreateImageButton(IMAGEFILE *ImageFile,UWORD ImageID,RENDERED_BUTTON *Buffer,bool Down, UDWORD buttonType)
 {
 	UDWORD ox,oy;
 
@@ -2440,7 +2441,7 @@ void CreateImageButton(IMAGEFILE *ImageFile,UWORD ImageID,RENDERED_BUTTON *Buffe
 
 // Create a blank button.
 //
-void CreateBlankButton(RENDERED_BUTTON *Buffer,BOOL Down, UDWORD buttonType)
+void CreateBlankButton(RENDERED_BUTTON *Buffer,bool Down, UDWORD buttonType)
 {
 	UDWORD ox,oy;
 
@@ -2458,7 +2459,7 @@ void CreateBlankButton(RENDERED_BUTTON *Buffer,BOOL Down, UDWORD buttonType)
 
 // Returns true if the droid is currently demolishing something or moving to demolish something.
 //
-BOOL DroidIsDemolishing(DROID *Droid)
+bool DroidIsDemolishing(DROID *Droid)
 {
 	BASE_STATS	*Stats;
 	UDWORD x,y;
@@ -2483,7 +2484,7 @@ BOOL DroidIsDemolishing(DROID *Droid)
 }
 
 // Returns true if the droid is currently repairing another droid.
-BOOL DroidIsRepairing(DROID *Droid)
+bool DroidIsRepairing(DROID *Droid)
 {
 	//if(droidType(Droid) != DROID_REPAIR)
 	if (!(droidType(Droid) == DROID_REPAIR
@@ -2502,7 +2503,7 @@ BOOL DroidIsRepairing(DROID *Droid)
 
 // Returns true if the droid is currently building something.
 //
-BOOL DroidIsBuilding(DROID *Droid)
+bool DroidIsBuilding(DROID *Droid)
 {
 	BASE_STATS	*Stats;
 	UDWORD x,y;
@@ -2531,7 +2532,7 @@ BOOL DroidIsBuilding(DROID *Droid)
 
 // Returns true if the droid has been ordered build something ( but has'nt started yet )
 //
-BOOL DroidGoingToBuild(DROID *Droid)
+bool DroidGoingToBuild(DROID *Droid)
 {
 	BASE_STATS	*Stats;
 	UDWORD x,y;
@@ -2636,6 +2637,16 @@ iIMDShape *DroidGetIMD(DROID *Droid)
 	return Droid->sDisplay.imd;
 }
 
+template<typename Functionality>
+static inline bool _structureIsManufacturingPending(Functionality const &functionality)
+{
+	if (functionality.statusPending != FACTORY_NOTHING_PENDING)
+	{
+		return functionality.statusPending == FACTORY_START_PENDING || functionality.statusPending == FACTORY_HOLD_PENDING;
+	}
+	return functionality.psSubject != NULL;
+}
+
 bool StructureIsManufacturingPending(STRUCTURE *structure)
 {
 	switch (structure->pStructureType->type)
@@ -2643,12 +2654,7 @@ bool StructureIsManufacturingPending(STRUCTURE *structure)
 		case REF_FACTORY:
 		case REF_CYBORG_FACTORY:
 		case REF_VTOL_FACTORY:
-			if (structure->pFunctionality->factory.statusPending != FACTORY_NOTHING_PENDING)
-			{
-				return structure->pFunctionality->factory.statusPending == FACTORY_START_PENDING ||
-				       structure->pFunctionality->factory.statusPending == FACTORY_HOLD_PENDING;
-			}
-			return structure->pFunctionality->factory.psSubject != NULL;
+			return _structureIsManufacturingPending(structure->pFunctionality->factory);
 		default:
 			return false;
 	}
@@ -2659,15 +2665,19 @@ FACTORY *StructureGetFactory(STRUCTURE *Structure)
 	return &Structure->pFunctionality->factory;
 }
 
-static bool StructureIsResearching(STRUCTURE *Structure)
+bool structureIsResearchingPending(STRUCTURE *structure)
 {
-	return Structure->pStructureType->type == REF_RESEARCH && Structure->pFunctionality->researchFacility.psSubject != NULL;
+	return structure->pStructureType->type == REF_RESEARCH && _structureIsManufacturingPending(structure->pFunctionality->researchFacility);
 }
 
-static bool StructureIsResearchingPending(STRUCTURE *Structure)
+template<typename Functionality>
+static inline bool structureIsOnHoldPending(Functionality const &functionality)
 {
-	return Structure->pStructureType->type == REF_RESEARCH && (Structure->pFunctionality->researchFacility.psSubject != NULL ||
-	                                                           Structure->pFunctionality->researchFacility.psSubjectPending != NULL);
+	if (functionality.statusPending != FACTORY_NOTHING_PENDING)
+	{
+		return functionality.statusPending == FACTORY_HOLD_PENDING;
+	}
+	return functionality.timeStartHold != 0;
 }
 
 bool StructureIsOnHoldPending(STRUCTURE *structure)
@@ -2677,17 +2687,9 @@ bool StructureIsOnHoldPending(STRUCTURE *structure)
 		case REF_FACTORY:
 		case REF_CYBORG_FACTORY:
 		case REF_VTOL_FACTORY:
-			if (structure->pFunctionality->factory.statusPending != FACTORY_NOTHING_PENDING)
-			{
-				return structure->pFunctionality->factory.statusPending == FACTORY_HOLD_PENDING;
-			}
-			return structure->pFunctionality->factory.timeStartHold != 0;
+			return structureIsOnHoldPending(structure->pFunctionality->factory);
 		case REF_RESEARCH:
-			if (structure->pFunctionality->researchFacility.psSubjectPending != NULL)
-			{
-				return false;
-			}
-			return structure->pFunctionality->researchFacility.timeStartHold != 0;
+			return structureIsOnHoldPending(structure->pFunctionality->researchFacility);
 		default:
 			ASSERT(false, "Huh?");
 			return false;
@@ -2697,12 +2699,6 @@ bool StructureIsOnHoldPending(STRUCTURE *structure)
 RESEARCH_FACILITY *StructureGetResearch(STRUCTURE *Structure)
 {
 	return &Structure->pFunctionality->researchFacility;
-}
-
-
-iIMDShape *StructureGetIMD(STRUCTURE *Structure)
-{
-	return Structure->pStructureType->pIMD;
 }
 
 
@@ -2716,13 +2712,13 @@ DROID_TEMPLATE *FactoryGetTemplate(FACTORY *Factory)
 	return (DROID_TEMPLATE *)Factory->psSubject;
 }
 
-BOOL StatIsStructure(BASE_STATS *Stat)
+bool StatIsStructure(BASE_STATS const *Stat)
 {
 	return (Stat->ref >= REF_STRUCTURE_START && Stat->ref <
 				REF_STRUCTURE_START + REF_RANGE);
 }
 
-BOOL StatIsFeature(BASE_STATS *Stat)
+bool StatIsFeature(BASE_STATS const *Stat)
 {
 	return (Stat->ref >= REF_FEATURE_START && Stat->ref <
 				REF_FEATURE_START + REF_RANGE);
@@ -2732,10 +2728,10 @@ iIMDShape *StatGetStructureIMD(BASE_STATS *Stat,UDWORD Player)
 {
 	(void)Player;
 	//return buildingIMDs[aBuildingIMDs[Player][((STRUCTURE_STATS*)Stat)->type]];
-	return ((STRUCTURE_STATS*)Stat)->pIMD;
+	return ((STRUCTURE_STATS*)Stat)->pIMD[0];
 }
 
-BOOL StatIsTemplate(BASE_STATS *Stat)
+bool StatIsTemplate(BASE_STATS *Stat)
 {
 	return (Stat->ref >= REF_TEMPLATE_START &&
 				 Stat->ref < REF_TEMPLATE_START + REF_RANGE);
@@ -2795,7 +2791,7 @@ SDWORD StatIsComponent(BASE_STATS *Stat)
 	return COMP_UNKNOWN;
 }
 
-BOOL StatGetComponentIMD(BASE_STATS *Stat, SDWORD compID,iIMDShape **CompIMD,iIMDShape **MountIMD)
+bool StatGetComponentIMD(BASE_STATS *Stat, SDWORD compID,iIMDShape **CompIMD,iIMDShape **MountIMD)
 {
 	WEAPON_STATS		*psWStat;
 
@@ -2858,15 +2854,15 @@ BOOL StatGetComponentIMD(BASE_STATS *Stat, SDWORD compID,iIMDShape **CompIMD,iIM
 }
 
 
-BOOL StatIsResearch(BASE_STATS *Stat)
+bool StatIsResearch(BASE_STATS *Stat)
 {
 	return (Stat->ref >= REF_RESEARCH_START && Stat->ref <
 				REF_RESEARCH_START + REF_RANGE);
 }
 
-//void StatGetResearchImage(BASE_STATS *psStat, SDWORD *Image,iIMDShape **Shape, BOOL drawTechIcon)
+//void StatGetResearchImage(BASE_STATS *psStat, SDWORD *Image,iIMDShape **Shape, bool drawTechIcon)
 void StatGetResearchImage(BASE_STATS *psStat, SDWORD *Image, iIMDShape **Shape,
-                          BASE_STATS **ppGraphicData, BOOL drawTechIcon)
+                          BASE_STATS **ppGraphicData, bool drawTechIcon)
 {
 	*Image = -1;
 	if (drawTechIcon)
@@ -2988,8 +2984,8 @@ void intDisplayTransportButton(WIDGET *psWidget, UDWORD xOffset,
 						  UDWORD yOffset, WZ_DECL_UNUSED PIELIGHT *pColours)
 {
 	W_CLICKFORM		*Form = (W_CLICKFORM*)psWidget;
-	BOOL			Down;
-	BOOL			Hilight = false;
+	bool			Down;
+	bool			Hilight = false;
 	RENDERED_BUTTON		*Buffer = (RENDERED_BUTTON*)Form->pUserData;
 	DROID			*psDroid = NULL;
 	UDWORD			gfxId;
@@ -3144,9 +3140,10 @@ void drawRadarBlips(int radarX, int radarY, float pixSizeH, float pixSizeV)
 			// Draw animated
 			if (realTime - psProxDisp->timeLastDrawn > delay)
 			{
-				psProxDisp->strobe = (psProxDisp->strobe + 1) % animationLength;
+				++psProxDisp->strobe;
 				psProxDisp->timeLastDrawn = realTime;
 			}
+			psProxDisp->strobe %= animationLength;
 			imageID = images[1 + psProxDisp->strobe];
 		}
 
@@ -3171,7 +3168,7 @@ void drawRadarBlips(int radarX, int radarY, float pixSizeH, float pixSizeV)
 		// NOTE:  On certain missions (limbo & expand), there is still valid data that is stored outside the
 		// normal radar/mini-map view.  We must now calculate the radar/mini-map's bounding box, and clip
 		// everything outside the box.
-		if ( (x+radarX) < width*pixSizeV/2 && (x+radarX) > -width*pixSizeV/2 
+		if ( (x+radarX) < width*pixSizeV/2 && (x+radarX) > -width*pixSizeV/2
 			&& (y+radarY) < height*pixSizeH/2 && (y+radarY) > -height*pixSizeH/2)
 		{
 			// Draw the 'blip'
@@ -3185,11 +3182,11 @@ void drawRadarBlips(int radarX, int radarY, float pixSizeH, float pixSizeV)
 		x = (x / TILE_UNITS - scrollMinX) * pixSizeH;
 		y = (y / TILE_UNITS - scrollMinY) * pixSizeV;
 		imageID = imagesEnemy[strobe];
-		
+
 		// NOTE:  On certain missions (limbo & expand), there is still valid data that is stored outside the
 		// normal radar/mini-map view.  We must now calculate the radar/mini-map's bounding box, and clip
 		// everything outside the box.
-		if ( (x+radarX) < width*pixSizeV/2 && (x+radarX) > -width*pixSizeV/2 
+		if ( (x+radarX) < width*pixSizeV/2 && (x+radarX) > -width*pixSizeV/2
 			&& (y+radarY) < height*pixSizeH/2 && (y+radarY) > -height*pixSizeH/2)
 		{
 			// Draw the 'blip'
@@ -3281,7 +3278,7 @@ void intUpdateQuantitySlider(WIDGET *psWidget, W_CONTEXT *psContext)
 			if(Slider->pos > 0)
 			{
 				Slider->pos = (UWORD)(Slider->pos - sliderMouseUnit(Slider));
-				SetMousePos(sliderMousePos(Slider), mouseY());	// move mouse
+				setMousePos(sliderMousePos(Slider), mouseY());	// move mouse
 			}
 		}
 		else if(keyDown(KEY_RIGHTARROW))
@@ -3289,7 +3286,7 @@ void intUpdateQuantitySlider(WIDGET *psWidget, W_CONTEXT *psContext)
 			if(Slider->pos < Slider->numStops)
 			{
 				Slider->pos = (UWORD)(Slider->pos + sliderMouseUnit(Slider));
-				SetMousePos(sliderMousePos(Slider), mouseY());	// move mouse
+				setMousePos(sliderMousePos(Slider), mouseY());	// move mouse
 			}
 		}
 	}
@@ -3298,8 +3295,6 @@ void intUpdateQuantitySlider(WIDGET *psWidget, W_CONTEXT *psContext)
 void intUpdateOptionText(WIDGET *psWidget, W_CONTEXT *psContext)
 {
 }
-
-
 
 void intDisplayResSubGroup(WIDGET *psWidget, UDWORD xOffset, UDWORD yOffset, WZ_DECL_UNUSED PIELIGHT *pColours)
 {
@@ -3320,5 +3315,65 @@ void intDisplayAllyIcon(WIDGET *psWidget, UDWORD xOffset, UDWORD yOffset, WZ_DEC
 	UDWORD		x = Label->x + xOffset;
 	UDWORD		y = Label->y + yOffset;
 
-	iV_DrawImage(IntImages, IMAGE_DES_BODYPOINTS, x, y);
+	iV_DrawImageTc(IntImages, IMAGE_ALLY_RESEARCH, IMAGE_ALLY_RESEARCH_TC, x, y, pal_GetTeamColour(getPlayerColour(psWidget->UserData)));
+}
+
+void intDisplayAllyBar(WIDGET *psWidget, UDWORD xOffset, UDWORD yOffset, PIELIGHT *pColours)
+{
+	W_BARGRAPH *psBar = (W_BARGRAPH *)psWidget;
+	unsigned bestCompletion = 0;
+	const int researchNotStarted = 3600000;
+	int bestPowerNeeded = researchNotStarted;
+	int bestTimeToResearch = researchNotStarted;
+	int researchPowerCost = researchNotStarted;
+	for (int player = 0; player < MAX_PLAYERS; ++player)
+	{
+		if (player != selectedPlayer && aiCheckAlliances(selectedPlayer, player))
+		{
+			// Check each research facility to see if they are doing this topic. (As opposed to having started the topic, but stopped researching it.)
+			for (STRUCTURE *psOtherStruct = apsStructLists[player]; psOtherStruct; psOtherStruct = psOtherStruct->psNext)
+			{
+				RESEARCH_FACILITY *res = (RESEARCH_FACILITY*)psOtherStruct->pFunctionality;
+				if (psOtherStruct->pStructureType->type == REF_RESEARCH && psOtherStruct->status == SS_BUILT &&
+				    res->psSubject && res->psSubject->ref == asResearch[psWidget->UserData].ref)
+				{
+					unsigned completion = asPlayerResList[player][psWidget->UserData].currentPoints;
+					if (bestCompletion < completion)
+					{
+						bestCompletion = completion;
+						bestPowerNeeded = 0;
+						psBar->majorCol = pal_GetTeamColour(getPlayerColour(player));
+					}
+
+					int powerNeeded = checkPowerRequest(psOtherStruct);
+					if (powerNeeded == -1)
+					{
+						int rindex = res->psSubject->index;
+						int timeToResearch = (res->psSubject->researchPoints - asPlayerResList[player][rindex].currentPoints) / std::max(res->researchPoints, 1u);
+						bestTimeToResearch = std::min(bestTimeToResearch, timeToResearch);
+					}
+					else
+					{
+						bestPowerNeeded = std::min(bestPowerNeeded, powerNeeded);
+						researchPowerCost = res->psSubject->researchPower;
+					}
+					break;
+				}
+			}
+		}
+	}
+
+	if (bestTimeToResearch != researchNotStarted)
+	{
+		// Show research progress.
+		formatTimeText(psBar, bestTimeToResearch);
+		setBarGraphValue(psBar, psBar->majorCol, bestCompletion, asResearch[psWidget->UserData].researchPoints);
+	}
+	else if (bestPowerNeeded != researchNotStarted)
+	{
+		// Show how much power is needed, before research can start.
+		formatPowerText(psBar, bestPowerNeeded);
+		setBarGraphValue(psBar, psBar->majorCol, researchPowerCost - bestPowerNeeded, researchPowerCost);
+	}
+	barGraphDisplayTrough(psWidget, xOffset, yOffset, pColours);
 }

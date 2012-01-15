@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2010  Warzone 2100 Project
+	Copyright (C) 2005-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -60,12 +60,12 @@
 
 static void		recvGiftDroids					(uint8_t from, uint8_t to, uint32_t droidID);
 static void		sendGiftDroids					(uint8_t from, uint8_t to);
-static void		giftResearch					(uint8_t from, uint8_t to, BOOL send);
+static void		giftResearch					(uint8_t from, uint8_t to, bool send);
 
 ///////////////////////////////////////////////////////////////////////////////
 // gifts..
 
-BOOL recvGift(NETQUEUE queue)
+bool recvGift(NETQUEUE queue)
 {
 	uint8_t	type, from, to;
 	int		audioTrack;
@@ -111,7 +111,7 @@ BOOL recvGift(NETQUEUE queue)
 	return true;
 }
 
-BOOL sendGift(uint8_t type, uint8_t to)
+bool sendGift(uint8_t type, uint8_t to)
 {
 	int audioTrack;
 
@@ -148,7 +148,7 @@ BOOL sendGift(uint8_t type, uint8_t to)
 
 // ////////////////////////////////////////////////////////////////////////////
 // give radar information
-void giftRadar(uint8_t from, uint8_t to, BOOL send)
+void giftRadar(uint8_t from, uint8_t to, bool send)
 {
 	uint32_t dummy = 0;
 
@@ -261,9 +261,8 @@ static void sendGiftDroids(uint8_t from, uint8_t to)
 
 // ////////////////////////////////////////////////////////////////////////////
 // give technologies.
-static void giftResearch(uint8_t from, uint8_t to, BOOL send)
+static void giftResearch(uint8_t from, uint8_t to, bool send)
 {
-	PLAYER_RESEARCH	*pR, *pRto;
 	int		i;
 	uint32_t	dummy = 0;
 
@@ -284,17 +283,14 @@ static void giftResearch(uint8_t from, uint8_t to, BOOL send)
 		{
 			CONPRINTF(ConsoleString, (ConsoleString, _("%s Gives You Technology Documents"), getPlayerName(from)));
 		}
-		pR   = asPlayerResList[from];
-		pRto = asPlayerResList[to];
-
 		// For each topic
-		for (i = 0; i < numResearch; i++)
+		for (i = 0; i < asResearch.size(); i++)
 		{
 			// If they have it and we don't research it
-			if (IsResearchCompleted(&pR[i])
-			&& !IsResearchCompleted(&pRto[i]))
+			if (IsResearchCompleted(&asPlayerResList[from][i])
+			&& !IsResearchCompleted(&asPlayerResList[to][i]))
 			{
-				MakeResearchCompleted(&pRto[i]);
+				MakeResearchCompleted(&asPlayerResList[to][i]);
 				researchResult(i, to, false, NULL, true);
 			}
 		}
@@ -304,7 +300,7 @@ static void giftResearch(uint8_t from, uint8_t to, BOOL send)
 
 // ////////////////////////////////////////////////////////////////////////////
 // give Power
-void giftPower(uint8_t from, uint8_t to, uint32_t amount, BOOL send)
+void giftPower(uint8_t from, uint8_t to, uint32_t amount, bool send)
 {
 	if (send)
 	{
@@ -345,7 +341,7 @@ void giftPower(uint8_t from, uint8_t to, uint32_t amount, BOOL send)
 // ////////////////////////////////////////////////////////////////////////////
 // alliance code......
 
-void requestAlliance(uint8_t from, uint8_t to, BOOL prop, BOOL allowAudio)
+void requestAlliance(uint8_t from, uint8_t to, bool prop, bool allowAudio)
 {
 	if (prop && bMultiMessages)
 	{
@@ -380,7 +376,7 @@ void requestAlliance(uint8_t from, uint8_t to, BOOL prop, BOOL allowAudio)
 	}
 }
 
-void breakAlliance(uint8_t p1, uint8_t p2, BOOL prop, BOOL allowAudio)
+void breakAlliance(uint8_t p1, uint8_t p2, bool prop, bool allowAudio)
 {
 	char	tm1[128];
 
@@ -407,7 +403,7 @@ void breakAlliance(uint8_t p1, uint8_t p2, BOOL prop, BOOL allowAudio)
 	alliancebits[p2] &= ~(1 << p1);
 }
 
-void formAlliance(uint8_t p1, uint8_t p2, BOOL prop, BOOL allowAudio, BOOL allowNotification)
+void formAlliance(uint8_t p1, uint8_t p2, bool prop, bool allowAudio, bool allowNotification)
 {
 	DROID	*psDroid;
 	char	tm1[128];
@@ -448,18 +444,18 @@ void formAlliance(uint8_t p1, uint8_t p2, BOOL prop, BOOL allowAudio, BOOL allow
 	// Clear out any attacking orders
 	for (psDroid = apsDroidLists[p1]; psDroid; psDroid = psDroid->psNext)	// from -> to
 	{
-		if (psDroid->order == DORDER_ATTACK
-		 && psDroid->psTarget
-		 && psDroid->psTarget->player == p2)
+		if (psDroid->order.type == DORDER_ATTACK
+		 && psDroid->order.psObj
+		 && psDroid->order.psObj->player == p2)
 		{
 			orderDroid(psDroid, DORDER_STOP, ModeImmediate);
 		}
 	}
 	for (psDroid = apsDroidLists[p2]; psDroid; psDroid = psDroid->psNext)	// to -> from
 	{
-		if (psDroid->order == DORDER_ATTACK
-		 && psDroid->psTarget
- 		 && psDroid->psTarget->player == p1)
+		if (psDroid->order.type == DORDER_ATTACK
+		 && psDroid->order.psObj
+ 		 && psDroid->order.psObj->player == p1)
 		{
 			orderDroid(psDroid, DORDER_STOP, ModeImmediate);
 		}
@@ -478,7 +474,7 @@ void sendAlliance(uint8_t from, uint8_t to, uint8_t state, int32_t value)
 	NETend();
 }
 
-BOOL recvAlliance(NETQUEUE queue, BOOL allowAudio)
+bool recvAlliance(NETQUEUE queue, bool allowAudio)
 {
 	uint8_t to, from, state;
 	int32_t value;
@@ -607,7 +603,7 @@ void recvMultiPlayerFeature(NETQUEUE queue)
 // must match _feature_type in featuredef.h
 static const char *feature_names[] =
 {
-	"FEAT_BUILD_WRECK",
+	"FEAT_UNUSED",
 	"FEAT_HOVER",
 	"FEAT_TANK",
 	"FEAT_GEN_ARTE",
@@ -615,7 +611,7 @@ static const char *feature_names[] =
 	"FEAT_BOULDER",
 	"FEAT_VEHICLE",
 	"FEAT_BUILDING",
-	"FEAT_DROID",
+	"FEAT_UNUSED",
 	"FEAT_LOS_OBJ",
 	"FEAT_OIL_DRUM",
 	"FEAT_TREE",
@@ -668,7 +664,7 @@ void  addMultiPlayerRandomArtifacts(uint8_t quantity, FEATURE_TYPE type)
 }
 
 // ///////////////////////////////////////////////////////////////
-BOOL addOilDrum(uint8_t count)
+bool addOilDrum(uint8_t count)
 {
 	addMultiPlayerRandomArtifacts(count, FEAT_OIL_DRUM);
 	return true;
@@ -737,20 +733,15 @@ bool pickupArtefact(int toPlayer, int fromPlayer)
 {
 	if (fromPlayer < MAX_PLAYERS && bMultiPlayer)
 	{
-		PLAYER_RESEARCH *pR = asPlayerResList[toPlayer];
-		PLAYER_RESEARCH *pO = asPlayerResList[fromPlayer];
-		int topic;
-
-		for (topic = numResearch - 1; topic >= 0; topic--)
+		for (int topic = asResearch.size() - 1; topic >= 0; topic--)
 		{
-			if (IsResearchCompleted(&pO[topic])
-			 && !IsResearchPossible(&pR[topic]))
+			if (IsResearchCompleted(&asPlayerResList[fromPlayer][topic])
+			 && !IsResearchPossible(&asPlayerResList[toPlayer][topic]))
 			{
 				// Make sure the topic can be researched
-				if (asResearch[topic].researchPower
-				 && asResearch[topic].researchPoints)
+				if (asResearch[topic].researchPower && asResearch[topic].researchPoints)
 				{
-					MakeResearchPossible(&pR[topic]);
+					MakeResearchPossible(&asPlayerResList[toPlayer][topic]);
 					if (toPlayer == selectedPlayer)
 					{
 						CONPRINTF(ConsoleString,(ConsoleString,_("You Discover Blueprints For %s"), getName(asResearch[topic].pName)));

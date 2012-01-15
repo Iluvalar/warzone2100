@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2010  Warzone 2100 Project
+	Copyright (C) 2005-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -30,8 +30,12 @@
 #include <stdio.h>
 #include <time.h>
 #include "string_ext.h"
-
+#include "wzapp.h"
 #include "lib/gamelib/gtime.h"
+
+#ifdef WZ_OS_LINUX
+#include <execinfo.h>  // Nonfatal runtime backtraces.
+#endif //WZ_OS_LINUX
 
 extern void NotifyUserOfError(char *);		// will throw up a notifier on error
 
@@ -430,8 +434,8 @@ void _debug( code_part part, const char *function, const char *str, ... )
 			// used to signal user that there was a error condition, and to check the logs.
 			NotifyUserOfError(useInputBuffer1 ? inputBuffer[1] : inputBuffer[0]);
 		}
-		// Throw up a dialog box for windows users since most don't have a clue to check the stderr.txt file for information
-		// Use for (duh) Fatal errors, that force us to terminate the game.
+
+		// Throw up a dialog box for users since most don't have a clue to check the dump file for information. Use for (duh) Fatal errors, that force us to terminate the game.
 		if (part == LOG_FATAL)
 		{
 #if defined(WZ_OS_WIN)
@@ -451,6 +455,9 @@ void _debug( code_part part, const char *function, const char *str, ... )
 			               "\n~/Library/Logs/DiagnosticReports."
 			               "\n\nDo not forget to upload and attach those to a bug report at http://developer.wz2100.net/newticket"
 			               "\nThanks!", 2);
+#else
+			const char* popupBuf = useInputBuffer1 ? inputBuffer[1] : inputBuffer[0];
+			wzFatalDialog(popupBuf);
 #endif
 		}
 
@@ -471,6 +478,23 @@ void _debug( code_part part, const char *function, const char *str, ... )
 
 	}
 	useInputBuffer1 = !useInputBuffer1; // Swap buffers
+}
+
+void _debugBacktrace(code_part part)
+{
+#ifdef WZ_OS_LINUX
+	void *btv[20];
+	unsigned num = backtrace(btv, sizeof(btv)/sizeof(*btv));
+	char **btc = backtrace_symbols(btv, num);
+	unsigned i;
+	for (i = 1; i + 2 < num; ++i)  // =1: Don't print "src/warzone2100(syncDebugBacktrace+0x16) [0x6312d1]". +2: Don't print last two lines of backtrace such as "/lib/libc.so.6(__libc_start_main+0xe6) [0x7f91e040ea26]", since the address varies (even with the same binary).
+	{
+		_debug(part, "BT", "%s", btc[i]);
+	}
+	free(btc);
+#else
+	// debugBacktrace not implemented.
+#endif
 }
 
 bool debugPartEnabled(code_part codePart)

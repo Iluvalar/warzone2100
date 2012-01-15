@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2010  Warzone 2100 Project
+	Copyright (C) 2005-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -73,7 +73,7 @@ static	SDWORD	warCamLogoRotation;
 static BASE_OBJECT radarTarget(OBJ_TARGET, 0, 0);
 
 /* Do we trun to face when doing a radar jump? */
-static	BOOL	bRadarAllign;
+static	bool	bRadarAllign;
 
 static SDWORD	presAvAngle = 0;;
 
@@ -88,18 +88,13 @@ static SDWORD	presAvAngle = 0;;
 
 
 /* How much info do you want when tracking a droid - this toggles full stat info */
-static	BOOL bFullInfo = false;
+static	bool bFullInfo = false;
 
 /* Are we requesting a new track to start that is a radar (location) track? */
-static	BOOL bRadarTrackingRequested = false;
+static	bool bRadarTrackingRequested = false;
 
 /* World coordinates for a radar track/jump */
 static  float	 radarX,radarY;
-
-/*	Where we were up to (pos and rot) last update - allows us to see whether
-	we are sufficently near our target to disable further tracking */
-static	Vector3i	oldPosition, oldRotation;
-static BOOL OldViewValid;
 
 //-----------------------------------------------------------------------------------
 /* Sets the camera to inactive to begin with */
@@ -110,8 +105,6 @@ void	initWarCam( void )
 
 	/* Logo setup */
 	warCamLogoRotation = 0;
-
-	OldViewValid = false;
 }
 
 
@@ -143,7 +136,7 @@ static void processLeaderSelection( void )
 	DROID *psPresent;
 	DROID *psNew = NULL;
 	UDWORD leaderClass;
-	BOOL bSuccess;
+	bool bSuccess;
 	UDWORD dif;
 	UDWORD bestSoFar;
 
@@ -294,10 +287,10 @@ static void setUpRadarTarget(SDWORD x, SDWORD y)
 	radarTarget.pos.x = x;
 	radarTarget.pos.y = y;
 
-	if ((x < 0) || (y < 0) || (x > (SDWORD)((mapWidth - 1) * TILE_UNITS))
-	    || (y > (SDWORD)((mapHeight - 1) * TILE_UNITS)))
+	if ((x < 0) || (y < 0) || (x > world_coord(mapWidth - 1))
+	    || (y > world_coord(mapHeight - 1)))
 	{
-		radarTarget.pos.z = 128 * ELEVATION_SCALE + CAMERA_PIVOT_HEIGHT;
+		radarTarget.pos.z = world_coord(1) * ELEVATION_SCALE + CAMERA_PIVOT_HEIGHT;
 	}
 	else
 	{
@@ -327,13 +320,13 @@ static BASE_OBJECT *camFindTarget(void)
 }
 
 
-BOOL camTrackCamera(void);
+bool camTrackCamera(void);
 
 /* Updates the camera position/angle along with the object movement */
-BOOL	processWarCam( void )
+bool	processWarCam( void )
 {
 BASE_OBJECT	*foundTarget;
-BOOL Status = true;
+bool Status = true;
 
 	/* Get out if the camera isn't active */
 	if(trackingCamera.status == CAM_INACTIVE)
@@ -422,7 +415,7 @@ BOOL Status = true;
 //-----------------------------------------------------------------------------------
 
 /* Flips states for camera active */
-void	setWarCamActive(BOOL status)
+void	setWarCamActive(bool status)
 {
 	debug( LOG_NEVER, "setWarCamActive(%d)\n", status );
 
@@ -519,9 +512,6 @@ void	camAllignWithTarget(BASE_OBJECT *psTarget)
 
 	/* Store away when we started */
 	trackingCamera.lastUpdate = gameTime2;
-
-
-	OldViewValid = true;
 }
 
 #define GROUP_SELECTED 0xFFFFFFFF
@@ -551,7 +541,7 @@ static uint16_t getAverageTrackAngle(unsigned groupNumber, bool bCheckOnScreen)
 
 
 //-----------------------------------------------------------------------------------
-static void getTrackingConcerns(SDWORD *x, SDWORD *y, SDWORD *z, UDWORD groupNumber, BOOL bOnScreen)
+static void getTrackingConcerns(SDWORD *x, SDWORD *y, SDWORD *z, UDWORD groupNumber, bool bOnScreen)
 {
 	SDWORD xTotals = 0, yTotals = 0, zTotals = 0;
 	DROID *psDroid;
@@ -624,7 +614,7 @@ static void updateCameraAcceleration(UBYTE update)
 {
 	Vector3i concern = swapYZ(trackingCamera.target->pos);
 	Vector2i behind(0, 0); /* Irrelevant for normal radar tracking */
-	BOOL bFlying = false;
+	bool bFlying = false;
 
 	/*
 		This is where we check what it is we're tracking.
@@ -667,7 +657,7 @@ static void updateCameraAcceleration(UBYTE update)
 		concern.y += angle*5;
 	}
 
-	Vector3i realPos = concern - Vector3i(CAM_X_SHIFT - behind.x, 0, CAM_Z_SHIFT - behind.y);
+	Vector3i realPos = concern - Vector3i(-behind.x, 0, -behind.y);
 	Vector3f separation = realPos - trackingCamera.position;
 	Vector3f acceleration;
 	if (!bFlying)
@@ -749,9 +739,9 @@ static void updateCameraRotationAcceleration( UBYTE update )
 	SDWORD	worldAngle;
 	float	separation;
 	SDWORD	xConcern, yConcern, zConcern;
-	BOOL	bTooLow;
+	bool	bTooLow;
 	PROPULSION_STATS *psPropStats;
-	BOOL	bGotFlying = false;
+	bool	bGotFlying = false;
 	SDWORD	xPos = 0, yPos = 0, zPos = 0;
 
 	bTooLow = false;
@@ -909,40 +899,13 @@ static void updateCameraRotationPosition( UBYTE update )
 	}
 }
 
-/* Returns how far away we are from our goal in a radar track */
-static UDWORD getPositionMagnitude( void )
-{
-	Vector3i dif;
-	UDWORD val;
-
-	dif.x = abs(player.p.x - oldPosition.x);
-	dif.y = abs(player.p.y - oldPosition.y);
-	dif.z = abs(player.p.z - oldPosition.z);
-	val = (dif.x * dif.x) + (dif.y * dif.y) + (dif.z * dif.z);
-	return val;
-}
-
-
-static UDWORD getRotationMagnitude( void )
-{
-	Vector3i dif;
-	UDWORD val;
-
-	dif.x = abs(player.r.x - oldRotation.x);
-	dif.y = abs(player.r.y - oldRotation.y);
-	dif.z = abs(player.r.z - oldRotation.z);
-	val = (dif.x * dif.x) + (dif.y * dif.y) + (dif.z * dif.z);
-	return val;
-}
-
-
 /* Returns how far away we are from our goal in rotation */
 /* Updates the viewpoint according to the object being tracked */
-BOOL	camTrackCamera( void )
+bool	camTrackCamera( void )
 {
 PROPULSION_STATS	*psPropStats;
 DROID	*psDroid;
-BOOL	bFlying;
+bool	bFlying;
 
 	bFlying = false;
 
@@ -1024,20 +987,10 @@ BOOL	bFlying;
 		updateCameraRotationPosition(CAM_X_AND_Y);
 	}
 
-	/* Record the old positions for comparison */
-	oldPosition.x = player.p.x;
-	oldPosition.y = player.p.y;
-	oldPosition.z = player.p.z;
-
 	/* Update the position that's now stored in trackingCamera.position */
 	player.p.x = trackingCamera.position.x;
 	player.p.y = trackingCamera.position.y;
 	player.p.z = trackingCamera.position.z;
-
-	/* Record the old positions for comparison */
-	oldRotation.x = player.r.x;
-	oldRotation.y = player.r.y;
-	oldRotation.z = player.r.z;
 
 	/* Update the rotations that're now stored in trackingCamera.rotation */
 	player.r.x = trackingCamera.rotation.x;
@@ -1077,12 +1030,10 @@ BOOL	bFlying;
 		/*	This will ensure we come to a rest and terminate the tracking
 			routine once we're close enough
 		*/
-		if(getRotationMagnitude()<10000)
+		if (trackingCamera.velocity*trackingCamera.velocity + trackingCamera.acceleration*trackingCamera.acceleration < 1.f &&
+		    trackingCamera.rotVel*trackingCamera.rotVel     + trackingCamera.rotAccel*trackingCamera.rotAccel         < 1.f)
 		{
-			if(getPositionMagnitude() < 60)
-			{
-				setWarCamActive(false);
-			}
+			setWarCamActive(false);
 		}
 	}
 	return(true);
@@ -1113,7 +1064,7 @@ UDWORD	getNumDroidsSelected( void )
 //-----------------------------------------------------------------------------------
 
 /* Returns whether or not the tracking camera is active */
-BOOL	getWarCamStatus( void )
+bool	getWarCamStatus( void )
 {
 	/* Is it switched off? */
 	if(trackingCamera.status == CAM_INACTIVE)
@@ -1169,9 +1120,9 @@ void	requestRadarTrack(SDWORD x, SDWORD y)
 }
 
 /* Returns whether we're presently tracking to a new _location_ */
-BOOL	getRadarTrackingStatus( void )
+bool	getRadarTrackingStatus( void )
 {
-BOOL	retVal;
+bool	retVal;
 
 	if(trackingCamera.status == CAM_INACTIVE)
 	{

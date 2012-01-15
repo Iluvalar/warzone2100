@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2010  Warzone 2100 Project
+	Copyright (C) 2005-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
  *  Also the selection of disk files..
  */
 #include "lib/framework/frame.h"
+#include "lib/framework/wzapp.h"
 #include "lib/framework/strres.h"
 #include "lib/widget/button.h"
 #include "lib/widget/widget.h"
@@ -33,6 +34,7 @@
 #include "lib/ivis_opengl/pieblitfunc.h"
 #include "lib/ivis_opengl/piedef.h"
 #include "lib/ivis_opengl/piepalette.h"
+#include "lib/ivis_opengl/bitimage.h"
 #include "lib/gamelib/gtime.h"
 #include "lib/ivis_opengl/piematrix.h"
 #include "levels.h"
@@ -58,6 +60,7 @@
 #include "keybind.h"
 #include "loop.h"
 #include "lib/framework/frameint.h"
+#include "frontend.h"
 
 // ////////////////////////////////////////////////////////////////////////////
 // defines
@@ -67,9 +70,9 @@ W_SCREEN  *psRScreen;			// requester stuff.
 extern char	MultiCustomMapsPath[PATH_MAX];
 extern void	displayMultiBut(WIDGET *psWidget, UDWORD xOffset, UDWORD yOffset, PIELIGHT *pColours);
 
-BOOL	MultiMenuUp			= false;
-BOOL	ClosingMultiMenu	= false;
-BOOL	DebugMenuUp		= false;
+bool	MultiMenuUp			= false;
+bool	ClosingMultiMenu	= false;
+bool	DebugMenuUp		= false;
 static UDWORD	context = 0;
 UDWORD	current_tech = 1;
 UDWORD	current_numplayers = 4;
@@ -142,7 +145,6 @@ UDWORD	current_numplayers = 4;
 #define M_REQUEST_15P   (MULTIMENU+84)
 #define M_REQUEST_16P   (MULTIMENU+85)
 static const unsigned M_REQUEST_NP[] = {M_REQUEST_2P,    M_REQUEST_3P,    M_REQUEST_4P,    M_REQUEST_5P,    M_REQUEST_6P,    M_REQUEST_7P,    M_REQUEST_8P,    M_REQUEST_9P,    M_REQUEST_10P,    M_REQUEST_11P,    M_REQUEST_12P,    M_REQUEST_13P,    M_REQUEST_14P,    M_REQUEST_15P,    M_REQUEST_16P};
-static char const * M_REQUEST_NP_TIPS[] = {   N_("2 players"), N_("3 players"), N_("4 players"), N_("5 players"), N_("6 players"), N_("7 players"), N_("8 players"), N_("9 players"), N_("10 players"), N_("11 players"), N_("12 players"), N_("13 players"), N_("14 players"), N_("15 players"), N_("16 players")};
 
 #define M_REQUEST_BUT	(MULTIMENU+100)		// allow loads of buttons.
 #define M_REQUEST_BUTM	(MULTIMENU+1100)
@@ -155,8 +157,11 @@ static char const * M_REQUEST_NP_TIPS[] = {   N_("2 players"), N_("3 players"), 
 #define	R_BUT_W			105//112
 #define R_BUT_H			30
 
-BOOL			multiRequestUp = false;				//multimenu is up.
-static BOOL		giftsUp[MAX_PLAYERS] = {true};		//gift buttons for player are up.
+#define HOVER_PREVIEW_TIME 300
+
+bool			multiRequestUp = false;				//multimenu is up.
+static unsigned         hoverPreviewId;
+static bool		giftsUp[MAX_PLAYERS] = {true};		//gift buttons for player are up.
 
 char		debugMenuEntry[DEBUGMENU_MAX_ENTRIES][MAX_STR_LENGTH];
 
@@ -602,6 +607,7 @@ void addMultiRequest(const char* searchDir, const char* fileExtension, UDWORD mo
 		}
 	}
 	multiRequestUp = true;
+	hoverPreviewId = 0;
 
 
 	// if it's map select then add the cam style buttons.
@@ -639,13 +645,15 @@ void addMultiRequest(const char* searchDir, const char* fileExtension, UDWORD mo
 		sButInit.pDisplay	= displayNumPlayersBut;
 		widgAddButton(psRScreen, &sButInit);
 
-		STATIC_ASSERT(MAX_PLAYERS_IN_GUI <= ARRAY_SIZE(M_REQUEST_NP) + 1 && MAX_PLAYERS <= ARRAY_SIZE(M_REQUEST_NP_TIPS) + 1);
+		STATIC_ASSERT(MAX_PLAYERS_IN_GUI <= ARRAY_SIZE(M_REQUEST_NP) + 1);
 		for (unsigned numPlayers = 2; numPlayers <= MAX_PLAYERS_IN_GUI; ++numPlayers)
 		{
+			static char ttip[MAX_PLAYERS_IN_GUI][20];
 			sButInit.id             = M_REQUEST_NP[numPlayers - 2];
 			sButInit.y		+= 22;
 			sButInit.UserData	= numPlayers;
-			sButInit.pTip		= gettext(M_REQUEST_NP_TIPS[numPlayers - 2]);
+			ssprintf(ttip[numPlayers], ngettext("%d player", "%d players", numPlayers), numPlayers);
+			sButInit.pTip		= (const char *)&ttip[numPlayers];
 			widgAddButton(psRScreen, &sButInit);
 		}
 	}
@@ -661,23 +669,51 @@ static void closeMultiRequester(void)
 	return;
 }
 
-BOOL runMultiRequester(UDWORD id,UDWORD *mode, char *chosen,UDWORD *chosenValue)
+bool runMultiRequester(UDWORD id, UDWORD *mode, char *chosen, UDWORD *chosenValue, bool *isHoverPreview)
 {
-	if( id==M_REQUEST_CLOSE)							// close
+	static unsigned hoverId = 0;
+	static unsigned hoverStartTime = 0;
+
+	if( (id == M_REQUEST_CLOSE) || CancelPressed() )			// user hit close box || hit the cancel key
 	{
 		closeMultiRequester();
+		*mode = 0;
 		return true;
 	}
 
-	if( id>=M_REQUEST_BUT && id<=M_REQUEST_BUTM)		// chose a file.
+	bool hoverPreview = false;
+	if (id == 0 && context == MULTIOP_MAP)
+	{
+		id = widgGetMouseOver(psRScreen);
+		if (id != hoverId)
+		{
+			hoverId = id;
+			hoverStartTime = wzGetTicks() + HOVER_PREVIEW_TIME;
+		}
+		if (id == hoverPreviewId || hoverStartTime > wzGetTicks())
+		{
+			id = 0;  // Don't re-render preview nor render preview before HOVER_PREVIEW_TIME.
+		}
+		hoverPreview = true;
+	}
+	if (id >= M_REQUEST_BUT && id <= M_REQUEST_BUTM)  // chose a file.
 	{
 		strcpy(chosen,((W_BUTTON *)widgGetFromID(psRScreen,id))->pText );
 
 		*chosenValue = ((W_BUTTON *)widgGetFromID(psRScreen,id))->UserData ;
-		closeMultiRequester();
 		*mode = context;
+		*isHoverPreview = hoverPreview;
+		hoverPreviewId = id;
+		if (!hoverPreview)
+		{
+			closeMultiRequester();
+		}
 
 		return true;
+	}
+	if (hoverPreview)
+	{
+		id = 0;
 	}
 
 	switch (id)
@@ -983,7 +1019,12 @@ static void displayMultiPlayer(WIDGET *psWidget, UDWORD xOffset, UDWORD yOffset,
 	}
 
 	// a droid of theirs.
-	if(apsDroidLists[player])
+	DROID *displayDroid = apsDroidLists[player];
+	while (displayDroid != NULL && !displayDroid->visible[selectedPlayer])
+	{
+		displayDroid = displayDroid->psNext;
+	}
+	if (displayDroid)
 	{
 		pie_SetGeometricOffset( MULTIMENU_FORM_X+MULTIMENU_C1 ,y+MULTIMENU_PLAYER_H);
 		rotation.x = -15;
@@ -993,7 +1034,12 @@ static void displayMultiPlayer(WIDGET *psWidget, UDWORD xOffset, UDWORD yOffset,
 		position.y = 0;
 		position.z = 2000;		//scale them!
 
-		displayComponentButtonObject(apsDroidLists[player],&rotation,&position,false, 100);
+		displayComponentButtonObject(displayDroid, &rotation, &position, false, 100);
+	}
+	else if(apsDroidLists[player])
+	{
+		// Show that they have droids, but not which droids, since we can't see them.
+		iV_DrawImageTc(IntImages, IMAGE_GENERIC_TANK, IMAGE_GENERIC_TANK_TC, MULTIMENU_FORM_X + MULTIMENU_C1 - iV_GetImageWidth(IntImages, IMAGE_GENERIC_TANK)/2, y + MULTIMENU_PLAYER_H - iV_GetImageHeight(IntImages, IMAGE_GENERIC_TANK), pal_GetTeamColour(getPlayerColour(player)));
 	}
 
 	// clean up widgets if player leaves while menu is up.
@@ -1070,27 +1116,19 @@ static void displayAllianceState(WIDGET *psWidget, UDWORD xOffset, UDWORD yOffse
 	psWidget->UserData = player;
 }
 
-
 static void displayChannelState(WIDGET *psWidget, UDWORD xOffset, UDWORD yOffset, PIELIGHT *pColours)
 {
-	UDWORD a, b, c, player = psWidget->UserData;
-	switch(openchannels[player])
-	{
-	case 1:
-		a = 0;
-		b = IMAGE_MULTI_CHAN;
-		c = IMAGE_MULTI_CHAN;
-		break;
-	case 0:
-	default:
-		a = 0;
-		b = IMAGE_MULTI_NOCHAN;
-		c = IMAGE_MULTI_NOCHAN;
-		break;
-	}
+	UDWORD player = psWidget->UserData;
 
-	psWidget->UserData = PACKDWORD_TRI(a,b,c);
-	intDisplayImageHilight(psWidget,  xOffset,  yOffset, pColours);
+	if (openchannels[player])
+	{
+		psWidget->UserData = PACKDWORD_TRI(0, IMAGE_MULTI_CHAN, IMAGE_MULTI_CHAN);
+	}
+	else
+	{
+		psWidget->UserData = PACKDWORD_TRI(0, IMAGE_MULTI_NOCHAN, IMAGE_MULTI_NOCHAN);
+	}
+	intDisplayImageHilight(psWidget, xOffset, yOffset, pColours);
 	psWidget->UserData = player;
 }
 
@@ -1196,7 +1234,7 @@ static void addMultiPlayer(UDWORD player,UDWORD pos)
 /* Output some text to the debug menu */
 void setDebugMenuEntry(char *entry, SDWORD index)
 {
-	BOOL		bAddingNew = false;
+	bool		bAddingNew = false;
 
 	/* New one? */
 	if(!strcmp(debugMenuEntry[index],""))
@@ -1226,7 +1264,7 @@ void intCloseDebugMenuNoAnim(void)
 /* Opens/closes a 'watch' window (Default key combo: Alt+Space),
  * only available in debug mode
  */
-BOOL addDebugMenu(BOOL bAdd)
+bool addDebugMenu(bool bAdd)
 {
 	UDWORD			i,pos = 0,formHeight=0;
 
@@ -1310,7 +1348,7 @@ BOOL addDebugMenu(BOOL bAdd)
 	return true;
 }
 
-BOOL intAddMultiMenu(void)
+bool intAddMultiMenu(void)
 {
 	UDWORD			i;
 
@@ -1396,7 +1434,7 @@ void intCloseMultiMenuNoAnim(void)
 
 
 // ////////////////////////////////////////////////////////////////////////////
-BOOL intCloseMultiMenu(void)
+bool intCloseMultiMenu(void)
 {
 	W_TABFORM *Form;
 
@@ -1426,7 +1464,7 @@ BOOL intCloseMultiMenu(void)
 
 // ////////////////////////////////////////////////////////////////////////////
 // In Game Options house keeping stuff.
-BOOL intRunMultiMenu(void)
+bool intRunMultiMenu(void)
 {
 	return true;
 }
@@ -1472,15 +1510,8 @@ void intProcessMultiMenu(UDWORD id)
 	//channel opens.
 	if(id >=MULTIMENU_CHANNEL &&  id<MULTIMENU_CHANNEL+MAX_PLAYERS)
 	{
-		i =(UBYTE)( id - MULTIMENU_CHANNEL);
-		if(openchannels[i])
-		{
-			openchannels[i] = false;// close channel
-		}
-		else
-		{
-			openchannels[i] = true;// open channel
-		}
+		i = id - MULTIMENU_CHANNEL;
+		openchannels[i] = !openchannels[i];
 	}
 
 	//radar gifts

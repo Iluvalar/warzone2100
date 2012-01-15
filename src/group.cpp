@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2010  Warzone 2100 Project
+	Copyright (C) 2005-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -28,10 +28,10 @@
 #include "lib/netplay/netplay.h"
 
 #include "multiplay.h"
-#include <list>
+#include <QtCore/QMap>
 
 // Group system variables: grpGlobalManager enables to remove all the groups to Shutdown the system
-static std::list<DROID_GROUP *> grpGlobalManager;
+static QMap<int, DROID_GROUP *> grpGlobalManager;
 static bool grpInitialized = false;
 
 // initialise the group system
@@ -47,7 +47,7 @@ void grpShutDown(void)
 {
 	/* Since we are not very diligent removing groups after we have
 	 * created them; we need this hack to remove them on level end. */
-	std::list<DROID_GROUP *>::iterator iter;
+	QMap<int, DROID_GROUP *>::iterator iter;
 
 	for(iter = grpGlobalManager.begin(); iter != grpGlobalManager.end(); iter++)
 	{
@@ -64,22 +64,37 @@ DROID_GROUP::DROID_GROUP()
 	refCount = 0;
 	psList = NULL;
 	psCommander = NULL;
+	memset(&sRunData, 0, sizeof(sRunData));
 }
 
 // create a new group
-bool grpCreate(DROID_GROUP **ppsGroup)
+DROID_GROUP *grpCreate(int id)
 {
 	ASSERT(grpInitialized, "Group code not initialized yet");
-	*ppsGroup = new DROID_GROUP;
-	if (*ppsGroup == NULL)
+	DROID_GROUP *psGroup = new DROID_GROUP;
+	if (id == -1)
 	{
-		debug(LOG_ERROR, "grpCreate: Out of memory");
-		return false;
+		int i;
+		for (i = 0; grpGlobalManager.contains(i); i++) {}	// surly hack
+		psGroup->id = i;
 	}
+	else
+	{
+		ASSERT(!grpGlobalManager.contains(id), "Group %d is already created!", id);
+		psGroup->id = id;
+	}
+	grpGlobalManager.insert(psGroup->id, psGroup);
+	return psGroup;
+}
 
-	grpGlobalManager.push_back(*ppsGroup);
-
-	return true;
+DROID_GROUP *grpFind(int id)
+{
+	DROID_GROUP *psGroup = grpGlobalManager.value(id, NULL);
+	if (!psGroup)
+	{
+		psGroup = grpCreate(id);
+	}
+	return psGroup;
 }
 
 // add a droid to a group
@@ -106,6 +121,7 @@ void DROID_GROUP::add(DROID *psDroid)
 		if (psDroid->droidType == DROID_TRANSPORTER)
 		{
 			ASSERT_OR_RETURN(, (type == GT_NORMAL), "grpJoin: Cannot have two transporters in a group" );
+			ASSERT_OR_RETURN(, psList == NULL, "Adding transporter to non-empty list.");
 			type = GT_TRANSPORTER;
 			psDroid->psGrpNext = psList;
 			psList = psDroid;
@@ -196,7 +212,7 @@ void DROID_GROUP::remove(DROID *psDroid)
 	// free the group if necessary
 	if (refCount <= 0)
 	{
-		grpGlobalManager.remove(this);
+		grpGlobalManager.remove(id);
 		delete this;
 	}
 }

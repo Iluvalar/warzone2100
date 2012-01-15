@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2010  Warzone 2100 Project
+	Copyright (C) 2005-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -28,27 +28,18 @@
  */
 #include "frame.h"
 #include "file.h"
+#include "wzapp.h"
 
-#include <SDL.h>
 #include <physfs.h>
 
 #include "frameint.h"
 #include "frameresource.h"
 #include "input.h"
-#include "lib/widget/scrap.h"
-#include "SDL_framerate.h"
 #include "physfs_ext.h"
 
 #include "cursors.h"
-#include "wz2100icon.h"
-
-static const enum CURSOR_TYPE cursor_type =
-	CURSOR_32;
 
 /* Linux specific stuff */
-
-static CURSOR currentCursor = CURSOR_MAX;
-static SDL_Cursor* aCursors[CURSOR_MAX];
 
 bool selfTest = false;
 
@@ -57,163 +48,36 @@ bool selfTest = false;
  *	Player globals
  */
 
+static bool mousewarp = false;
+
 uint32_t selectedPlayer = 0;  /**< Current player */
 uint32_t realSelectedPlayer = 0;
 
-
-/************************************************************************************
- *
- * Alex's frame rate stuff
- */
-
-/* Over how many seconds is the average required? */
-#ifdef _DEBUG
-# define	TIMESPAN	1
-#else
-# define	TIMESPAN	5
-#endif
-
-/* Initial filler value for the averages - arbitrary */
-#define  IN_A_FRAME 70
-
 /* Global variables for the frame rate stuff */
-static Uint32	FrameCounts[TIMESPAN] = { 0 };
-static Uint32	FrameIndex = 0;
-static Uint64	curFrames = 0; // Number of frames elapsed since start
-static Uint64	lastFrames = 0;
-static Uint32	curTicks = 0; // Number of ticks since execution started
-static Uint32	lastTicks = 0;
-static FPSmanager wzFPSmanager;
-static bool	initFPSmanager = false;
-
-void setFramerateLimit(int fpsLimit)
-{
-	if (!initFPSmanager)
-	{
-		/* Initialize framerate handler */
-		SDL_initFramerate(&wzFPSmanager);
-		initFPSmanager = true;
-	}
-	SDL_setFramerate(&wzFPSmanager, fpsLimit);
-}
-
-
-int getFramerateLimit(void)
-{
-	return SDL_getFramerate(&wzFPSmanager);
-}
+static int frameCount = 0;
+static uint64_t curFrames = 0; // Number of frames elapsed since start
+static uint64_t lastFrames = 0;
+static uint32_t curTicks = 0; // Number of ticks since execution started
+static uint32_t lastTicks = 0;
 
 /* InitFrameStuff - needs to be called once before frame loop commences */
 static void InitFrameStuff( void )
 {
-	UDWORD i;
-
-	for (i=0; i<TIMESPAN; i++)
-	{
-		FrameCounts[i] = IN_A_FRAME;
-	}
-
-	FrameIndex = 0;
+	frameCount = 0.0;
 	curFrames = 0;
 	lastFrames = 0;
 	curTicks = 0;
 	lastTicks = 0;
 }
 
-/* MaintainFrameStuff - call this during completion of each frame loop */
-static void MaintainFrameStuff( void )
+int frameRate(void)
 {
-	curTicks = SDL_GetTicks();
-	curFrames++;
-
-	// Update the framerate only once per second
-	if ( curTicks >= lastTicks + 1000 )
-	{
-		// TODO Would have to be normalized to be correct for < 1 fps:
-		// FrameCounts[FrameIndex++] = 1000 * (curFrames - lastFrames) / (curTicks - lastTicks);
-		FrameCounts[FrameIndex++] = curFrames - lastFrames;
-		if ( FrameIndex >= TIMESPAN )
-		{
-			FrameIndex = 0;
-		}
-		lastTicks = curTicks;
-		lastFrames = curFrames;
-	}
+	return frameCount;
 }
-
-
-UDWORD frameGetAverageRate(void)
-{
-	SDWORD averageFrames = 0, i = 0;
-	for ( i = 0; i < TIMESPAN; i++ )
-		averageFrames += FrameCounts[i];
-	averageFrames /= TIMESPAN;
-
-	return averageFrames;
-}
-
 
 UDWORD	frameGetFrameNumber(void)
 {
 	return curFrames;
-}
-
-
-/** Set the current cursor from a Resource ID
- */
-void frameSetCursor(CURSOR cur)
-{
-	ASSERT(cur < CURSOR_MAX, "frameSetCursorFromRes: bad resource ID" );
-
-	//If we are already using this cursor then  return
-	if (cur != currentCursor)
-        {
-		SDL_SetCursor(aCursors[cur]);
-		currentCursor = cur;
-        }
-}
-
-
-static void initCursors(void)
-{
-	aCursors[CURSOR_ARROW]       = init_system_cursor(CURSOR_ARROW, cursor_type);
-	aCursors[CURSOR_DEST]        = init_system_cursor(CURSOR_DEST, cursor_type);
-	aCursors[CURSOR_SIGHT]       = init_system_cursor(CURSOR_SIGHT, cursor_type);
-	aCursors[CURSOR_TARGET]      = init_system_cursor(CURSOR_TARGET, cursor_type);
-	aCursors[CURSOR_LARROW]      = init_system_cursor(CURSOR_LARROW, cursor_type);
-	aCursors[CURSOR_RARROW]      = init_system_cursor(CURSOR_RARROW, cursor_type);
-	aCursors[CURSOR_DARROW]      = init_system_cursor(CURSOR_DARROW, cursor_type);
-	aCursors[CURSOR_UARROW]      = init_system_cursor(CURSOR_UARROW, cursor_type);
-	aCursors[CURSOR_DEFAULT]     = init_system_cursor(CURSOR_DEFAULT, cursor_type);
-	aCursors[CURSOR_EDGEOFMAP]   = init_system_cursor(CURSOR_EDGEOFMAP, cursor_type);
-	aCursors[CURSOR_ATTACH]      = init_system_cursor(CURSOR_ATTACH, cursor_type);
-	aCursors[CURSOR_ATTACK]      = init_system_cursor(CURSOR_ATTACK, cursor_type);
-	aCursors[CURSOR_BOMB]        = init_system_cursor(CURSOR_BOMB, cursor_type);
-	aCursors[CURSOR_BRIDGE]      = init_system_cursor(CURSOR_BRIDGE, cursor_type);
-	aCursors[CURSOR_BUILD]       = init_system_cursor(CURSOR_BUILD, cursor_type);
-	aCursors[CURSOR_EMBARK]      = init_system_cursor(CURSOR_EMBARK, cursor_type);
-	aCursors[CURSOR_DISEMBARK]   = init_system_cursor(CURSOR_DISEMBARK, cursor_type);
-	aCursors[CURSOR_FIX]         = init_system_cursor(CURSOR_FIX, cursor_type);
-	aCursors[CURSOR_GUARD]       = init_system_cursor(CURSOR_GUARD, cursor_type);
-	aCursors[CURSOR_JAM]         = init_system_cursor(CURSOR_JAM, cursor_type);
-	aCursors[CURSOR_LOCKON]      = init_system_cursor(CURSOR_LOCKON, cursor_type);
-	aCursors[CURSOR_SCOUT]       = init_system_cursor(CURSOR_SCOUT, cursor_type);
-	aCursors[CURSOR_MENU]        = init_system_cursor(CURSOR_MENU, cursor_type);
-	aCursors[CURSOR_MOVE]        = init_system_cursor(CURSOR_MOVE, cursor_type);
-	aCursors[CURSOR_NOTPOSSIBLE] = init_system_cursor(CURSOR_NOTPOSSIBLE, cursor_type);
-	aCursors[CURSOR_PICKUP]      = init_system_cursor(CURSOR_PICKUP, cursor_type);
-	aCursors[CURSOR_SEEKREPAIR]  = init_system_cursor(CURSOR_SEEKREPAIR, cursor_type);
-	aCursors[CURSOR_SELECT]      = init_system_cursor(CURSOR_SELECT, cursor_type);
-}
-
-
-static void freeCursors(void)
-{
-	unsigned int i;
-	for(i = 0 ; i < ARRAY_SIZE(aCursors); ++i)
-	{
-		SDL_FreeCursor(aCursors[i]);
-	}
 }
 
 /*
@@ -221,67 +85,21 @@ static void freeCursors(void)
  *
  * Initialise the framework library. - PC version
  */
-bool frameInitialise(
-					const char *pWindowName,// The text to appear in the window title bar
-					UDWORD width,			// The display width
-					UDWORD height,			// The display height
-					UDWORD bitDepth,		// The display bit depth
-					unsigned int fsaa,      // FSAA anti aliasing level
-					bool fullScreen,		// Whether to start full screen or windowed
-					bool vsync)				// If to sync to vblank or not
+bool frameInitialise()
 {
-#if SDL_BYTEORDER == SDL_BIG_ENDIAN
-	uint32_t rmask = 0xff000000;
-	uint32_t gmask = 0x00ff0000;
-	uint32_t bmask = 0x0000ff00;
-	uint32_t amask = 0x000000ff;
-#else
-	uint32_t rmask = 0x000000ff;
-	uint32_t gmask = 0x0000ff00;
-	uint32_t bmask = 0x00ff0000;
-	uint32_t amask = 0xff000000;
-#endif
-
-	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) != 0)
-	{
-		debug( LOG_ERROR, "Error: Could not initialise SDL (%s).\n", SDL_GetError() );
-		return false;
-	}
-
-	SDL_WM_SetIcon(SDL_CreateRGBSurfaceFrom((void*)wz2100icon.pixel_data, wz2100icon.width, wz2100icon.height, wz2100icon.bytes_per_pixel * 8,
-	                                        wz2100icon.width * wz2100icon.bytes_per_pixel, rmask, gmask, bmask, amask), NULL);
-	SDL_WM_SetCaption(pWindowName, NULL);
-
 	/* Initialise the trig stuff */
 	if (!trigInitialise())
 	{
 		return false;
 	}
 
-	/* initialise all cursors */
-	initCursors();
-
-	if (!screenInitialise(width, height, bitDepth, fsaa, fullScreen, vsync))
+	if (!screenInitialise())
 	{
-		if (fullScreen)
-		{
-			info("Trying windowed mode now.");
-			if (!screenInitialise(width, height, bitDepth, fsaa, false, vsync))
-			{
-				return false;
-			}
-		}
-		else
-		{
-			return false;
-		}
+		return false;
 	}
 
 	/* Initialise the input system */
 	inputInitialise();
-
-	// Initialise clipboard stuff.
-	init_scrap();
 
 	/* Initialise the frame rate stuff */
 	InitFrameStuff();
@@ -301,13 +119,16 @@ bool frameInitialise(
  */
 void frameUpdate(void)
 {
-	/* Tell the input system about the start of another frame */
-	inputNewFrame();
+	curTicks = wzGetTicks();
+	curFrames++;
 
-	/* Update the frame rate stuff */
-	MaintainFrameStuff();
-
-	SDL_framerateDelay(&wzFPSmanager);
+	// Update the framerate only once per second
+	if (curTicks >= lastTicks + 1000)
+	{
+		frameCount = curFrames - lastFrames;
+		lastTicks = curTicks;
+		lastFrames = curFrames;
+	}
 }
 
 
@@ -316,16 +137,22 @@ void frameUpdate(void)
  */
 void frameShutDown(void)
 {
+	debug(LOG_NEVER, "Screen shutdown!");
 	screenShutDown();
 
-	/* Free all cursors */
-	freeCursors();
-
-	/* Destroy the Application window */
-	SDL_Quit();
-
 	// Shutdown the resource stuff
+	debug(LOG_NEVER, "No more resources!");
 	resShutDown();
+}
+
+void setMouseWarp(bool value)
+{
+	mousewarp = value;
+}
+
+bool getMouseWarp()
+{
+	return mousewarp;
 }
 
 PHYSFS_file* openLoadFile(const char* fileName, bool hard_fail)
@@ -467,7 +294,7 @@ bool saveFile(const char *pFileName, const char *pFileData, UDWORD fileSize)
 		return false;
 	}
 
-	if (PHYSFS_write(pfile, pFileData, 1, size) != size) 
+	if (PHYSFS_write(pfile, pFileData, 1, size) != size)
 	{
 		debug(LOG_ERROR, "%s could not write: %s", pFileName, PHYSFS_getLastError());
 		assert(false);
@@ -480,7 +307,7 @@ bool saveFile(const char *pFileName, const char *pFileData, UDWORD fileSize)
 		return false;
 	}
 
-	if (PHYSFS_getRealDir(pFileName) == NULL) 
+	if (PHYSFS_getRealDir(pFileName) == NULL)
 	{
 		// weird
 		debug(LOG_ERROR, "PHYSFS_getRealDir(%s) returns NULL (%s)?!", pFileName, PHYSFS_getLastError());
@@ -586,48 +413,6 @@ UDWORD HashStringIgnoreCase( const char *c )
 	}
 	return iHashValue;
 }
-
-#if defined(WZ_OS_WIN)
-/**
- * The difference between the FAT32 and Unix epoch.
- *
- * The FAT32 epoch starts at 1 January 1601 while the Unix epoch starts at 1
- * January 1970. And apparantly we gained 3.25 days in that time period.
- *
- * Thus the amount of micro seconds passed between these dates can be computed
- * as follows:
- * \f[((1970 - 1601) \cdot 365.25 + 3.25) \cdot 86400 \cdot 1000000\f]
- *
- * Use 1461 and 13 instead of 365.25 and 3.25 respectively because we can't use
- * floating point math here.
- */
-static const uint64_t usecs_between_fat32_and_unix_epoch = (uint64_t)((1970 - 1601) * 1461 + 13) * (uint64_t)86400 / (uint64_t)4 * (uint64_t)1000000;
-
-int gettimeofday(struct timeval* tv, struct timezone* tz)
-{
-	ASSERT(tz == NULL, "This gettimeofday implementation doesn't provide timezone info.");
-
-	if (tv)
-	{
-		FILETIME ft;
-		uint64_t systime, usec;
-
-		/* Retrieve the current time expressed as 100 nano-second
-		 * intervals since 1 January 1601 (UTC).
-		 */
-		GetSystemTimeAsFileTime(&ft);
-		systime = ((uint64_t)ft.dwHighDateTime << 32) | ft.dwLowDateTime;
-
-		// Convert to micro seconds since 1 January 1970 (UTC).
-		usec = systime / 10 - usecs_between_fat32_and_unix_epoch;
-
-		tv->tv_sec  = usec / (uint64_t)1000000;
-		tv->tv_usec = usec % (uint64_t)1000000;
-	}
-
-	return 0;
-}
-#endif
 
 bool PHYSFS_printf(PHYSFS_file *file, const char *format, ...)
 {

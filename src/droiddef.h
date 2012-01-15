@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2010  Warzone 2100 Project
+	Copyright (C) 2005-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -83,14 +83,7 @@ struct COMPONENT
 	UBYTE           nStat;          ///< Allowing a maximum of 255 stats per file
 };
 
-struct OrderListEntry
-{
-	DROID_ORDER     order;
-	UWORD           x, y, x2, y2;   ///< line build requires two sets of coords
-	uint16_t        direction;      ///< Needed to align structures with viewport.
-	void*           psOrderTarget;  ///< this needs to cope with objects and stats
-};
-typedef std::vector<OrderListEntry> OrderList;
+typedef std::vector<DROID_ORDER_DATA> OrderList;
 
 struct DROID_TEMPLATE : public BASE_STATS
 {
@@ -125,10 +118,11 @@ struct DROID_TEMPLATE : public BASE_STATS
 	UDWORD          multiPlayerID;              ///< multiplayer unique descriptor(cant use id's for templates). Used for save games as well now - AB 29/10/98
 	DROID_TEMPLATE* psNext;                     ///< Pointer to next template
 	bool		prefab;                     ///< Not player designed, not saved, never delete or change
+	bool		stored;                     ///< Stored template
 };
 
 struct PACKAGED_CHECK;
-struct DROID_GROUP;
+class DROID_GROUP;
 struct STRUCTURE;
 
 struct DROID : public BASE_OBJECT
@@ -173,13 +167,8 @@ struct DROID : public BASE_OBJECT
 	unsigned        listPendingBegin;               ///< Index of first order which will not be erased by a pending order. After all messages are processed, the orders in the range [listPendingBegin; listPendingEnd - 1] will remain.
 
 	/* Order data */
-	DROID_ORDER     order;
-	UWORD           orderX, orderY;
-	UWORD           orderX2, orderY2;
-	uint16_t        orderDirection;
+	DROID_ORDER_DATA order;
 
-	BASE_OBJECT*    psTarget;                       ///< Order target
-	BASE_STATS*     psTarStats;                     ///< What to build etc
 #ifdef DEBUG
 	// these are to help tracking down dangling pointers
 	char            targetFunc[MAX_EVENT_NAME_LEN];
@@ -195,7 +184,7 @@ struct DROID : public BASE_OBJECT
 
 	/* Action data */
 	DROID_ACTION    action;
-	UDWORD          actionX, actionY;
+	Vector2i        actionPos;
 	BASE_OBJECT*    psActionTarget[DROID_MAXWEAPS]; ///< Action target object
 	UDWORD          actionStarted;                  ///< Game time action started
 	UDWORD          actionPoints;                   ///< number of points done by action since start

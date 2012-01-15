@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2010  Warzone 2100 Project
+	Copyright (C) 2005-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -36,25 +36,25 @@
 
 
 /* All the effect groups */
-typedef enum
+enum EFFECT_GROUP
 {
 	EFFECT_EXPLOSION,
 	EFFECT_CONSTRUCTION,
 	EFFECT_SMOKE,
-	EFFECT_STRUCTURE,
 	EFFECT_GRAVITON,
 	EFFECT_WAYPOINT,
 	EFFECT_BLOOD,
 	EFFECT_DESTRUCTION,
 	EFFECT_SAT_LASER,
-	EFFECT_DUST_BALL,
 	EFFECT_FIRE,
-	EFFECT_FIREWORK
-} EFFECT_GROUP;
+	EFFECT_FIREWORK,
+
+	EFFECT_FREED,
+};
 
 
 /* Might not even need this */
-typedef enum
+enum EFFECT_TYPE
 {
 	EXPLOSION_TYPE_SMALL,
 	EXPLOSION_TYPE_VERY_SMALL,
@@ -108,20 +108,18 @@ typedef enum
 
 	FIREWORK_TYPE_STARBURST,
 	FIREWORK_TYPE_LAUNCHER,
+};
 
-} EFFECT_TYPE;
 
-
-typedef enum
+enum LAND_LIGHT_SPEC
 {
 	LL_MIDDLE,
 	LL_INNER,
 	LL_OUTER
-} LAND_LIGHT_SPEC;
+};
 
 
-typedef struct _effect_def EFFECT;
-struct _effect_def
+struct EFFECT
 {
 	uint8_t           player;      //	when the effect in question needs a player's color
 	uint8_t           control;     // Controls the bits above - essential,flips etc
@@ -153,7 +151,8 @@ void	initEffectsSystem(void);
 void	shutdownEffectsSystem(void);
 void	processEffects(void);
 void 	addEffect(const Vector3i *pos, EFFECT_GROUP group, EFFECT_TYPE type, bool specified, iIMDShape *imd, int lit);
-void	addMultiEffect(const Vector3i *basePos, Vector3i *scatter, EFFECT_GROUP group, EFFECT_TYPE type, bool specified, iIMDShape *imd, unsigned int number, bool lit, unsigned int size);
+void    addEffect(const Vector3i *pos, EFFECT_GROUP group, EFFECT_TYPE type, bool specified, iIMDShape *imd, int lit, unsigned effectTime);
+void    addMultiEffect(const Vector3i *basePos, Vector3i *scatter, EFFECT_GROUP group, EFFECT_TYPE type, bool specified, iIMDShape *imd, unsigned int number, bool lit, unsigned int size, unsigned effectTime);
 
 void	renderEffect(const EFFECT *psEffect);
 void	effectResetUpdates(void);

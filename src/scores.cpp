@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2010  Warzone 2100 Project
+	Copyright (C) 2005-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -27,10 +27,10 @@
 #include <string.h>
 
 // --------------------------------------------------------------------
-#include "lib/framework/frame.h"
+#include "lib/framework/wzapp.h"
+#include "lib/framework/wzconfig.h"
 #include "lib/framework/math_ext.h"
 #include "lib/framework/strres.h"
-#include "lib/framework/tagfile.h"
 #include "lib/gamelib/gtime.h"
 #include "console.h"
 #include "scores.h"
@@ -68,7 +68,7 @@
 #define	RANK_BAR_WIDTH	100
 #define STAT_BAR_WIDTH	100
 
-typedef enum
+enum MR_STRING
 {
 	STR_MR_UNITS_LOST,
 	STR_MR_UNITS_KILLED,
@@ -88,7 +88,7 @@ typedef enum
 	STR_MR_LEVEL_ELITE,
 	STR_MR_LEVEL_SPECIAL,
 	STR_MR_LEVEL_ACE
-} MR_STRING;
+};
 
 
 // return translated string
@@ -184,14 +184,14 @@ static void dispAdditionalInfo( void );
 /* The present mission data */
 static	MISSION_DATA	missionData;
 static	UDWORD	dispST;
-static	BOOL	bDispStarted = false;
+static	bool	bDispStarted = false;
 static	char	text[255];
 static	char	text2[255];
 extern bool Cheated;
 
 // --------------------------------------------------------------------
 /* Initialise the mission data info - done before each mission */
-BOOL	scoreInitSystem( void )
+bool	scoreInitSystem( void )
 {
 	missionData.unitsBuilt		= 0;
 	missionData.unitsKilled		= 0;
@@ -331,7 +331,7 @@ UDWORD	hours,minutes,seconds;
 static void drawStatBars(void)
 {
 UDWORD	index;
-BOOL	bMoreBars;
+bool	bMoreBars;
 UDWORD	x,y;
 UDWORD	width,height;
 
@@ -556,36 +556,29 @@ void	fillUpStats( void )
 	infoBars[STAT_STR_BUILT].number = missionData.strBuilt;
 }
 
-static const char ScoreData_tag_definition[] = "tagdefinitions/savegame/score.def";
-static const char ScoreData_file_identifier[] = "ScoreData";
-
 // -----------------------------------------------------------------------------------
 /* This will save out the score data */
 bool writeScoreData(const char* fileName)
 {
-	if (!tagOpenWrite(ScoreData_tag_definition, fileName))
+	WzConfig ini(fileName);
+	if (ini.status() != QSettings::NoError)
 	{
-		ASSERT(false, "writeScoreData: error while opening file (%s)", fileName);
+		debug(LOG_ERROR, "Could not open %s", fileName);
 		return false;
 	}
 
-	tagWriteString(0x01, ScoreData_file_identifier);
-
 	// Dump the scores for the current player
-	tagWrite(0x02, missionData.unitsBuilt);
-	tagWrite(0x03, missionData.unitsKilled);
-	tagWrite(0x04, missionData.unitsLost);
-	tagWrite(0x05, missionData.strBuilt);
-	tagWrite(0x06, missionData.strKilled);
-	tagWrite(0x07, missionData.strLost);
-	tagWrite(0x08, missionData.artefactsFound);
-	tagWrite(0x09, missionData.missionStarted);
-	tagWrite(0x0A, missionData.shotsOnTarget);
-	tagWrite(0x0B, missionData.shotsOffTarget);
-	tagWrite(0x0C, missionData.babasMowedDown);
-
-	// Close the file
-	tagClose();
+	ini.setValue("unitsBuilt", missionData.unitsBuilt);
+	ini.setValue("unitsKilled", missionData.unitsKilled);
+	ini.setValue("unitsLost", missionData.unitsLost);
+	ini.setValue("strBuilt", missionData.strBuilt);
+	ini.setValue("strKilled", missionData.strKilled);
+	ini.setValue("strLost", missionData.strLost);
+	ini.setValue("artefactsFound", missionData.artefactsFound);
+	ini.setValue("missionStarted", missionData.missionStarted);
+	ini.setValue("shotsOnTarget", missionData.shotsOnTarget);
+	ini.setValue("shotsOffTarget", missionData.shotsOffTarget);
+	ini.setValue("babasMowedDown", missionData.babasMowedDown);
 
 	// Everything is just fine!
 	return true;
@@ -595,37 +588,25 @@ bool writeScoreData(const char* fileName)
 /* This will read in the score data */
 bool readScoreData(const char* fileName)
 {
-	char strbuffer[25];
-
-	if (!tagOpenRead(ScoreData_tag_definition, fileName))
+	WzConfig ini(fileName);
+	if (ini.status() != QSettings::NoError)
 	{
-		debug(LOG_ERROR, "readFXData: error while opening file (%s)", fileName);
-		return false;
-	}
-
-	// Read & verify the format header identifier
-	tagReadString(0x01, sizeof(strbuffer), strbuffer);
-	if (strncmp(strbuffer, ScoreData_file_identifier, sizeof(strbuffer)) != 0)
-	{
-		debug(LOG_ERROR, "readScoreData: Weird file type found (in file %s)? Has header string: %s", fileName, strbuffer);
+		debug(LOG_ERROR, "Could not open %s", fileName);
 		return false;
 	}
 
 	// Retrieve the score data for the current player
-	missionData.unitsBuilt = tagRead(0x02);
-	missionData.unitsKilled = tagRead(0x03);
-	missionData.unitsLost = tagRead(0x04);
-	missionData.strBuilt = tagRead(0x05);
-	missionData.strKilled = tagRead(0x06);
-	missionData.strLost = tagRead(0x07);
-	missionData.artefactsFound = tagRead(0x08);
-	missionData.missionStarted = tagRead(0x09);
-	missionData.shotsOnTarget = tagRead(0x0A);
-	missionData.shotsOffTarget = tagRead(0x0B);
-	missionData.babasMowedDown = tagRead(0x0C);
-
-	// Close the file
-	tagClose();
+	missionData.unitsBuilt = ini.value("unitsBuilt").toInt();
+	missionData.unitsKilled = ini.value("unitsKilled").toInt();
+	missionData.unitsLost = ini.value("unitsLost").toInt();
+	missionData.strBuilt = ini.value("strBuilt").toInt();
+	missionData.strKilled = ini.value("strKilled").toInt();
+	missionData.strLost = ini.value("strLost").toInt();
+	missionData.artefactsFound = ini.value("artefactsFound").toInt();
+	missionData.missionStarted = ini.value("missionStarted").toInt();
+	missionData.shotsOnTarget = ini.value("shotsOnTarget").toInt();
+	missionData.shotsOffTarget = ini.value("shotsOffTarget").toInt();
+	missionData.babasMowedDown = ini.value("babasMowedDown").toInt();
 
 	/* Hopefully everything's just fine by now */
 	return true;

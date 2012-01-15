@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2010  Warzone 2100 Project
+	Copyright (C) 2005-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -24,15 +24,14 @@
  *
  */
 
-#include <GLee.h>
+
 #include "lib/framework/frame.h"
+#include "lib/framework/opengl.h"
 #include "lib/exceptionhandler/dumpinfo.h"
-#include <SDL.h>
 #include <physfs.h>
 #include <png.h>
 #include "lib/ivis_opengl/png_util.h"
 #include "lib/ivis_opengl/tex.h"
-
 #include "lib/framework/frameint.h"
 #include "lib/ivis_opengl/textdraw.h"
 #include "lib/ivis_opengl/piestate.h"
@@ -43,211 +42,93 @@
 #include "src/console.h"
 #include "src/levels.h"
 
-/* The Current screen size and bit depth */
-UDWORD		screenWidth = 0;
-UDWORD		screenHeight = 0;
-UDWORD		screenDepth = 0;
-
 /* global used to indicate preferred internal OpenGL format */
-int wz_texture_compression;
+int wz_texture_compression = 0;
 
-static SDL_Surface	*screen = NULL;
-static BOOL		bBackDrop = false;
+static bool		bBackDrop = false;
 static char		screendump_filename[PATH_MAX];
-static BOOL		screendump_required = false;
+static bool		screendump_required = false;
 static GLuint		backDropTexture = ~0;
 
 static int preview_width = 0, preview_height = 0;
 static Vector2i player_pos[MAX_PLAYERS];
-static BOOL mappreview = false;
+static bool mappreview = false;
 static char mapname[256];
 
 /* Initialise the double buffered display */
-bool screenInitialise(
-			UDWORD		width,		// Display width
-			UDWORD		height,		// Display height
-			UDWORD		bitDepth,	// Display bit depth
-			unsigned int fsaa,      // FSAA anti aliasing level
-			bool		fullScreen,	// Whether to start windowed
-							// or full screen
-			bool		vsync)		// If to sync to vblank or not
+bool screenInitialise()
 {
-	int video_flags = 0;
-	int bpp = 0, value;
-	char buf[512];
+	char buf[256];
 	GLint glMaxTUs;
-	// Fetch the video info.
-	const SDL_VideoInfo* video_info = SDL_GetVideoInfo();
+	GLenum err;
 
-	if (width == 0 || height == 0)
-	{
-		pie_SetVideoBufferWidth(width = screenWidth = video_info->current_w);
-		pie_SetVideoBufferHeight(height = screenHeight = video_info->current_h);
-		pie_SetVideoBufferDepth(bitDepth = screenDepth = video_info->vfmt->BitsPerPixel);
-	}
-	else
-	{
-		screenWidth = width;
-		screenHeight = height;
-		screenDepth = bitDepth;
-	}
-	screenWidth = MAX(screenWidth, 640);
-	screenHeight = MAX(screenHeight, 480);
+	glErrors();
 
-	if (!video_info)
+	err = glewInit();
+	if (GLEW_OK != err)
 	{
-		return false;
-	}
-
-	// The flags to pass to SDL_SetVideoMode.
-	video_flags  = SDL_OPENGL;    // Enable OpenGL in SDL.
-	video_flags |= SDL_ANYFORMAT; // Don't emulate requested BPP if not available.
-
-	if (fullScreen)
-	{
-		video_flags |= SDL_FULLSCREEN;
-	}
-
-	// Set the double buffer OpenGL attribute.
-	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-
-	// Enable vsync if requested by the user
-	SDL_GL_SetAttribute(SDL_GL_SWAP_CONTROL, vsync);
-
-	// Enable FSAA anti-aliasing if and at the level requested by the user
-	if (fsaa)
-	{
-		SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
-		SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, fsaa);
-	}
-
-	bpp = SDL_VideoModeOK(width, height, bitDepth, video_flags);
-	if (!bpp)
-	{
-		debug(LOG_ERROR, "Video mode %dx%d@%dbpp is not supported!", width, height, bitDepth);
-		return false;
-	}
-	switch (bpp)
-	{
-		case 32:
-		case 24:
-			SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8);
-			SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 8);
-			SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 8);
-			SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
-			SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 16);
-			SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
-			break;
-		case 16:
-			info("Using colour depth of %i instead of %i.", bpp, screenDepth);
-			info("You will experience graphics glitches!");
-			SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 5);
-			SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 6);
-			SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 5);
-			SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 16);
-			SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
-			break;
-		case 8:
-			debug(LOG_FATAL, "You don't want to play Warzone with a bit depth of %i, do you?", bpp);
-			exit(1);
-			break;
-		default:
-			debug(LOG_FATAL, "Unsupported bit depth: %i", bpp);
-			exit(1);
-			break;
-	}
-
-	screen = SDL_SetVideoMode(width, height, bpp, video_flags);
-	if (!screen)
-	{
-		debug(LOG_ERROR, "SDL_SetVideoMode failed (%s).", SDL_GetError());
-		return false;
-	}
-	if ( SDL_GL_GetAttribute(SDL_GL_DOUBLEBUFFER, &value) == -1)
-	{
-		debug( LOG_FATAL, "OpenGL initialization did not give double buffering!" );
-		debug( LOG_FATAL, "Double buffering is required for this game!");
+		debug(LOG_FATAL, "Error: %s", glewGetErrorString(err));
 		exit(1);
 	}
-	
+
+	// Copy this info to be used by the crash handler for the dump file
+	ssprintf(buf, "OpenGL Vendor: %s", glGetString(GL_VENDOR));
+	addDumpInfo(buf);
+	ssprintf(buf, "OpenGL Renderer: %s", glGetString(GL_RENDERER));
+	addDumpInfo(buf);
+	ssprintf(buf, "OpenGL Version: %s", glGetString(GL_VERSION));
+	addDumpInfo(buf);
+	if (GLEW_VERSION_2_0)
+	{
+		ssprintf(buf, "OpenGL GLSL Version : %s", glGetString(GL_SHADING_LANGUAGE_VERSION));
+		addDumpInfo(buf);
+	}
 	/* Dump general information about OpenGL implementation to the console and the dump file */
-	ssprintf(buf, "OpenGL Vendor : %s", glGetString(GL_VENDOR));
+	ssprintf(buf, "OpenGL Vendor: %s", glGetString(GL_VENDOR));
 	addDumpInfo(buf);
 	debug(LOG_3D, "%s", buf);
-	ssprintf(buf, "OpenGL Renderer : %s", glGetString(GL_RENDERER));
+	ssprintf(buf, "OpenGL Renderer: %s", glGetString(GL_RENDERER));
 	addDumpInfo(buf);
 	debug(LOG_3D, "%s", buf);
-	ssprintf(buf, "OpenGL Version : %s", glGetString(GL_VERSION));
+	ssprintf(buf, "OpenGL Version: %s", glGetString(GL_VERSION));
 	addDumpInfo(buf);
 	debug(LOG_3D, "%s", buf);
-	ssprintf(buf, "Video Mode %d x %d (%d bpp) (%s)", width, height, bpp, fullScreen ? "fullscreen" : "window");
+	ssprintf(buf, "GLEW Version: %s", glewGetString(GLEW_VERSION));
 	addDumpInfo(buf);
 	debug(LOG_3D, "%s", buf);
 
 	/* Dump extended information about OpenGL implementation to the console */
 	debug(LOG_3D, "OpenGL Extensions : %s", glGetString(GL_EXTENSIONS)); // FIXME This is too much for MAX_LEN_LOG_LINE
 	debug(LOG_3D, "Supported OpenGL extensions:");
-	debug(LOG_3D, "  * OpenGL 1.2 %s supported!", GLEE_VERSION_1_2 ? "is" : "is NOT");
-	debug(LOG_3D, "  * OpenGL 1.3 %s supported!", GLEE_VERSION_1_3 ? "is" : "is NOT");
-	debug(LOG_3D, "  * OpenGL 1.4 %s supported!", GLEE_VERSION_1_4 ? "is" : "is NOT");
-	debug(LOG_3D, "  * OpenGL 1.5 %s supported!", GLEE_VERSION_1_5 ? "is" : "is NOT");
-	debug(LOG_3D, "  * OpenGL 2.0 %s supported!", GLEE_VERSION_2_0 ? "is" : "is NOT");
-	debug(LOG_3D, "  * OpenGL 2.1 %s supported!", GLEE_VERSION_2_1 ? "is" : "is NOT");
-	debug(LOG_3D, "  * OpenGL 3.0 %s supported!", GLEE_VERSION_3_0 ? "is" : "is NOT");
-	debug(LOG_3D, "  * Texture compression %s supported.", GLEE_ARB_texture_compression ? "is" : "is NOT");
-	debug(LOG_3D, "  * Two side stencil %s supported.", GLEE_EXT_stencil_two_side ? "is" : "is NOT");
-	debug(LOG_3D, "  * ATI separate stencil is%s supported.", GLEE_ATI_separate_stencil ? "" : " NOT");
-	debug(LOG_3D, "  * Stencil wrap %s supported.", GLEE_EXT_stencil_wrap ? "is" : "is NOT");
-	debug(LOG_3D, "  * Anisotropic filtering %s supported.", GLEE_EXT_texture_filter_anisotropic ? "is" : "is NOT");
-	debug(LOG_3D, "  * Rectangular texture %s supported.", GLEE_ARB_texture_rectangle ? "is" : "is NOT");
-	debug(LOG_3D, "  * FrameBuffer Object (FBO) %s supported.", GLEE_EXT_framebuffer_object ? "is" : "is NOT");
-	debug(LOG_3D, "  * Vertex Buffer Object (VBO) %s supported.", GLEE_ARB_vertex_buffer_object ? "is" : "is NOT");
-	debug(LOG_3D, "  * NPOT %s supported.", GLEE_ARB_texture_non_power_of_two ? "is" : "is NOT");
-	debug(LOG_3D, "  * texture cube_map %s supported.", GLEE_ARB_texture_cube_map ? "is" : "is NOT");
+	debug(LOG_3D, "  * OpenGL 1.2 %s supported!", GLEW_VERSION_1_2 ? "is" : "is NOT");
+	debug(LOG_3D, "  * OpenGL 1.3 %s supported!", GLEW_VERSION_1_3 ? "is" : "is NOT");
+	debug(LOG_3D, "  * OpenGL 1.4 %s supported!", GLEW_VERSION_1_4 ? "is" : "is NOT");
+	debug(LOG_3D, "  * OpenGL 1.5 %s supported!", GLEW_VERSION_1_5 ? "is" : "is NOT");
+	debug(LOG_3D, "  * OpenGL 2.0 %s supported!", GLEW_VERSION_2_0 ? "is" : "is NOT");
+	debug(LOG_3D, "  * OpenGL 2.1 %s supported!", GLEW_VERSION_2_1 ? "is" : "is NOT");
+	debug(LOG_3D, "  * OpenGL 3.0 %s supported!", GLEW_VERSION_3_0 ? "is" : "is NOT");
+	debug(LOG_3D, "  * Texture compression %s supported.", GLEW_ARB_texture_compression ? "is" : "is NOT");
+	debug(LOG_3D, "  * Two side stencil %s supported.", GLEW_EXT_stencil_two_side ? "is" : "is NOT");
+	debug(LOG_3D, "  * ATI separate stencil is%s supported.", GLEW_ATI_separate_stencil ? "" : " NOT");
+	debug(LOG_3D, "  * Stencil wrap %s supported.", GLEW_EXT_stencil_wrap ? "is" : "is NOT");
+	debug(LOG_3D, "  * Anisotropic filtering %s supported.", GLEW_EXT_texture_filter_anisotropic ? "is" : "is NOT");
+	debug(LOG_3D, "  * Rectangular texture %s supported.", GLEW_ARB_texture_rectangle ? "is" : "is NOT");
+	debug(LOG_3D, "  * FrameBuffer Object (FBO) %s supported.", GLEW_EXT_framebuffer_object ? "is" : "is NOT");
+	debug(LOG_3D, "  * Vertex Buffer Object (VBO) %s supported.", GLEW_ARB_vertex_buffer_object ? "is" : "is NOT");
+	debug(LOG_3D, "  * NPOT %s supported.", GLEW_ARB_texture_non_power_of_two ? "is" : "is NOT");
+	debug(LOG_3D, "  * texture cube_map %s supported.", GLEW_ARB_texture_cube_map ? "is" : "is NOT");
 	glGetIntegerv(GL_MAX_TEXTURE_UNITS, &glMaxTUs);
 	debug(LOG_3D, "  * Total number of Texture Units (TUs) supported is %d.", (int) glMaxTUs);
 
-	if (!GLEE_VERSION_1_4)
+	screenWidth = MAX(screenWidth, 640);
+	screenHeight = MAX(screenHeight, 480);
+
+	pie_SetShaderAvailability(GLEW_VERSION_2_0); // Simple check / close enough
+
+	if (GLEW_VERSION_2_0)
 	{
-		debug(LOG_FATAL, "OpenGL 1.4 + VBO extension is required for this game!");
-		exit(1);
-	}
-
-#ifndef WZ_OS_MAC
-	// Make OpenGL's VBO functions available under the core names for
-	// implementations that have them only as extensions, namely Mesa.
-	if (!GLEE_VERSION_1_5)
-	{
-		if (GLEE_ARB_vertex_buffer_object)
-		{
-			info("Using VBO extension functions under the core names.");
-
-			GLeeFuncPtr_glBindBuffer = GLeeFuncPtr_glBindBufferARB;
-			GLeeFuncPtr_glDeleteBuffers = GLeeFuncPtr_glDeleteBuffersARB;
-			GLeeFuncPtr_glGenBuffers = GLeeFuncPtr_glGenBuffersARB;
-			GLeeFuncPtr_glIsBuffer = GLeeFuncPtr_glIsBufferARB;
-			GLeeFuncPtr_glBufferData = GLeeFuncPtr_glBufferDataARB;
-			GLeeFuncPtr_glBufferSubData = GLeeFuncPtr_glBufferSubDataARB;
-			GLeeFuncPtr_glGetBufferSubData = GLeeFuncPtr_glGetBufferSubDataARB;
-			GLeeFuncPtr_glMapBuffer = GLeeFuncPtr_glMapBufferARB;
-			GLeeFuncPtr_glUnmapBuffer = GLeeFuncPtr_glUnmapBufferARB;
-			GLeeFuncPtr_glGetBufferParameteriv = GLeeFuncPtr_glGetBufferParameterivARB;
-			GLeeFuncPtr_glGetBufferPointerv = GLeeFuncPtr_glGetBufferPointervARB;
-		}
-		else
-		{
-			debug(LOG_FATAL, "OpenGL 1.4 + VBO extension is required for this game!");
-			exit(1);
-		}
-
-		debug(LOG_WARNING, "OpenGL 1.5 is not supported by your system! Expect some glitches...");
-	}
-#endif
-
-	/* Dump information about OpenGL 2.0+ implementation to the console and the dump file */
-	if (GLEE_VERSION_2_0)
-	{
-		GLint glMaxTIUs;
+		/* Dump information about OpenGL 2.0+ implementation to the console and the dump file */
+		GLint glMaxTIUs, glMaxTCs, glMaxTIUAs, glmaxSamples, glmaxSamplesbuf;
 
 		debug(LOG_3D, "  * OpenGL GLSL Version : %s", glGetString(GL_SHADING_LANGUAGE_VERSION));
 		ssprintf(buf, "OpenGL GLSL Version : %s", glGetString(GL_SHADING_LANGUAGE_VERSION));
@@ -255,25 +136,26 @@ bool screenInitialise(
 
 		glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &glMaxTIUs);
 		debug(LOG_3D, "  * Total number of Texture Image Units (TIUs) supported is %d.", (int) glMaxTIUs);
+		glGetIntegerv(GL_MAX_TEXTURE_COORDS, &glMaxTCs);
+		debug(LOG_3D, "  * Total number of Texture Coords (TCs) supported is %d.", (int) glMaxTCs);
+		glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS_ARB,&glMaxTIUAs);
+		debug(LOG_3D, "  * Total number of Texture Image Units ARB(TIUAs) supported is %d.", (int) glMaxTIUAs);
+		glGetIntegerv(GL_SAMPLE_BUFFERS, &glmaxSamplesbuf);
+		debug(LOG_3D, "  * (current) Max Sample buffer is %d.", (int) glmaxSamplesbuf);
+		glGetIntegerv(GL_SAMPLES, &glmaxSamples);
+		debug(LOG_3D, "  * (current) Max Sample level is %d.", (int) glmaxSamples);
 
 		pie_LoadShaders();
 	}
+	else if (GLEW_VERSION_1_4)
+	{
+		debug(LOG_POPUP, _("OpenGL 2.0 is not supported by your system. Some things may look wrong. Please upgrade your graphics driver/hardware, if possible."));
+	}
 	else
 	{
-		debug(LOG_POPUP, "OpenGL 2.0 is not supported by your system, current shaders require this.");
-		debug(LOG_POPUP, "Team colors will not function correctly on your system.");
+		debug(LOG_FATAL, _("OpenGL 1.4 is not supported by your system. The game requires this. Please upgrade your graphics drivers/hardware, if possible."));
+		exit(1);
 	}
-
-	glViewport(0, 0, width, height);
-	glMatrixMode(GL_PROJECTION);
-	glPushMatrix();
-	glLoadIdentity();
-	glOrtho(0.0f, (double)width, (double)height, 0.0f, 1.0f, -1.0f);
-
-	glMatrixMode(GL_MODELVIEW);
-	glLoadIdentity();
-	glCullFace(GL_FRONT);
-	glEnable(GL_CULL_FACE);
 
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_ACCUM_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
@@ -282,20 +164,11 @@ bool screenInitialise(
 	return true;
 }
 
-
-/* Release the DD objects */
 void screenShutDown(void)
 {
-	if (screen != NULL)
-	{
-		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_ACCUM_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-		glFlush();
-		SDL_FreeSurface(screen);
-		screen = NULL;
-	}
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_ACCUM_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 }
-
 
 void screen_SetBackDropFromFile(const char* filename)
 {
@@ -311,7 +184,7 @@ void screen_SetBackDropFromFile(const char* filename)
 
 	// Make sure the current texture page is reloaded after we are finished
 	// Otherwise WZ will think it is still loaded and not load it again
-	pie_SetTexturePage(TEXPAGE_NONE);
+	pie_SetTexturePage(TEXPAGE_EXTERN);
 
 	if( strcmp(extension,".png") == 0 )
 	{
@@ -349,7 +222,7 @@ void screen_RestartBackDrop(void)
 	bBackDrop = true;
 }
 
-BOOL screen_GetBackDrop(void)
+bool screen_GetBackDrop(void)
 {
 	return bBackDrop;
 }
@@ -357,7 +230,7 @@ BOOL screen_GetBackDrop(void)
 //******************************************************************
 //slight hack to display maps (or whatever) in background.
 //bitmap MUST be (BACKDROP_HACK_WIDTH * BACKDROP_HACK_HEIGHT) for now.
-void screen_Upload(const char *newBackDropBmp, BOOL preview)
+void screen_Upload(const char *newBackDropBmp, bool preview)
 {
 	static bool processed = false;
 	int x1 = 0, x2 = screenWidth, y1 = 0, y2 = screenHeight, i, scale = 0, w = 0, h = 0;
@@ -490,15 +363,9 @@ void screen_disableMapPreview(void)
 	sstrcpy(mapname, "none");
 }
 
-BOOL screen_getMapPreview(void)
+bool screen_getMapPreview(void)
 {
 	return mappreview;
-}
-
-/* Swap between windowed and full screen mode */
-void screenToggleMode(void)
-{
-	(void) SDL_WM_ToggleFullScreen(screen);
 }
 
 // Screenshot code goes below this
@@ -522,21 +389,15 @@ void screenDoDumpToDiskIfRequired(void)
 	if (!screendump_required) return;
 	debug( LOG_3D, "Saving screenshot %s\n", fileName );
 
-	// Dump the currently displayed screen in a buffer
-	// Casting to unsigned int here to prevent GCC from warning about a
-	// comparison between unsigned and signed integers. Why does SDL use
-	// a signed integer anyway? When will your screen ever have a negative
-	// width or height for your screen? Assert it to be sure though. -- Giel
-	ASSERT(screen->w >= 0 && screen->h >= 0, "Somehow our screen has negative dimensions! Width = %d; Height = %d", screen->w, screen->h);
-	if (image.width != (unsigned int)screen->w || image.height != (unsigned int)screen->h)
+	if (image.width != screenWidth || image.height != screenHeight)
 	{
 		if (image.bmp != NULL)
 		{
 			free(image.bmp);
 		}
 
-		image.width = screen->w;
-		image.height = screen->h;
+		image.width = screenWidth;
+		image.height = screenHeight;
 		image.bmp = (unsigned char *)malloc(channelsPerPixel * image.width * image.height);
 		if (image.bmp == NULL)
 		{
@@ -584,4 +445,3 @@ void screenDumpToDisk(const char* path)
 	}
 	screendump_required = true;
 }
-

@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2010  Warzone 2100 Project
+	Copyright (C) 2005-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -36,6 +36,9 @@
 #include "main.h"
 #include "radar.h"
 
+#include <string>
+#include <istream>
+
 /* Alex McLean, Pumpkin Studios, EIDOS Interactive */
 
 #define	DEFAULT_MESSAGE_DURATION		GAME_TICKS_PER_SEC * 8
@@ -43,29 +46,28 @@
 #define CON_BORDER_WIDTH				4
 #define CON_BORDER_HEIGHT				4
 
-typedef struct _console
+struct CONSOLE
 {
 	UDWORD	topX;
 	UDWORD	topY;
 	UDWORD	width;
 	UDWORD	textDepth;
-	BOOL	permanent;
-} CONSOLE;
+	bool	permanent;
+};
 
 /* Definition of a message */
-typedef struct	_console_message
+struct CONSOLE_MESSAGE
 {
 	char				text[MAX_CONSOLE_STRING_LENGTH];		// Text of the message
 	UDWORD				timeAdded;								// When was it added to our list?
-	//UDWORD			screenIndex;							// Info for justification
 	UDWORD				JustifyType;
 	UDWORD				id;
 	SDWORD				player;						// Player who sent this message or SYSTEM_MESSAGE
-	struct _console_message *psNext;
-} CONSOLE_MESSAGE;
+	CONSOLE_MESSAGE *               psNext;
+};
 
 /** Is the console history on or off? */
-static BOOL	bConsoleDropped = false;
+static bool	bConsoleDropped = false;
 
 /** Stores the console dimensions and states */
 static CONSOLE mainConsole;
@@ -106,10 +108,10 @@ static UDWORD	messageDuration;
 static UDWORD	lastDropChange = 0;
 
 /** Is there a box under the console text? */
-static BOOL		bTextBoxActive;
+static bool		bTextBoxActive;
 
 /** Is the console being displayed? */
-static BOOL		bConsoleDisplayEnabled;
+static bool		bConsoleDisplayEnabled;
 
 /** How many lines are displayed? */
 static UDWORD	consoleVisibleLines;
@@ -213,8 +215,7 @@ void	toggleConsoleDrop( void )
 }
 
 /** Add a string to the console. */
-BOOL addConsoleMessage(const char *messageText, CONSOLE_TEXT_JUSTIFICATION jusType,
-							   SDWORD player)
+bool addConsoleMessage(const char *Text, CONSOLE_TEXT_JUSTIFICATION jusType, SDWORD player)
 {
 	int textLength;
 	CONSOLE_MESSAGE	*psMessage;
@@ -231,84 +232,101 @@ BOOL addConsoleMessage(const char *messageText, CONSOLE_TEXT_JUSTIFICATION jusTy
 		return false ;
 	}
 
-	/* Is the string too long? */
-	textLength = strlen(messageText);
+	std::istringstream stream(Text);
+	std::string lines;
+	char messageText[MAX_CONSOLE_STRING_LENGTH];
 
-	ASSERT( textLength<MAX_CONSOLE_STRING_LENGTH,
-		"Attempt to add a message to the console that exceeds MAX_CONSOLE_STRING_LENGTH" );
-
-	/* Are we using a defualt justification? */
-	if(jusType == DEFAULT_JUSTIFY)
+	while(std::getline(stream, lines))
 	{
-		/* Then set it */
-		jusType = defJustification;
-	}
+		sstrcpy(messageText, lines.c_str());
 
-	debug(LOG_CONSOLE, "(to player %d): %s", (int)player, messageText);
+		/* Is the string too long? */
+		textLength = strlen(messageText);
 
-	consoleStorage[messageIndex].player = player;
-
-	/* Precalculate and store (quicker!) the indent for justified text */
-	switch(jusType)
-	{
-		/* Allign to left edge of screen */
-	case LEFT_JUSTIFY:
-			consoleStorage[messageIndex].JustifyType = FTEXT_LEFTJUSTIFY;
-		break;
-
-		/* Allign to right edge of screen */
-	case RIGHT_JUSTIFY:
-			consoleStorage[messageIndex].JustifyType = FTEXT_RIGHTJUSTIFY;
-		break;
-
-		/* Allign to centre of the screen,NOT TO CENTRE OF CONSOLE!!!!!! */
-	case CENTRE_JUSTIFY:
-			consoleStorage[messageIndex].JustifyType = FTEXT_CENTRE;
-		break;
-		/* Gone tits up by the looks of it */
-	default:
-		debug( LOG_FATAL, "Weirdy type of text justification for console print" );
-		abort();
-		break;
-	}
-
-	/* Copy over the text of the message */
-	sstrcpy(consoleStorage[messageIndex].text, messageText);
-
-	/* Set the time when it was added - this might not be needed */
-	consoleStorage[messageIndex].timeAdded = gameTime2;
-
-	/* This is the present newest message */
-	consoleStorage[messageIndex].psNext = NULL;
-
-	consoleStorage[messageIndex].id = 0;
-
-	/* Are there no messages? */
-	if(consoleMessages == NULL)
-	{
-		consoleMessages = &consoleStorage[messageIndex];
-	}
-	else
-	{
-		/* Get to the last element in our message list */
-		for(psMessage = consoleMessages; psMessage->psNext; psMessage = psMessage->psNext)
+		// FIXME: We split the text correctly in the display routine, however, then the console has no idea it was split,
+		// so that is why you sometimes see text that is below the console line limit that was set via setConsoleLineInfo()
+		// As in the display routines, we should check to see if iV_GetTextWidth(lines.c_str()) > mainConsole.width, but that
+		// isn't working the way it should, so right now, we just throw a warning (only in debug mode) that the text it too long.
+		if (textLength > 72)
 		{
-			/* NOP */
-			;
+			debug(LOG_NEVER, "This line is too long, and will be split in the display routines! Line is:[%s]", lines.c_str());
 		}
-		/* Add it to the end */
-		psMessage->psNext = &consoleStorage[messageIndex];
-	}
 
-	/* Move on in our array */
-	if(messageIndex++ >= MAX_CONSOLE_MESSAGES-1)
-	{
-		/* Reset */
-		messageIndex = 0;
-	}
+		ASSERT( textLength < MAX_CONSOLE_STRING_LENGTH, "Attempt to add a message to the console that exceeds MAX_CONSOLE_STRING_LENGTH" );
 
-	/* There's one more active console message */
-	numActiveMessages++;
+		/* Are we using a defualt justification? */
+		if(jusType == DEFAULT_JUSTIFY)
+		{
+			/* Then set it */
+			jusType = defJustification;
+		}
+
+		debug(LOG_CONSOLE, "(to player %d): %s", (int)player, messageText);
+
+		consoleStorage[messageIndex].player = player;
+
+		/* Precalculate and store (quicker!) the indent for justified text */
+		switch(jusType)
+		{
+			/* Allign to left edge of screen */
+		case LEFT_JUSTIFY:
+			consoleStorage[messageIndex].JustifyType = FTEXT_LEFTJUSTIFY;
+			break;
+
+			/* Allign to right edge of screen */
+		case RIGHT_JUSTIFY:
+			consoleStorage[messageIndex].JustifyType = FTEXT_RIGHTJUSTIFY;
+			break;
+
+			/* Allign to centre of the screen,NOT TO CENTRE OF CONSOLE!!!!!! */
+		case CENTRE_JUSTIFY:
+			consoleStorage[messageIndex].JustifyType = FTEXT_CENTRE;
+			break;
+			/* Gone tits up by the looks of it */
+		default:
+			debug( LOG_FATAL, "Weirdy type of text justification for console print" );
+			abort();
+			break;
+		}
+
+		/* Copy over the text of the message */
+		sstrcpy(consoleStorage[messageIndex].text, messageText);
+
+		/* Set the time when it was added - this might not be needed */
+		consoleStorage[messageIndex].timeAdded = gameTime2;
+
+		/* This is the present newest message */
+		consoleStorage[messageIndex].psNext = NULL;
+
+		consoleStorage[messageIndex].id = 0;
+
+		/* Are there no messages? */
+		if(consoleMessages == NULL)
+		{
+			consoleMessages = &consoleStorage[messageIndex];
+		}
+		else
+		{
+			/* Get to the last element in our message list */
+			for(psMessage = consoleMessages; psMessage->psNext; psMessage = psMessage->psNext)
+			{
+				/* NOP */
+				;
+			}
+			/* Add it to the end */
+			psMessage->psNext = &consoleStorage[messageIndex];
+		}
+
+		/* Move on in our array */
+		if(messageIndex++ >= MAX_CONSOLE_MESSAGES-1)
+		{
+			/* Reset */
+			messageIndex = 0;
+		}
+
+		/* There's one more active console message */
+		numActiveMessages++;
+	}
 	return true;
 }
 
@@ -456,8 +474,8 @@ static void setConsoleTextColor(SDWORD player)
 static int displayOldMessages(void)
 {
 	int i;
-	BOOL bGotIt;
-	BOOL bQuit;
+	bool bGotIt;
+	bool bQuit;
 	int marker = 0;
 	int linePitch;
 	int MesY;
@@ -630,7 +648,7 @@ void	displayConsoleMessages( void )
 
 		/* GET RID OF THE MAGIC NUMBERS BELOW */
 		clipDepth = (mainConsole.topY+(boxDepth*linePitch)+CON_BORDER_HEIGHT+drop);
-		if(clipDepth > (pie_GetVideoBufferHeight() - linePitch))
+		if(clipDepth > pie_GetVideoBufferHeight() - linePitch)
 		{
 			clipDepth = (pie_GetVideoBufferHeight() - linePitch);
 		}
@@ -643,7 +661,7 @@ void	displayConsoleMessages( void )
 	MesY = mainConsole.topY + drop;
 
 	for (psMessage = consoleMessages, numProcessed = 0;
-	     psMessage && numProcessed < consoleVisibleLines && MesY < (pie_GetVideoBufferHeight() - linePitch);
+	     psMessage && numProcessed < consoleVisibleLines && MesY < pie_GetVideoBufferHeight() - linePitch;
 	     psMessage = psMessage->psNext)
 	{
 
@@ -660,7 +678,7 @@ void	displayConsoleMessages( void )
 }
 
 /** Allows toggling of the box under the console text */
-void	setConsoleBackdropStatus(BOOL state)
+void	setConsoleBackdropStatus(bool state)
 {
 	bTextBoxActive = state;
 }
@@ -671,7 +689,7 @@ void	setConsoleBackdropStatus(BOOL state)
 	to make sure that when it's turned back on again, there
 	are no messages, the call flushConsoleMessages first.
 */
-void	enableConsoleDisplay(BOOL state)
+void	enableConsoleDisplay(bool state)
 {
 	bConsoleDisplayEnabled = state;
 }
@@ -706,7 +724,7 @@ void	setConsoleSizePos(UDWORD x, UDWORD y, UDWORD width)
 }
 
 /**	Establishes whether the console messages stay there */
-void	setConsolePermanence(BOOL state, BOOL bClearOld)
+void	setConsolePermanence(bool state, bool bClearOld)
 {
  	if(mainConsole.permanent == true && state == false)
 	{
@@ -727,7 +745,7 @@ void	setConsolePermanence(BOOL state, BOOL bClearOld)
 }
 
 /** true or false as to whether the mouse is presently over the console window */
-BOOL	mouseOverConsoleBox( void )
+bool	mouseOverConsoleBox( void )
 {
 	if	(
 		((UDWORD)mouseX() > mainConsole.topX)	// condition 1
@@ -757,30 +775,14 @@ UDWORD getConsoleLineInfo(void)
 	return consoleVisibleLines;
 }
 
-/// Function with printf arguments to print to the console
-// NOTE: Unused! void consolePrintf(char *layout, ...)
-void	consolePrintf(char *layout, ...)
-{
-	char	consoleString[MAX_CONSOLE_STRING_LENGTH];
-	va_list	arguments;		// Formatting info
-
-	/* 'print' it out into our buffer */
-	va_start(arguments,layout);
-	vsnprintf(consoleString, sizeof(consoleString), layout, arguments);
-	va_end(arguments);
-
-	/* Add the message through the normal channels! */
-	addConsoleMessage(consoleString,DEFAULT_JUSTIFY,SYSTEM_MESSAGE);
-}
-
 /// Set if new messages may be added to the console
-void	permitNewConsoleMessages(BOOL allow)
+void	permitNewConsoleMessages(bool allow)
 {
 	allowNewMessages = allow;
 }
 
 /// \return the visibility of the console
-BOOL	getConsoleDisplayStatus( void )
+bool	getConsoleDisplayStatus( void )
 {
 	return(bConsoleDisplayEnabled);
 }

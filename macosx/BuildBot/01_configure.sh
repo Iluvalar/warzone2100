@@ -3,15 +3,23 @@
 # Note:
 # This script is meant to be run from the root of the working copy.
 # 
-# This just tries to build warzone.  It does it twice because there are race conditions that may otherwise be triggered.
+# This just tries to download the external libs.  It does it twice because they may not download properly the first time.
 
 # Config
+wz_conf="StaticAnalyzer"
 
 cd macosx
 
-if ! xcodebuild -project Warzone.xcodeproj -parallelizeTargets -target "Warzone" -configuration "StaticAnalyzer"; then
-    if ! xcodebuild -project Warzone.xcodeproj -parallelizeTargets -target "Warzone" -configuration "StaticAnalyzer" -PBXBuildsContinueAfterErrors=NO; then
-	    exit ${?}
+if ! xcodeindex -project Warzone.xcodeproj -configuration "${wz_conf}"; then
+	if ! xcodeindex -project Warzone.xcodeproj -configuration "${wz_conf}"; then
+		exit ${?}
+	fi
+fi
+
+
+if ! xcodebuild -project Warzone.xcodeproj -parallelizeTargets -target "Fetch Third Party Sources" -configuration "${wz_conf}"; then
+	if ! xcodebuild -project Warzone.xcodeproj -parallelizeTargets -target "Fetch Third Party Sources" -configuration "${wz_conf}" -PBXBuildsContinueAfterErrors=NO; then
+		exit ${?}
 	fi
 fi
 

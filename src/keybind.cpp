@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2010  Warzone 2100 Project
+	Copyright (C) 2005-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -23,6 +23,8 @@
 #include "lib/framework/strres.h"
 #include "lib/framework/stdio_ext.h"
 #include "lib/framework/utf.h"
+#include "lib/framework/wzapp.h"
+#include "lib/framework/rational.h"
 #include "objects.h"
 #include "basedef.h"
 #include "map.h"
@@ -59,7 +61,6 @@
 #include "multimenu.h"
 #include "atmos.h"
 #include "advvis.h"
-#include "game.h"
 #include "difficulty.h"
 
 #include "intorder.h"
@@ -90,6 +91,7 @@
 #include "scriptfuncs.h"
 #include "clparse.h"
 #include "research.h"
+#include "template.h"
 
 /*
 	KeyBind.c
@@ -105,8 +107,8 @@
 
 extern char	ScreenDumpPath[];
 
-BOOL	bMovePause = false;
-BOOL		bAllowOtherKeyPresses = true;
+bool	bMovePause = false;
+bool		bAllowOtherKeyPresses = true;
 char	sTextToSend[MAX_CONSOLE_STRING_LENGTH];
 char	beaconMsg[MAX_PLAYERS][MAX_CONSOLE_STRING_LENGTH];		//beacon msg for each player
 
@@ -536,26 +538,27 @@ void kf_ToggleOrders(void)	// Displays orders & action of currently selected uni
 		showORDERS = !showORDERS;
 		CONPRINTF(ConsoleString, (ConsoleString, "Unit Order/Action displayed is %s", showORDERS ? "Enabled" : "Disabled"));
 }
+
 void kf_ToggleLevelName(void) // toggles level name 
 {
 	showLevelName = !showLevelName;
 }
+
 /* Writes out the frame rate */
 void	kf_FrameRate( void )
 {
-	CONPRINTF(ConsoleString,(ConsoleString, _("FPS %d; FPS-Limit: %d; PIEs %d; polys %d; Terr. polys %d; States %d"),
-	          frameGetAverageRate(), getFramerateLimit(), loopPieCount, loopPolyCount, loopTileCount, loopStateChanges));
-	if (runningMultiplayer()) {
+	CONPRINTF(ConsoleString,(ConsoleString, "FPS %d; PIEs %d; polys %d; States %d",
+	          frameRate(), loopPieCount, loopPolyCount, loopStateChanges));
+	if (runningMultiplayer())
+	{
 			CONPRINTF(ConsoleString,(ConsoleString,
 						"NETWORK:  Bytes: s-%d r-%d  Packets: s-%d r-%d",
 						NETgetBytesSent(),
 						NETgetBytesRecvd(),
 						NETgetPacketsSent(),
 						NETgetPacketsRecvd() ));
-
 	}
 	gameStats = !gameStats;
-
 	CONPRINTF(ConsoleString, (ConsoleString,"Built at %s on %s",__TIME__,__DATE__));
 }
 
@@ -586,7 +589,6 @@ void kf_ShowNumObjects( void )
 void	kf_ToggleRadar( void )
 {
 		radarOnScreen = !radarOnScreen;
-//		addConsoleMessage("Radar display toggled",DEFAULT_JUSTIFY, SYSTEM_MESSAGE);
 }
 
 // --------------------------------------------------------------------------
@@ -674,7 +676,7 @@ void	kf_TileInfo(void)
 {
 	MAPTILE	*psTile = mapTile(mouseTileX, mouseTileY);
 
-	debug(LOG_ERROR, "Tile position=(%d, %d) Terrain=%d Texture=%u Height=%d Illumination=%hhu",
+	debug(LOG_ERROR, "Tile position=(%d, %d) Terrain=%d Texture=%u Height=%d Illumination=%u",
 	      mouseTileX, mouseTileY, (int)terrainType(psTile), TileNumber_tile(psTile->texture), psTile->height,
 	      psTile->illumination);
 	addConsoleMessage("Tile info dumped into log", DEFAULT_JUSTIFY, SYSTEM_MESSAGE);
@@ -683,7 +685,7 @@ void	kf_TileInfo(void)
 // --------------------------------------------------------------------------
 void	kf_ToggleBackgroundFog( void )
 {
-	static BOOL bEnabled  = true;//start in nicks mode
+	static bool bEnabled  = true;//start in nicks mode
 
 	if (bEnabled)//true, so go to false
 	{
@@ -708,7 +710,7 @@ void	kf_ToggleBackgroundFog( void )
 
 extern void	kf_ToggleDistanceFog( void )
 {
-	static BOOL bEnabled  = true;//start in nicks mode
+	static bool bEnabled  = true;//start in nicks mode
 
 	if (bEnabled)//true, so go to false
 	{
@@ -733,7 +735,7 @@ extern void	kf_ToggleDistanceFog( void )
 /* Toggles fog on/off */
 void	kf_ToggleFog( void )
 {
-	static BOOL fogEnabled = false;
+	static bool fogEnabled = false;
 	const char* cmsg;
 
 #ifndef DEBUG
@@ -847,14 +849,14 @@ void	kf_SystemClose( void )
 /* Zooms out from display */
 void	kf_ZoomOut( void )
 {
-	distance = std::min<int>(distance + realTimeAdjustedIncrement(MAP_ZOOM_RATE), MAXDISTANCE);
-	UpdateFogDistance(distance);
+	setViewDistance(std::min<int>(getViewDistance() + realTimeAdjustedIncrement(MAP_ZOOM_RATE), MAXDISTANCE));
+	UpdateFogDistance(getViewDistance());
 }
 
 void kf_ZoomOutStep(void)
 {
-	distance = std::min<int>(distance + MAP_ZOOM_RATE/3, MAXDISTANCE);
-	UpdateFogDistance(distance);
+	setViewDistance(std::min<int>(getViewDistance() + MAP_ZOOM_RATE/3, MAXDISTANCE));
+	UpdateFogDistance(getViewDistance());
 }
 
 // --------------------------------------------------------------------------
@@ -886,14 +888,14 @@ void	kf_RadarZoomOut( void )
 /* Zooms in the map */
 void	kf_ZoomIn( void )
 {
-	distance = std::max<int>(distance - realTimeAdjustedIncrement(MAP_ZOOM_RATE), MINDISTANCE);
-	UpdateFogDistance(distance);
+	setViewDistance(std::max<int>(getViewDistance() - realTimeAdjustedIncrement(MAP_ZOOM_RATE), MINDISTANCE));
+	UpdateFogDistance(getViewDistance());
 }
 
 void kf_ZoomInStep(void)
 {
-	distance = std::max<int>(distance - MAP_ZOOM_RATE/3, MINDISTANCE);
-	UpdateFogDistance(distance);
+	setViewDistance(std::max<int>(getViewDistance() - MAP_ZOOM_RATE/3, MINDISTANCE));
+	UpdateFogDistance(getViewDistance());
 }
 
 // --------------------------------------------------------------------------
@@ -997,7 +999,7 @@ void	kf_PitchForward( void )
 void	kf_ResetPitch( void )
 {
 	player.r.x = DEG(360-20);
-	distance = START_DISTANCE;
+	setViewDistance(START_DISTANCE);
 }
 
 // --------------------------------------------------------------------------
@@ -1048,9 +1050,9 @@ void	kf_SelectPlayer( void )
 /* Selects the player's groups 1..9 */
 void	kf_SelectGrouping( UDWORD	groupNumber)
 {
-	BOOL	bAlreadySelected;
+	bool	bAlreadySelected;
 	DROID	*psDroid;
-	BOOL	Selected;
+	bool	Selected;
 
 	bAlreadySelected = false;
 	for(psDroid = apsDroidLists[selectedPlayer]; psDroid!=NULL; psDroid = psDroid->psNext)
@@ -1137,6 +1139,7 @@ void	kf_addInGameOptions( void )
 		intAddInGameOptions();
 		}
 }
+
 // --------------------------------------------------------------------------
 /* Tell the scripts to start a mission*/
 void	kf_AddMissionOffWorld( void )
@@ -1150,9 +1153,9 @@ void	kf_AddMissionOffWorld( void )
 	}
 #endif
 
-	game_SetValidityKey(VALIDITYKEY_CTRL_M);
 	eventFireCallbackTrigger((TRIGGER_TYPE)CALL_MISSION_START);
 }
+
 // --------------------------------------------------------------------------
 /* Tell the scripts to end a mission*/
 void	kf_EndMissionOffWorld( void )
@@ -1172,21 +1175,6 @@ void	kf_EndMissionOffWorld( void )
 	sendTextMessage(cmsg, true);
 
 	eventFireCallbackTrigger((TRIGGER_TYPE)CALL_MISSION_END);
-}
-// --------------------------------------------------------------------------
-/* Initialise the player power levels*/
-void	kf_NewPlayerPower( void )
-{
-#ifndef DEBUG
-	// Bail out if we're running a _true_ multiplayer game
-	if (runningMultiplayer())
-	{
-		noMPCheatMsg();
-		return;
-	}
-#endif
-
-	newGameInitPower();
 }
 
 // --------------------------------------------------------------------------
@@ -1259,7 +1247,6 @@ void	kf_ToggleDebugMappings( void )
 	}
 	else
 	{
-		game_SetValidityKey(VALIDITYKEY_CHEAT_MODE);
 		processDebugMappings(true);
 	}
 	sasprintf((char**)&cmsg, _("(Player %u) is using cheat :%s"), selectedPlayer,
@@ -1271,6 +1258,7 @@ void	kf_ToggleDebugMappings( void )
 void	kf_ToggleGodMode( void )
 {
 	const char* cmsg;
+	static bool pastReveal = true;
 
 #ifndef DEBUG
 	// Bail out if we're running a _true_ multiplayer game (to prevent MP cheating)
@@ -1287,7 +1275,7 @@ void	kf_ToggleGodMode( void )
 		int player;
 
 		godMode = false;
-		setRevealStatus(game.fog);
+		setRevealStatus(pastReveal);
 		// now hide the features
 		while (psFeat)
 		{
@@ -1316,7 +1304,8 @@ void	kf_ToggleGodMode( void )
 	{
 		godMode = true; // view all structures and droids
 		revealAll(selectedPlayer);
-		setRevealStatus(false); // view the entire map
+		pastReveal = getRevealStatus();
+		setRevealStatus(true); // view the entire map
 	}
 
 	sasprintf((char**)&cmsg, _("(Player %u) is using cheat :%s"),
@@ -1340,7 +1329,7 @@ void kf_toggleTrapCursor(void)
 	const char *msg;
 	bool trap = !war_GetTrapCursor();
 	war_SetTrapCursor(trap);
-	SDL_WM_GrabInput(trap ? SDL_GRAB_ON : SDL_GRAB_OFF);
+	(trap? wzGrabMouse : wzReleaseMouse)();
 	sasprintf((char**)&msg, _("Trap cursor %s"), trap ? "ON" : "OFF");
 	addConsoleMessage(msg, DEFAULT_JUSTIFY, SYSTEM_MESSAGE);
 }
@@ -1367,7 +1356,7 @@ void	kf_TogglePauseMode( void )
 		// If cursor trapping is enabled allow the cursor to leave the window
 		if (war_GetTrapCursor())
 		{
-			SDL_WM_GrabInput(SDL_GRAB_OFF);
+			wzReleaseMouse();
 		}
 
 		/* And stop the clock */
@@ -1386,7 +1375,7 @@ void	kf_TogglePauseMode( void )
 		// Re-enable cursor trapping if it is enabled
 		if (war_GetTrapCursor())
 		{
-			SDL_WM_GrabInput(SDL_GRAB_ON);
+			wzGrabMouse();
 		}
 
 		/* And start the clock again */
@@ -1410,12 +1399,9 @@ void	kf_FinishAllResearch(void)
 	}
 #endif
 
-	for (j = 0; j < numResearch; j++)
+	for (j = 0; j < asResearch.size(); j++)
 	{
-		PLAYER_RESEARCH	*pPlayerRes = asPlayerResList[selectedPlayer];
-
-		pPlayerRes += j; // select right tech
-		if (IsResearchCompleted(pPlayerRes) == false)
+		if (IsResearchCompleted(&asPlayerResList[selectedPlayer][j]) == false)
 		{
 			if (bMultiMessages)
 			{
@@ -1424,7 +1410,7 @@ void	kf_FinishAllResearch(void)
 			}
 			else
 			{
-				MakeResearchCompleted(pPlayerRes);
+				MakeResearchCompleted(&asPlayerResList[selectedPlayer][j]);
 				researchResult(j, selectedPlayer, false, NULL, false);
 			}
 		}
@@ -1485,17 +1471,17 @@ void	kf_FinishResearch( void )
 			pSubject = ((RESEARCH_FACILITY *)psCurr->pFunctionality)->psSubject;
 			if (pSubject)
 			{
+				int rindex = ((RESEARCH*)pSubject)->index;
 				if (bMultiMessages)
 				{
-					SendResearch(selectedPlayer, (RESEARCH*)pSubject - asResearch, true);
+					SendResearch(selectedPlayer, rindex, true);
 					// Wait for our message before doing anything.
 				}
 				else
 				{
-					researchResult((RESEARCH*)pSubject - asResearch, selectedPlayer, true, psCurr, true);
+					researchResult(rindex, selectedPlayer, true, psCurr, true);
 				}
-				sasprintf((char**)&cmsg, _("(Player %u) is using cheat :%s %s"),
-					selectedPlayer, _("Researched"), getName(pSubject->pName) );
+				sasprintf((char**)&cmsg, _("(Player %u) is using cheat :%s %s"), selectedPlayer, _("Researched"), getName(pSubject->pName));
 				sendTextMessage(cmsg, true);
 				intResearchFinished(psCurr);
 			}
@@ -1587,8 +1573,8 @@ void	kf_JumpToResourceExtractor( void )
 
 	if (psOldRE)
 	{
-		xJump = (psOldRE->pos.x - ((visibleTiles.x / 2) * TILE_UNITS));
-		yJump = (psOldRE->pos.y - ((visibleTiles.y / 2) * TILE_UNITS));
+		xJump = psOldRE->pos.x;
+		yJump = psOldRE->pos.y;
 		player.p.x = xJump;
 		player.p.z = yJump;
 		player.r.y = 0; // face north
@@ -1799,17 +1785,18 @@ void	kf_MovePause( void )
 // --------------------------------------------------------------------------
 void	kf_MoveToLastMessagePos( void )
 {
-	SDWORD	iX, iY, iZ;
+	int iX, iY, iZ;
 
 	if (!audio_GetPreviousQueueTrackPos( &iX, &iY, &iZ ))
 	{
 		return;
 	}
-
-// Should use requestRadarTrack but the camera gets jammed so use setViewpos - GJ
-//		requestRadarTrack( iX, iY );
-	setViewPos( map_coord(iX), map_coord(iY), true );
+	if (iX != 0 && iY != 0)
+	{
+		setViewPos(map_coord(iX), map_coord(iY), true);
+	}
 }
+
 // --------------------------------------------------------------------------
 /* Makes it snow if it's not snowing and stops it if it is */
 void	kf_ToggleWeather( void )
@@ -2032,7 +2019,7 @@ void kf_SendTextMessage(void)
 		// FIXME: Why are we using duplicate defines? INPBUF_CR == KEY_RETURN == SDLK_RETURN
 
 		// Kill if they hit return or keypad enter or it maxes out console or it's more than one line long
-		if ((ch == INPBUF_CR) || (ch == SDLK_KP_ENTER) || (strlen(sTextToSend)>=MAX_CONSOLE_STRING_LENGTH-16) // Prefixes with ERROR: and terminates with '?'
+		if ((ch == INPBUF_CR) || (ch == KEY_KPENTER) || (strlen(sTextToSend)>=MAX_CONSOLE_STRING_LENGTH-16) // Prefixes with ERROR: and terminates with '?'
 		 || iV_GetTextWidth(sTextToSend) > (pie_GetVideoBufferWidth()-64))// sendit
 		{
 			bAllowOtherKeyPresses = true;
@@ -2386,10 +2373,12 @@ void	kf_ToggleVisibility( void )
 {
 	if(getRevealStatus())
 	{
+		console("Reveal OFF");
 		setRevealStatus(false);
 	}
 	else
 	{
+		console("Reveal ON");
 		setRevealStatus(true);
 	}
 }
@@ -2416,7 +2405,7 @@ static void kfsf_SetSelectedDroidsState( SECONDARY_ORDER sec, SECONDARY_STATE st
 void	kf_TriggerRayCast( void )
 {
 DROID	*psDroid;
-BOOL	found;
+bool	found;
 
 	found = false;
 	for(psDroid = apsDroidLists[selectedPlayer]; psDroid && !found;
@@ -2448,7 +2437,7 @@ void	kf_ScatterDroids( void )
 void	kf_CentreOnBase( void )
 {
 STRUCTURE	*psStruct;
-BOOL		bGotHQ;
+bool		bGotHQ;
 UDWORD		xJump = 0, yJump = 0;
 
 	/* Got through our buildings */
@@ -2460,8 +2449,8 @@ UDWORD		xJump = 0, yJump = 0;
 		if(psStruct->pStructureType->type == REF_HQ)
 		{
 			bGotHQ = true;
-			xJump = (psStruct->pos.x - ((visibleTiles.x/2)*TILE_UNITS));
-			yJump = (psStruct->pos.y - ((visibleTiles.y/2)*TILE_UNITS));
+			xJump = psStruct->pos.x;
+			yJump = psStruct->pos.y;
 		}
 	}
 
@@ -2494,7 +2483,7 @@ void kf_ToggleFormationSpeedLimiting( void )
 void	kf_RightOrderMenu( void )
 {
 DROID	*psDroid,*psGotOne = NULL;
-BOOL	bFound;
+bool	bFound;
 
 	// if menu open, then close it!
 	if (widgGetFromID(psWScreen,IDORDER_FORM) != NULL)
@@ -2572,30 +2561,33 @@ void	kf_ToggleShadows( void )
 }
 // --------------------------------------------------------------------------
 
-float available_speed[] = {
+static const Rational available_speed[] = {
 // p = pumpkin allowed, n = new entries allowed in debug mode only.
 // Since some of these values can ruin a SP game, we disallow them in normal mode.
-	0.f,            // n
-	1.f / 8.f,	// n
-	1.f / 5.f,	// n
-	1.f / 3.f,	// p
-	3.f / 4.f,	// p
-	1.f / 1.f,	// p
-	5.f / 4.f,	// p
-	3.f / 2.f,	// p
-	2.f / 1.f,	// p (in debug mode only)
-	5.f / 2.f,	// n
-	3.f / 1.f,	// n
-	10.f / 1.f,	// n
-	20.f / 1.f	// n
+	Rational(0),     // n
+	Rational(1, 1000),// n
+	Rational(1, 100),// n
+	Rational(1, 40), // n
+	Rational(1, 8),  // n
+	Rational(1, 5),  // n
+	Rational(1, 3),  // p
+	Rational(3, 4),  // p
+	Rational(1),     // p
+	Rational(5, 4),  // p
+	Rational(3, 2),  // p
+	Rational(2),     // p (in debug mode only)
+	Rational(5, 2),  // n
+	Rational(3),     // n
+	Rational(10),    // n
+	Rational(20),    // n
+	Rational(30),    // n
+	Rational(60),    // n
+	Rational(100),   // n
 };
-unsigned int nb_available_speeds = 12;
+const unsigned nb_available_speeds = ARRAY_SIZE(available_speed);
 
-void kf_SpeedUp( void )
+static void tryChangeSpeed(Rational newMod, Rational oldMod)
 {
-	float           mod;
-	unsigned int    i;
-
 	// Bail out if we're running a _true_ multiplayer game or are playing a tutorial
 	if ((runningMultiplayer() && !getDebugMappingStatus()) || bInTutorial)
 	{
@@ -2606,75 +2598,64 @@ void kf_SpeedUp( void )
 		return;
 	}
 
-	// get the current modifier
-	gameTimeGetMod(&mod);
-
-	for (i = 1; i < nb_available_speeds; ++i)
+	// only in debug/cheat mode do we enable all time compression speeds.
+	if (!getDebugMappingStatus() && (newMod >= 2 || newMod <= 0))  // 2 = max officially allowed time compression
 	{
-		if (mod < available_speed[i])
-		{
-			mod = available_speed[i];
-			// only in debug/cheat mode do we enable all time compression speeds.
-			if (!getDebugMappingStatus())
-			{
-				if (mod >= 2.f / 1.f)		// max officialy allowed time compression
-					break;
-			}
-			if (mod == 1.f / 1.f)
-			{
-				CONPRINTF(ConsoleString,(ConsoleString,_("Game Speed Reset")));
-			}
-			else
-			{
-				CONPRINTF(ConsoleString,(ConsoleString,_("Game Speed Increased to %3.1f"), mod));
-			}
-			gameTimeSetMod(mod);
-			break;
-		}
+		return;
 	}
+
+	char modString[30];
+	if (newMod.d != 1)
+	{
+		ssprintf(modString, "%d/%d", newMod.n, newMod.d);
+	}
+	else
+	{
+		ssprintf(modString, "%d", newMod.n);
+	}
+
+	if (newMod == 1)
+	{
+		CONPRINTF(ConsoleString, (ConsoleString, _("Game Speed Reset")));
+	}
+	else if (newMod > oldMod)
+	{
+		CONPRINTF(ConsoleString, (ConsoleString, _("Game Speed Increased to %s"), modString));
+	}
+	else
+	{
+		CONPRINTF(ConsoleString, (ConsoleString, _("Game Speed Reduced to %s"), modString));
+	}
+	gameTimeSetMod(newMod);
+}
+
+void kf_SpeedUp( void )
+{
+	// get the current modifier
+	Rational mod = gameTimeGetMod();
+
+	Rational const *newMod = std::upper_bound(available_speed, available_speed + nb_available_speeds, mod);
+	if (newMod == available_speed + nb_available_speeds)
+	{
+		return;  // Already at maximum speed.
+	}
+
+	tryChangeSpeed(*newMod, mod);
 }
 
 void kf_SlowDown( void )
 {
-	float	mod;
-	int		i;
-
-	// Bail out if we're running a _true_ multiplayer game or are playing a tutorial
-	if ((runningMultiplayer() && !getDebugMappingStatus()) || bInTutorial)
-	{
-		if (!bInTutorial)
-		{
-			addConsoleMessage(_("Sorry, but game speed cannot be changed in multiplayer."), DEFAULT_JUSTIFY, SYSTEM_MESSAGE);
-		}
-		return;
-	}
-
 	// get the current modifier
-	gameTimeGetMod(&mod);
+	Rational mod = gameTimeGetMod();
 
-	for (i = nb_available_speeds - 2; i >= 0; --i)
+	Rational const *newMod = std::lower_bound(available_speed, available_speed + nb_available_speeds, mod);
+	if (newMod == available_speed)
 	{
-		if (mod > available_speed[i])
-		{
-			mod = available_speed[i];
-			// only in debug/cheat mode do we enable all time compression speeds.
-			if( !getDebugMappingStatus() )
-			{
-				if (mod < 1.f / 3.f)
-					break;
-			}
-			if (mod == 1.f / 1.f)
-			{
-				CONPRINTF(ConsoleString,(ConsoleString,_("Game Speed Reset")));
-			}
-			else
-			{
-				CONPRINTF(ConsoleString,(ConsoleString,_("Game Speed Reduced to %3.1f"),mod));
-			}
-			gameTimeSetMod(mod);
-			break;
-		}
+		return;  // Already at minimum speed.
 	}
+	--newMod;  // Point to lower speed instead of current speed.
+
+	tryChangeSpeed(*newMod, mod);
 }
 
 void kf_NormalSpeed( void )
@@ -2705,18 +2686,12 @@ void kf_ToggleRadarAllyEnemy(void)
 	{
 		CONPRINTF(ConsoleString, (ConsoleString, _("Radar showing player colors")));
 	}
-
-	resetRadarRedraw();
+	resizeRadar();
 }
 
 void kf_ToggleRadarTerrain(void)
 {
 	radarDrawMode = (RADAR_DRAW_MODE)(radarDrawMode + 1);
-
-	if (radarDrawMode == RADAR_MODE_TERRAIN_SEEN && getRevealStatus())
-	{
-		radarDrawMode = (RADAR_DRAW_MODE)(radarDrawMode + 1);  // skip this radar mode for fog of war mode
-	}
 	if (radarDrawMode >= NUM_RADAR_MODES)
 	{
 		radarDrawMode = (RADAR_DRAW_MODE)0;
@@ -2731,9 +2706,6 @@ void kf_ToggleRadarTerrain(void)
 			break;
 		case RADAR_MODE_TERRAIN:
 			CONPRINTF(ConsoleString, (ConsoleString, _("Radar showing terrain")));
-			break;
-		case RADAR_MODE_TERRAIN_SEEN:
-			CONPRINTF(ConsoleString, (ConsoleString, _("Radar showing revealed terrain")));
 			break;
 		case RADAR_MODE_HEIGHT_MAP:
 			CONPRINTF(ConsoleString, (ConsoleString, _("Radar showing height")));
@@ -2751,7 +2723,7 @@ void	kf_AddHelpBlip( void )
 	UDWORD	i;
 	char	tempStr[255];
 	SDWORD	x,y;
-	BOOL	mOverR=false;
+	bool	mOverR=false;
 
 	/* not needed in campaign */
 	if(!bMultiPlayer)
@@ -2762,7 +2734,7 @@ void	kf_AddHelpBlip( void )
 	/* check if clicked on radar */
 	x = mouseX();
 	y = mouseY();
-	if(radarOnScreen && getHQExists(selectedPlayer))
+	if (radarOnScreen && radarPermitted)
 	{
 		if(CoordInRadar(x,y))
 		{
@@ -2783,15 +2755,7 @@ void	kf_AddHelpBlip( void )
 		worldY = mouseTileY*TILE_UNITS+TILE_UNITS/2;
 	}
 
-	//if chat message is empty, just send player name
-	//if(!strcmp(sCurrentConsoleText, ""))
-	//{
-		sstrcpy(tempStr, getPlayerName(selectedPlayer));		//temporary solution
-	//}
-	//else
-	//{
-	//	sstrcpy(tempStr, sCurrentConsoleText);
-	//}
+	sstrcpy(tempStr, getPlayerName(selectedPlayer));		//temporary solution
 
 	/* add beacon for the sender */
 	sstrcpy(beaconMsg[selectedPlayer], tempStr);
@@ -2841,7 +2805,6 @@ void kf_BuildPrevPage()
 	temp = psTForm->majorT - 1;
 	if (temp < 0)
 	{
-		temp = 0 ;
 		audio_PlayTrack(ID_SOUND_BUILD_FAIL);
 		return;
 	}

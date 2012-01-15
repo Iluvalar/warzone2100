@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2010  Warzone 2100 Project
+	Copyright (C) 2005-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -87,11 +87,10 @@ void labelFree(W_LABEL *psWidget)
 	delete psWidget;
 }
 
-
 /* label display function */
 void labelDisplay(WIDGET *psWidget, UDWORD xOffset, UDWORD yOffset, PIELIGHT *pColours)
 {
-	SDWORD		fx,fy, fw;
+	unsigned int fx,fy, fw;
 	W_LABEL		*psLabel;
 	enum iV_fonts FontID;
 
@@ -100,22 +99,23 @@ void labelDisplay(WIDGET *psWidget, UDWORD xOffset, UDWORD yOffset, PIELIGHT *pC
 
 	iV_SetFont(FontID);
 	iV_SetTextColour(pColours[WCOL_TEXT]);
-	if (psLabel->style & WLAB_ALIGNCENTRE)
-	{
-  		fw = iV_GetTextWidth(psLabel->aText);
-		fx = xOffset + psLabel->x + (psLabel->width - fw) / 2;
-	}
-	else if (psLabel->style & WLAB_ALIGNRIGHT)
-	{
-  		fw = iV_GetTextWidth(psLabel->aText);
-		fx = xOffset + psLabel->x + psLabel->width - fw;
-	}
-	else
-	{
-		fx = xOffset + psLabel->x;
-	}
-  	fy = yOffset + psLabel->y + (psLabel->height - iV_GetTextLineSize())/2 - iV_GetTextAboveBase();
-	iV_DrawText(psLabel->aText,fx,fy);
+
+    if (psLabel->style & WLAB_ALIGNCENTRE)
+    {
+       fw = iV_GetTextWidth(psLabel->aText);
+       fx = xOffset + psLabel->x + (psLabel->width - fw) / 2;
+    }
+    else if (psLabel->style & WLAB_ALIGNRIGHT)
+    {
+        fw = iV_GetTextWidth(psLabel->aText);
+        fx = xOffset + psLabel->x + psLabel->width - fw;
+    }
+    else
+    {
+        fx = xOffset + psLabel->x;
+    }
+    fy = yOffset + psLabel->y + (psLabel->height - iV_GetTextLineSize())/2 - iV_GetTextAboveBase();
+    iV_DrawText(psLabel->aText,fx,fy);
 }
 
 /* Respond to a mouse moving over a label */

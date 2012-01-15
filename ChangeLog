@@ -1,3 +1,228 @@
+master_20120109:
+ * General:
+   * Change: Stored templates. Automatically adds a unit design when all needed research is available (ticket:1946, commit:a6fa286dcf463d4c6d74e8a874e70f671f3d5018, commit:add866851b5a58e38004a9cb816a22aedc1e10d9, commit:95bdafdffb78826b217860356d7ee546654d67b4, commit:e3a981c4f8a92b054d9962ef0073d2f603e7655e, commit:4f1b79d3d95a8624cd151b016126f20559468ad7, commit:4edc0d77a67f4db3b230f9d3089ee14efc9ad4bd)
+   * Change: Don't give back power when a power generator gets destroyed (commit:7b66301950aa566978c71fc04104ff18c297183a)
+   * Fix: Move units out of the way before building something (commit:9534b4c0bdef54164c8db941d50139048758676d)
+   * Fix: Direct fire target prediction (commit:acd0587f829bfdde0dc7aa30dcab5fafe8875d9b)
+   * Fix: Homing projectiles (commit:e72787358112170b090efd341617ffe3743c973d, commit:35d3fec1469e9129e02461292c819251afac853d)
+   * Fix: Loading of units in transporters (ticket:2889, ticket:2959, commit:93a6d7ba7489ae8a6c083c6276301dc13ca22824)
+   * Fix: Unload units closer to their transporter (commit:1646499fcbda8dc08e54df8fce7db233ffa40b84)
+   * Fix: Properly abort research after cancelling (ticket:2977, commit:4b355aa06011689440b21a7dccc7e409799c5ae8)
+   * Fix: Correct visibility on game start (ticket:2964, commit:2d4e1e1314ea390dc411ca371bc592e83633e8fb)
+   * Fix: Correct the remaining progress bar after research (ticket:2966, commit:4bf70ca7c55765d2709672c18ef613d2e4a11966)
+   * Fix: Don't allow placing blueprints next to each other (ticket:2999, commit:79d8d2251e07bba2c2dcb9ed2751841086663f89)
+   * Fix: Don't crash when clicking fast on a transporter (commit:a35ff1e8fe911fca050ce0d9e7e19e7c511db501)
+   * Fix: Don't crash when placing beacons (commit:3462f7b5cd02959f05661f48c9f20ca10947a29d)
+   * Fix: Reset components between games (commit:4e66209506342112987b9085358dd1835a31c7f3)
+   * Fix: Allow queuing of multiple modules (ticket:2997, commit:3dfc823394e39364f995efdee1af9f8fef688684)
+   * Fix: Queuing of oil barrels and artifacts (ticket:2725, commit:ade80e83c7e1b3eb9fc3da0207e908fb815885b0)
+ * Campaign:
+   * Fix: Allow taking control of allied team in mission Gamma 4 again (ticket:1855, commit:a4a10cf6ec99393d3cc7b941bcb51e8a17e8af55)
+   * Fix: Recognize recovered artifact in mission Gamma 5 (ticket:3027, commit:8cca01dfe281fbaf2676efedc461f41cbd436528)
+   * Fix: Make mission Gamma 6 work (commit:555cb0dfa79bb4c4ccf0c4649d52ee09067ad59f)
+ * Savegames:
+   * Fix: Structure reload status (ticket:1438, commit:c7015df7142ba28515830559337b476ca4af44ea)
+   * Fix: Droid order queues (ticket:2752, ticket:3016, commit:c5de04d339c5fd59e7e2afd5b4ff3feda51045c9)
+ * Pathfinding:
+   * Fix: Ignore buildings on start or destination (ticket:2978, commit:0119eda53f11d2aa5d3e3ccc82203c6657812039)
+   * Fix: Don't pathfind through satellite uplinks (commit:1e2c71cccd8b8d04312d56ad19c022c801dabb0a)
+   * Fix: Actually use all waypoints (commit:1cc62d6d9d9d95354e10522c8618423565779b89, commit:ca0c37acfdbb4f495fb8ce4b52c6e0f32344bdd7)
+   * Fix: Don't cross entire map to reach unreachable objects (commit:9e6b7c31cbfbd2bc9a2169fac5b9b9d3b5ece75c)
+ * Graphics:
+   * Fix: Recoil animation matches the fired projectiles (commit:5e1f159d4bc3a1256db63cd6bacbcb18492fffd0)
+   * Fix: Projectile graphics (ticket:354, commit:c93bfb237dc5850764ac0b123ca4ffe0e4f99ebe, commit:82e00bf7747af4962a32b67e4215d40298bbf9b3, commit:11cd71892d86264e627a6f0050265ccf61981f44)
+ * UI:
+   * Change: Add a short delay for the hover map preview (commit:85974cab80890ae668219ddc5354f80bc1a63185)
+   * Change: Make UI respond instantly when holding/cancelling production/research (commit:5c2cf9fa0634612b44b0922ab9b5e8d982c90317)
+   * Fix: Use correct colour for scavengers in the map preview (commit:b62e7d3358593f62d3e9a2bcc8ae928397821fd5)
+ * Translations:
+   * Update: Turkish (ticket:2963, ticket:3001, commit:9ea22074d16106c17d717657e049863cdf8d1c09, commit:39040429f5c506f0e7c596f305203bd84239e09f)
+   * Update: German (ticket:2967, ticket:3035, commit:075e18828c5a8873fa4157e9c47958ddb1547870, commit:c4200b9cd5f7202c2d585818ae6108d7a1ef3b81)
+   * Update: Polish (ticket:1347, commit:89a282ba9bfe2c16701d270c082c8c0311c618bf)
+   * Update: Spanish (ticket:3021, commit:3e982b66c85fd9f96d954c6b3e9f8c950eb4e0c5)
+   * Update: Hungarian (ticket:3025, commit:1d77a69ae825c58d6c566625a01089cecfa08e37)
+
+master_20111204
+ * General:
+   * Change: Remove the rule that made droids fire and move slower when damaged, since it was confusing and led to less tactical play (commit:88815c3e8bdf6d8afc640d1e82da8eb21d9f17a2)
+   * Change: Scrolling stops instantly when changing direction to make it more accurate (commit:943b4c345d5227d486c3be1e2e05b99762ffad07)
+   * Change: Allow building gates on top of walls (commit:a7b2a5b45fa2634f225d9ae9c823fc62ef946f59)
+   * Change: Units spin on the spot when turning large angles (ticket:1691, commit:4b08dd0b0ca210b9ad08a192fb8267e35b94cd7f)
+   * Fix: Try to improve pathfinding behaviour (commit:828fea7ba030b571eade620570a0938d8b0ca9b6)
+   * Fix: Don't pathfind through unfinished gates (commit:e0362c36399ad2429c8254b71152dc2eafef940a)
+   * Fix: Make sure that the win/lose messages are shown for the players who actually won/lost (commit:bf6e450a30578bdaf5b31427c33ce8d37e1c4179)
+   * Fix: Make sure units are linked to their commander when loading a game (ticket:2928, commit:47ac282bcd9904083c0e54414de8e9caeb662fda)
+   * Fix: Allow unloading single droids from transporters again (ticket:2617, commit:2a4a8a68848be306fd9c0d06390d85a79ae697fd)
+   * Fix: Do not report incomplete structures as damaged, unless they actually were (ticket:1911, commit:8d7df45d354f1030b3aaf91502cf2036237ca7f5)
+   * Fix: Make trucks not stop building a wall when its type changes due to connecting with other walls (commit:0898e56847e583500d418feade5688b6d27eadd1)
+   * Fix: Don't cancel an order queue when trying to build an unresearched module (ticket:2797, commit:a4ac61551c7d7ff8f92a599ef9f1df8028137ea2)
+   * Fix: Loading/saving of rearm functionality (commit:ae2896fcb18986ae29f4c1444136ad4dad60247c)
+ * Graphics:
+   * Change: Readd the team colour fallback for OpenGL 1.4+ (commit:2f816f5bf47ff2513fde638a012700180697b841)
+   * Change: When upgrading a building, only the added part is shown as blueprint and built (ticket:2954, commit:e02cb38ac02c2929823a08d1ce1419df8073b038, commit:84eb46fa53f172b5a7d6529485ce7a699f957cb8, commit:de1a96e2f2778067f9a2345362be470d7c56cc84, commit:af8088f61f8e6b0ba561ca830eae28d0d69cd72e, commit:999b559af342bdb0c393ff6c291fbb08f917b4d3, commit:1f194e78f3577f62aeb435677b5342179efa6812, commit:71a614caebf2d2c90d89ea8f83a0140ebc53e991)
+   * Change: Align walls to visually block narrow passages (commit:233ee5e711469ab491c3eaac0a2a681b94207fcd)
+   * Change: Add L- and T-shaped walls (commit:aa8b290324e222987224e60954adb3357aed36f9, commit:1f194e78f3577f62aeb435677b5342179efa6812)
+   * Fix: Walls correctly align to 2x2 fortresses, allied walls, and hardpoints (commit:cff886cc3630ffd8374d6cfea5fd77b0ffb60acb, commit:312b4a21c949a8296cf0eb798563f0fc071b4d7b)
+   * Fix: Make wall blueprints show the actual walls that will be built (ticket:2581, commit:42f57b6116429c0a94c570fc6996429b5b666229)
+   * Fix: Display an order arrow when queueing modules (ticket:2602, ticket:2732, commit:a6c307920bd721230b54c3cc92d0999d2eb99a1d)
+   * Fix: Show hardpoint blueprints even over walls (ticket:1173, commit:a0aaaa99a7f1ead7aa15bd886f9a777a9e1e659f)
+   * Fix: Show queued module blueprints (commit:6a3eaf0e4d7f26fee354a792dc493eb2b2c95948)
+   * Fix: Prevent ally blueprints from disappearing before the structure is visible (commit:db864047f71347f1776d549cc7e31b194a3a3cb5)
+   * Fix: Properly show delivery point numbers again (ticket:2497, commit:0d75a3b62984ee35b90872daa505a41377f57f35)
+ * UI:
+   * Change: Animate changes in power, only for the UI (commit:53e042be1566ffa830f67ccd3031de41c88019e8)
+   * Change: In multiplayer/skirmish setup, show map preview for the map the mouse is hovering over (commit:48eda8df503810d3fd24e807427bfb28aaac064e)
+   * Fix: Don't close the build menu unless all selected trucks are destroyed (commit:e2cec529296f66782c9f280e84be89d5996b711d)
+   * Fix: Make sure new radar modes are always used (commit:7861f33505b7deedcbe13da507fa03e669b1752f)
+ * AIs:
+   * Change: Make sure Nexus and Semperfi land AIs research half-tracks early on (ticket:2953, commit:e15eaa349ff163d552b660a4d12f453997247073)
+ * Maps:
+   * Fix: Remove three surplus trucks from 4c-Pyramidal (ticket:2945, commit:54080cc5561a65c5cda0939b8a766c44475211f2)
+ * Translations:
+   * Update: Turkish (ticket:2937, ticket:2947, commit:e2f6e7f3c1253a5fc5b4b7de576c20aa9cd5513b, commit:c9fca43d79f97f41f97e712b5e5d4841adbf4d20)
+
+master_20111107
+ * General:
+   * Change: Power is now deducted fully at the start of production (commit:43ce2e586e15d482831ed4f9a2532b41bb599867, commit:b780ec8d25211e01659a9a7be9bbe300701d1903)
+ * UI:
+   * Change: Show ETA on production and research progress bars (commit:f4dba73b0c45711420bcd8816f1b5c2a1735f9ad)
+   * Change: Show power needed to start production (commit:a63604fd15f97dcf56be27e762bc00be73b899d8)
+   * Change: Show ETA for construction (commit:3f22dbc11132158909bb8e30a0ea41ff88b34e2a)
+   * Fix: Prevent random mouse clicks e.g. when saving/loading a game (ticket:2887, commit:588978ae40c969d5e6b9cbe701b8f6f452cee76b)
+ * Translations:
+   * Update: Spanish (ticket:2916, commit:cdd76ef511ff8cb0d1417c05b3f4590278a2f4b8)
+   * Update: Italian (ticket:2932, ticket:2935, commit:8ec5831657fb323e961b7471fb22616ccb11f7df, commit:d3ee6bfca8ac009671b6803964b957d003d8be73)
+
+master_20111026
+ * General:
+   * Change: Show planned structure blueprints to allies (commit:86c945152515478c9982677bd1e482fbc6ff2362)
+   * Change: Support for ECM jammers (ticket:340, commit:55a6259b121515b2d0ca9b2c580361dca970171d)
+   * Fix: Prevent VTOLs from getting stuck on buildings (ticket:2534, commit:818e9b423601c923ae0267293d68e64e2830de5c)
+   * Fix: Prevent droids getting strange orders after loading a savegame (commit:d74a73a34d6ac2e4b006792e95f72855a668804c)
+   * Fix: Factories build properly again after loading a savegame (commit:850e0e5e004172c6873d6fdfda51bd2607c19aca)
+ * UI:
+   * Fix: Correct player placement/colours and buildings in the map preview (ticket:2859, commit:0d6a27380de7dc286d6e0131b3e4e2a26c200f1b, commit:4de9642cd9bc91285eefe6b223cbda3c1493fd59)
+ * Graphics:
+   * Change: Remove fog of war/mist options in favour of a combined explored/seen mode (ticket:2920, commit:c04bf74f3a004e95c9d0fa0813a20aa3fdaff079)
+   * Change: Walls now don't adapt their shape to the terrain, according new models (commit:50f1ce21455ec64c03e2f5bf2d92bc225c364d5d, commit:a4d922dc54cdc2e90a6fb670dcdca6928a2fa682, commit:aac05b3bff0a42de58dbf992dad947ddc7569034, commit:8662843058dad71a4d2452bc2bcdf48e7814c4d4, commit:5839c490b10500c1ff251085ceed9434f2f675aa)
+ * Translations:
+   * Update: Simplified Chinese (ticket:2858, ticket:2869, commit:614ca9a8672e09e45bdf926f9144a4e7d437aea5, commit:8e29659f64096d574949098054b4b68942587c54, commit:cd3f9edc42043aee1560386ff0dfda8bda2d5e49)
+   * Update: Hungarian (ticket:2865, commit:58668d7fd54fe1245a6ca49012663636d124fbe0)
+   * Update: Brazilian (ticket:2868, commit:fbee38857ac66f4902743ab95d26e792ee620e6f)
+   * Update: Turkish (ticket:2884, commit:31da7b5d4d23e57bbbcc81b1f0ec576dccfd66ce)
+   * Update: Danish (commit:1c8d7e4e0450a40ccffd113ac58bde12ea3893ca)
+   * Update: Romanian (ticket:2906, commit:ffd2ad7adb69641b6b1cb091af1e359e8f692cd4, commit:9d7232eb60b51270cc1a12aa6208a99a9df059a3)
+   * Update: German (ticket:2898, commit:55632ba308f75283141195c70ffd649b25e1aad3)
+   * Update: Dutch (commit:0af391ad1db21002d48a6268828e781669953059)
+
+master_20110801
+ * General:
+   * Fix: Maps can never override game data (ticket:2825, commit:e0007a217e282326856a23c932665b9a82c379a9)
+   * Fix: Make mod savegames work properly (ticket:2735, ticket:2825, commit:5216760744be407deece8d90d4a755dd5f1e421f)
+ * UI:
+   * Change: Use Ctrl-V instead of Tab to paste in edit boxes (ticket:2830, commit:08d2bae4e5f84829ed9ac657b001cde23f6664b2)
+   * Fix: Show correct vsync status (commit:7dbf108ad688dce25c86bdc21062c95c9a31c5ac)
+   * Fix: Make trap cursor on Windows use the correct area (ticket:2813, commit:c10d9ef8d403de633fe3c3df205e29c695caeba0)
+ * Graphics:
+   * Fix: Correctly set vsync on start up (commit:866aeb950b1f7b55bb6eea1a8bd273bcc1c7302c)
+   * Fix: Use QuesoGLC for all font rendering (ticket:2824, ticket:2565, commit:f35bcccdeec67bfef53cc4c7552d30f94fe4f696)
+ * Multiplayer:
+   * Fix: Maps Startup, Basingstoke, Littleegypt, Rollinghills, Bananas, Beggarskanyon, Mizamaze, Thepit and Yinyyang, which were broken by an error in the conversion to ini format (ticket:2833, commit:ca8595f25a377026f1ea399d3011fa63fbef58e2)
+   * Fix: Only reset authentication flags when logout succeeded (commit:2cb5bab0311c644453bc8a1b2d82311f399b541d)
+ * Translations:
+   * Update: Turkish (ticket:2831, ticket:2840, commit:f829395d963652346c354f8997c482423b314fe8, commit:b827f9e918ed0b622fb668efbc0591918f2803a7
+
+master_20110717
+ * General:
+   * Change: Revert to unit limits of 2.3, our engine can't handle so many units at once. (ticket:2812, commit:8b8d2b676ada1b48338e271576150ae42b95ef11)
+   * Change: New savegame format. Still in progress. Old format still supported.
+   * Change: Remove framerate limiter. (commit:b786c62da42dcdcd14220672a0f8732bc2e61ab5)
+   * Fix: Bring back quesoGLC, instead of Qt's routines.  (ticket:2824, commit:ebc8976dc1ec8aa7d6e839b6df3084a0bbf3d6dd)
+   * Fix: Always set a sane default size for game window. (ticket:2822, commit:ced9c94790d5111d60ef3d619a11254923550362)
+   * Fix: Add swap interval control. There's no longer any need to restart to change vsync settings.  (ticket:2815, commit:c394a15fda7bdbbb4995ce758b3b567e17ae2662, commit:195159406ddbd0c1cd70d13aba54938903a39eee)
+   * Fix: Crash caused by attack order has no object. (ticket:2762, commit:9b4b787c53227b0b1bc660b85ecfbb77d8fc37d9)
+   * Change: Suppress windows console. (commit:600952d5d1ac998a6cd2de415893b17215ae4b94)
+ * Networking:
+   * Change: Lobby login and lots of related improvements. (ticket:2678, commit:793c30a862627427282630bed87af8a3774bf719)
+ 
+ master_20110705
+ * General:
+   * Change: More script and savegame porting
+   * Change: Add fullscreen resolution switching support and trap cursor for Windows and Linux (commit:10a78a4a7ee3d4e3c22dc0f0f67575603a8397bf, commit:5893d2998e315a3717708df808b72f31e0f4a0e0, commit:2137dfaf1d9aef4c7679268170a757493061beaa, commit:3d5c00fe4aafe5bd9685b4fafb794027cd7ac5c9)
+   * Fix: Correctly load droid targets (ticket:2737, commit:10f674077dda2ff38188c31d00dd35f1b0e8885e)
+   * Fix: Load droid rotation (commit:dbea296778027f219c31f584f7bdbcb6a738a6d0)
+   * Fix: Put autosaves into the correct directory (ticket:2730, commit:7c6261c37c64619c2371530e7a786d4f47b90816)
+   * Fix: Don't crash when clicking on radar blips (ticket:2731, commit:10249e509519958cad4411fa2bd40385a824c35b)
+   * Fix: Correctly end the game on win/loss (ticket:2766, commit:7842a7d981c67b2d6cb32d5a989bc8adbe317c42)
+ * AIs:
+   * Semperfi: Fix attacks of opportunity with allies; do not try to hug an allied oil derrick, believing it to be hostile; do not crash if we check whether an oil feature is allied to us (commit:5066a04949a34866c955760364478dc2cec4bc6f)
+   * Dydo AI: Remove it, since it doesn't work properly and might have caused crashes (commit:d82ce97a770bf90ad41d7d14c2b6e9b420c58358)
+ * Graphics:
+   * Change: Add support for normal maps (commit:8aca9437a4c425bb0c02c9ab30e8aa31265bceea)
+ * UI:
+   * Fix: Show correct flag colors (commit:5fa3d50f0ccce83700b4fe6c2dea733ead822848)
+   * Fix: Don't get confused in the game setup screen when pressing escape (ticket:2697, commit:7bf5a23cdd19311890dfc0c92647b2d03e3b9188)
+ * Translations:
+   * Update: Hungarian (ticket:2738, ticket:2747, ticket:2754, ticket:2782, commit:50764d1beecc5605b09fccb843c0eb2b3f695616, commit:dd60a26657e3898ae44a30c2bf918f4d5f2c8033, commit:7e55df069b28ded87b465eabed7991aab2957697, commit:c3fc0e01cb07542464ba4ca5b588dd093632624b)
+   * Update: Dutch (ticket:2761, commit:3df67f1f223a65849c132bc46c7f33a916c1598b)
+   * Update: Brazilian (ticket:2786, commit:1c1bc823ccf3cfa5476448c3003ab01ecab84098)
+   * Update: Turkish (ticket:2794, commit:2242dac95fb1e9ff8c516e35bbe89944280fd807)
+
+master_20110519
+ * General:
+   * Change: Based on Qt now
+   * Change: Started porting game scripts to Javascript (QtScript)
+   * Change: Started porting savegames to ini files, saved in "savegames" (not "savegame" like before)
+   * New: Two new 2 player maps - Vision and Roughness (commit:9bf8e6b91724ccd9ecc5ef20a40ecc4afa7ca1a7, commit:7fc26087cde4420898d8d896b7b8fd2b538f39fd)
+   * Change: Limited map-mod support (ticket:2610, commit:2083b1f4b7469aae9d09aa4f50120f1ef3142191, commit:a3cff8758beba8adef804d3620e747fefb54e038, commit:b893e4dec544d402bdb9e31bb93a1f3b5593bd6e)
+   * Change: Double the open speed of gates (commit:18e13e2918cbfed27e68e164849aaefc6cc4c853)
+   * Fix: Make UPnP work again (ticket:2631, commit:89063105fa5ffe51fa6317ed0fead9a3f050f5bd)
+   * Fix: Make fullscreen work, using the primary screen only (commit:a0ed219ad70608ae6e7a4d45ed5de032625416ac, commit:b808220f9b9338605ac1765640d5ce5a0ff5f6b9)
+   * Fix: Make units follow their orders better (ticket:2391, commit:54a1771b647fc0c6c5c271e4127d407be2442ffe)
+   * Fix: Make localized sounds in sequences.wz work in all cases (ticket:2728, commit:1c57015f228ff069a6013c7d69fc294e72229b47)
+ * Graphics:
+   * Change: Allow video resolutions up to 1024x1024 (ticket:2682, commit:36a2fe771ce52b364fcd20171d0476b9e115e000)
+   * Change: Add an option to show videos with black or 50% dimmed scanlines (ticket:2095, commit:f934b1bfc36a8e6de0ef3da4dddbdb4b5bc04bf8)
+   * Change: Show power generator effects for all players (commit:049165197b779a24b378e54dfb8a4fe89783a708)
+   * Fix: Make units not flicker (commit:de3be04ac59a194fd88b1611805c2c908ae8be6f)
+ * Multiplayer balance (ticket:2687, commit:d2d87a65fd29a0a4e7cb9fe6fd85e08cd89b7018):
+   * HP increased:
+     * Leopard 85 → 107
+     * Panther 145 → 193
+     * Tiger 225 → 284
+   * Range increased:
+     * Minipod 3-8 → 4-9
+     * MRA 3-8.5 → 4-9
+   * Pepperpot:
+     * Damage increased 50 → 60 (splash 30 → 40)
+     * Reload time decreased 2.0 → 1.8
+   * Heavy Laser (normal and VTOL):
+     * Price decreased 600 → 400
+     * Build points decreased 1000 → 600
+     * HP increased 200 → 300
+   * Twin Assault Cannon:
+     * Damage decreased 55 → 50 (splash 45 → 40)
+   * Plasmite Bomb:
+     * Weight increased 12000 → 15000
+   * VTOL Sunburst AA:
+     * Damage increased 100 → 120
+     * Splash damage removed
+   * Lowered prerequisites:
+     * Thermal Armor from Dense Composite Alloys to Composite Alloys Mk3
+     * High Intensity Thermal Armor from Superdense Composite Alloys to Dense Composite Alloys Mk3
+ * Mods:
+   * Fix: 1.10 balance (ticket:2560, commit:59b6c670deb82fe3eb5ac978f005e88a42cc2361)
+ * Translations:
+   * New: Hungarian (commit:8bc7aa208c9daeb4b382aa1e48bb78dbfe849a98, commit:846cf99978839963c3c298a0b07fccb492211601)
+   * New: Catalan (ticket:2616, commit:38088f37bc525bd94e20c6986adf3304c5a72d44)
+   * Update: German (ticket:2681, ticket:2502, ticket:2729, commit:2d0230cbecbe93e6b567a844c4aad50912158ef1, commit:99c47f42715006dd45e79fe8655a85076946839d, commit:4071ab708eb5956a1b59d1029fa123ff40089553)
+   * Update: Spanish (ticket:2690, commit:961cd68ee47f36917ed332ea58e724ef359f88b2)
+   * Update: Dutch (ticket:2720, ticket:2723, commit:f1a56c232ab6eda2d1b8a05338333074fb2cb802, commit:fd1e836cb03313aec98f3dcb5f3a7eccc5f17879, commit:c70c92b9dcb77b15f7ec122385389c26d65001db)
+   * Update: Turkish (ticket:2727, commit:444f2d6e24408033c602c0633a83825fd6c2eb01)
+
+master_20110320qt and before:
+ * Stuff. Lots of stuff.
+
 0000-00-00: SVN
  * General:
    * Fix: Tells user if mod entered on the command line / shorcut is enabled, or is invalid. Output is to stdout or stderr (r7586)

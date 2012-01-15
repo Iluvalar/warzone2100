@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2010  Warzone 2100 Project
+	Copyright (C) 2005-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -30,12 +30,14 @@
 #include "lib/framework/frameresource.h"
 #include "lib/framework/strres.h"
 #include "lib/framework/crc.h"
+#include "lib/framework/resly.h"
 #include "lib/gamelib/parser.h"
 #include "lib/ivis_opengl/bitimage.h"
 #include "lib/ivis_opengl/tex.h"
 #include "lib/script/script.h"
 #include "lib/sound/audio.h"
 
+#include "qtscript.h"
 #include "data.h"
 #include "droid.h"
 #include "feature.h"
@@ -46,6 +48,7 @@
 #include "research.h"
 #include "scriptvals.h"
 #include "stats.h"
+#include "template.h"
 #include "text.h"
 #include "texture.h"
 
@@ -302,19 +305,6 @@ static bool bufferSPROPSNDLoad(const char *pBuffer, UDWORD size, void **ppData)
 	return true;
 }
 
-/* Load the SSPECABIL stats */
-static bool bufferSSPECABILLoad(const char *pBuffer, UDWORD size, void **ppData)
-{
-	if (!loadSpecialAbility(pBuffer, size))
-	{
-		return false;
-	}
-
-	//not interested in this value
-	*ppData = NULL;
-	return true;
-}
-
 /* Load the STERRTABLE stats */
 static bool bufferSTERRTABLELoad(const char *pBuffer, UDWORD size, void **ppData)
 {
@@ -535,7 +525,7 @@ static bool bufferRESCHLoad(const char *pBuffer, UDWORD size, void **ppData)
 	calcDataHash((uint8_t *)pBuffer, size, DATA_RESCH);
 
 	//check to see if already loaded
-	if (numResearch > 0)
+	if (asResearch.size() > 0)
 	{
 		//release previous data before loading in the new
 		dataRESCHRelease(NULL);
@@ -663,37 +653,37 @@ static bool bufferRFUNCLoad(const char *pBuffer, UDWORD size, void **ppData)
 /* Load the message viewdata */
 static bool bufferSMSGLoad(const char *pBuffer, UDWORD size, void **ppData)
 {
-	VIEWDATA	*pViewData;
+	const char *ptr;
 
-	pViewData = loadViewData(pBuffer, size);
-	if (!pViewData)
+	ptr = loadViewData(pBuffer, size);
+	if (!ptr)
 	{
 		return false;
 	}
 
 	// set the pointer so the release function gets called with it
-	*ppData = (void *)pViewData;
+	*ppData = (void *)ptr;
 	return true;
 }
 
 /* Load research message viewdata */
 static bool dataResearchMsgLoad(const char* fileName, void** ppData)
 {
-	VIEWDATA* pViewData = loadResearchViewData(fileName);
-	if (!pViewData)
+	const char *ptr = loadResearchViewData(fileName);
+	if (!ptr)
 	{
 		return false;
 	}
 
 	// set the pointer so the release function gets called with it
-	*ppData = pViewData;
+	*ppData = (void *)ptr;
 	return true;
 }
 
 // release the message viewdata
 static void dataSMSGRelease(void *pData)
 {
-	viewDataShutDown((VIEWDATA *)pData);
+	viewDataShutDown((const char *)pData);
 }
 
 /* Load an imd */
@@ -1030,6 +1020,12 @@ static void dataScriptRelease(void *pData)
 	scriptFreeCode(psCode);
 }
 
+static bool jsLoad(const char *fileName, void **ppData)
+{
+	debug(LOG_WZ, "jsload: %s", fileName);
+	*ppData = NULL;
+	return loadGlobalScript(fileName);
+}
 
 // Load a script variable values file
 static bool dataScriptLoadVals(const char* fileName, void **ppData)
@@ -1083,12 +1079,12 @@ static bool dataScriptLoadVals(const char* fileName, void **ppData)
 // These are statically defined in data.c
 // this is also defined in frameresource.c - needs moving to a .h file
 // This basically matches the argument list of resAddBufferLoad in frameresource.c
-typedef struct
+struct RES_TYPE_MIN_BUF
 {
 	const char *aType;                      ///< points to the string defining the type (e.g. SCRIPT) - NULL indicates end of list
 	RES_BUFFERLOAD buffLoad;                ///< routine to process the data for this type
 	RES_FREE release;                       ///< routine to release the data (NULL indicates none)
-} RES_TYPE_MIN_BUF;
+};
 
 static const RES_TYPE_MIN_BUF BufferResourceTypes[] =
 {
@@ -1103,7 +1099,6 @@ static const RES_TYPE_MIN_BUF BufferResourceTypes[] =
 	{"SPROPTYPES", bufferSPROPTYPESLoad, NULL},
 	{"SPROPSND", bufferSPROPSNDLoad, NULL},
 	{"STERRTABLE", bufferSTERRTABLELoad, NULL},
-	{"SSPECABIL", bufferSSPECABILLoad, NULL},
 	{"SBPIMD", bufferSBPIMDLoad, NULL},
 	{"SWEAPSND", bufferSWEAPSNDLoad, NULL},
 	{"SWEAPMOD", bufferSWEAPMODLoad, NULL},
@@ -1127,12 +1122,12 @@ static const RES_TYPE_MIN_BUF BufferResourceTypes[] =
 	{"IMD", dataIMDBufferLoad, (RES_FREE)iV_IMDRelease},
 };
 
-typedef struct
+struct RES_TYPE_MIN_FILE
 {
 	const char *aType;                      ///< points to the string defining the type (e.g. SCRIPT) - NULL indicates end of list
 	RES_FILELOAD fileLoad;                  ///< routine to process the data for this type
 	RES_FREE release;                       ///< routine to release the data (NULL indicates none)
-} RES_TYPE_MIN_FILE;
+};
 
 static const RES_TYPE_MIN_FILE FileResourceTypes[] =
 {
@@ -1149,6 +1144,7 @@ static const RES_TYPE_MIN_FILE FileResourceTypes[] =
 	{"SCRIPTVAL", dataScriptLoadVals, NULL},
 	{"STR_RES", dataStrResLoad, dataStrResRelease},
 	{"RESEARCHMSG", dataResearchMsgLoad, dataSMSGRelease },
+	{"JAVASCRIPT", jsLoad, NULL},
 };
 
 /* Pass all the data loading functions to the framework library */

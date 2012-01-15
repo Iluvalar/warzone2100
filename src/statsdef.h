@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2010  Warzone 2100 Project
+	Copyright (C) 2005-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -28,7 +28,6 @@
 
 #include <vector>
 #include <algorithm>
-#include "lib/framework/utf.h"  // For QString.
 
 static inline bool stringToEnumSortFunction(std::pair<char const *, unsigned> const &a, std::pair<char const *, unsigned> const &b) { return strcmp(a.first, b.first) < 0; }
 template <typename STATS>
@@ -144,6 +143,8 @@ public:
 
 	/// Returns the .pie file data referenced by the cell. May return NULL without error if the cell is "0" and accept0AsNULL is true.
 	iIMDShape *imdShape(unsigned index, bool accept0AsNULL = false);
+	/// Returns the .pie files data referenced by the cell, separated by '@' characters.
+	std::vector<iIMDShape *> imdShapes(unsigned index);
 
 	/// Returns the STATS * in the given list with the same name as this cell. May return NULL without error if the cell is "0" and accept0AsNULL is true.
 	template <typename STATS>
@@ -224,6 +225,18 @@ enum BODY_SIZE
 	SIZE_MEDIUM,
 	SIZE_HEAVY,
 	SIZE_SUPER_HEAVY,
+	SIZE_NUM
+};
+
+/**
+ * SIZE used for specifying weapon size
+ */
+enum WEAPON_SIZE
+{
+	WEAPON_SIZE_LIGHT,
+	WEAPON_SIZE_HEAVY,
+	WEAPON_SIZE_ANY,
+	WEAPON_SIZE_NUM
 };
 
 /**
@@ -296,20 +309,6 @@ enum WEAPON_EFFECT
 	WE_FLAMER,
 	WE_ANTI_AIRCRAFT,
 	WE_NUMEFFECTS,			/**  The number of enumerators in this enum. */
-};
-
-/**
- * Sides used for droid impact
- */
-enum HIT_SIDE
-{
-	HIT_SIDE_FRONT,
-	HIT_SIDE_REAR,
-	HIT_SIDE_LEFT,
-	HIT_SIDE_RIGHT,
-	HIT_SIDE_TOP,
-	HIT_SIDE_BOTTOM,
-	NUM_HIT_SIDES,			/**  The number of enumerators in this enum. */
 };
 
 /**
@@ -443,10 +442,11 @@ struct WEAPON_STATS : public COMPONENT_STATS
 	UDWORD			flightSpeed;			///< speed ammo travels at
 	FIREONMOVE		fireOnMove;				///< indicates whether the droid has to stop before firing
 	WEAPON_CLASS	weaponClass;			///< the class of weapon
-	WEAPON_SUBCLASS weaponSubClass;			///< the subclass to which the weapon	belongs
+	WEAPON_SUBCLASS weaponSubClass;			///< the subclass to which the weapon belongs
 	MOVEMENT_MODEL	movementModel;			///< which projectile model to use for the bullet
-	WEAPON_EFFECT	weaponEffect;			///< which type of warhead is associated with the	weapon
-	UDWORD			recoilValue;			///< used to compare with	weight to see if recoils or not
+	WEAPON_EFFECT	weaponEffect;			///< which type of warhead is associated with the weapon
+	WEAPON_SIZE		weaponSize;		///< eg light weapons can be put on light bodies or as sidearms
+	UDWORD			recoilValue;			///< used to compare with weight to see if recoils or not
 	UBYTE			rotate;					///< amount the weapon(turret) can rotate 0	= none
 	UBYTE			maxElevation;			///< max amount the	turret can be elevated up
 	SBYTE			minElevation;			///< min amount the	turret can be elevated down
@@ -484,7 +484,6 @@ struct CONSTRUCT_STATS : public COMPONENT_STATS
 
 struct BRAIN_STATS : public COMPONENT_STATS
 {
-	UDWORD			progCap;		///< Program capacity
 	WEAPON_STATS	*psWeaponStat;	///< weapon stats associated with this brain - for Command Droids
 };
 
@@ -502,9 +501,9 @@ struct BRAIN_STATS : public COMPONENT_STATS
 
 struct BODY_STATS : public COMPONENT_STATS
 {
-	UBYTE		size;			///< How big the body is - affects how hit
+	BODY_SIZE	size;			///< How big the body is - affects how hit
 	UDWORD		weaponSlots;	///< The number of weapon slots on the body
-	UDWORD		armourValue[NUM_HIT_SIDES][WC_NUM_WEAPON_CLASSES];	///< A measure of how much protection the armour provides. Cross referenced with the weapon types.
+	UDWORD		armourValue[WC_NUM_WEAPON_CLASSES];	///< A measure of how much protection the armour provides. Cross referenced with the weapon types.
 
 	// A measure of how much energy the power plant outputs
 	UDWORD		powerOutput;	///< this is the engine output of the body
@@ -530,11 +529,6 @@ struct PROPULSION_TYPES
 struct TERRAIN_TABLE
 {
 	UDWORD	speedFactor;	///< factor to multiply the speed by depending on the method of propulsion and the terrain type - to be divided by 100 before use
-};
-
-struct SPECIAL_ABILITY
-{
-	char	*pName;			///< Text name of the component
 };
 
 typedef UWORD	WEAPON_MODIFIER;

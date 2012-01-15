@@ -23,18 +23,45 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include "wzglobal.h"
-#include "physfs_ext.h"
+#include "lib/framework/wzglobal.h"
+#include "lib/framework/physfs_ext.h" // Also includes physfs.h
 
 #define MAX_LEVEL_SIZE	20
 #define TILE_HEIGHT	128
 #define TILE_WIDTH	128
+
+#define MAX_PLAYERS 8
+#define MAP_MAXAREA (256 * 256)
+
+// map.h: 321
+#define MAX_TILE_TEXTURES   255
+
+// map.h: 66
+#define TILE_NUMMASK   0x01ff
 
 enum {
 	IMD_FEATURE,
 	IMD_STRUCTURE,
 	IMD_DROID,
 	IMD_OBJECT,
+};
+
+enum TerrainType
+{
+	TER_SAND,
+	TER_SANDYBRUSH,
+	TER_BAKEDEARTH,
+	TER_GREENMUD,
+	TER_REDBRUSH,
+	TER_PINKROCK,
+	TER_ROAD,
+	TER_WATER,
+	TER_CLIFFFACE,
+	TER_RUBBLE,
+	TER_SHEETICE,
+	TER_SLUSH,
+
+	TER_MAX,
 };
 
 typedef struct _lnd_object_type
@@ -50,7 +77,7 @@ typedef struct _lnd_object_type
 
 typedef enum _tileset_type
 {
-        TILESET_ARIZONA	= 0,
+	TILESET_ARIZONA	= 0,
 	TILESET_URBAN	= 1,
 	TILESET_ROCKIES	= 2
 } TILESET;
@@ -67,7 +94,7 @@ typedef struct _maptile_type
 	uint8_t			tileVisBits;	// COMPRESSED - bit per player
 	uint8_t			height;			// The height at the top left of the tile
 	uint8_t			illumination;	// How bright is this tile?
-	uint32_t		texture;		// Which graphics texture is on this tile
+	TerrainType		texture;		// Which graphics texture is on this tile
 	float			level;
 } MAPTILE;
 
@@ -89,9 +116,33 @@ typedef struct _mapfile_type
 	LND_OBJECT		*mLndObjects[3];	// for map2lnd only
 } GAMEMAP;
 
+
+// map.h: 323
+extern uint8_t terrainTypes[MAX_TILE_TEXTURES];
+
+
+static inline unsigned short TileNumber_tile(unsigned short tilenumber)
+{
+	return tilenumber & TILE_NUMMASK;
+}
+
+static inline unsigned char terrainType(const MAPTILE * tile)
+{
+	return terrainTypes[TileNumber_tile(tile->texture)];
+}
+
+// map.h: 357
+#define TILE_SHIFT 7
+
+// map.h: 370
+static inline int32_t map_coord(int32_t worldCoord)
+{
+	return worldCoord >> TILE_SHIFT;
+}
+
 static inline MAPTILE *mapTile(GAMEMAP *map, int x, int y)
 {
-        return &map->mMapTiles[y * map->width + x];
+		return &map->mMapTiles[y * map->width + x];
 }
 
 static inline GATEWAY *mapGateway(GAMEMAP *map, int index)

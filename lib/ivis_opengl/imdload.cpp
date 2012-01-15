@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2010  Warzone 2100 Project
+	Copyright (C) 2005-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -34,7 +34,7 @@
 #include "imd.h" // for imd structures
 #include "tex.h" // texture page loading
 
-static BOOL AtEndOfFile(const char *CurPos, const char *EndOfFile)
+static bool AtEndOfFile(const char *CurPos, const char *EndOfFile)
 {
 	while ( *CurPos == 0x00 || *CurPos == 0x09 || *CurPos == 0x0a || *CurPos == 0x0d || *CurPos == 0x20 )
 	{
@@ -199,7 +199,7 @@ static bool _imd_load_polys( const char **ppFileData, iIMDShape *s, int pieVersi
 }
 
 
-static BOOL ReadPoints( const char **ppFileData, iIMDShape *s )
+static bool ReadPoints( const char **ppFileData, iIMDShape *s )
 {
 	const char *pFileData = *ppFileData;
 	unsigned int i;
@@ -221,10 +221,9 @@ static BOOL ReadPoints( const char **ppFileData, iIMDShape *s )
 }
 
 
-static BOOL _imd_load_points( const char **ppFileData, iIMDShape *s )
+static bool _imd_load_points( const char **ppFileData, iIMDShape *s )
 {
 	Vector3f *p = NULL;
-	int32_t tempXMax, tempXMin, tempZMax, tempZMin;
 	int32_t xmax, ymax, zmax;
 	double dx, dy, dz, rad_sq, rad, old_to_p_sq, old_to_p, old_to_new;
 	double xspan, yspan, zspan, maxspan;
@@ -247,8 +246,8 @@ static BOOL _imd_load_points( const char **ppFileData, iIMDShape *s )
 		return false;
 	}
 
-	s->max.x = s->max.y = s->max.z = tempXMax = tempZMax = -FP12_MULTIPLIER;
-	s->min.x = s->min.y = s->min.z = tempXMin = tempZMin = FP12_MULTIPLIER;
+	s->max.x = s->max.y = s->max.z = -FP12_MULTIPLIER;
+	s->min.x = s->min.y = s->min.z = FP12_MULTIPLIER;
 
 	vxmax.x = vymax.y = vzmax.z = -FP12_MULTIPLIER;
 	vxmin.x = vymin.y = vzmin.z = FP12_MULTIPLIER;
@@ -263,18 +262,6 @@ static BOOL _imd_load_points( const char **ppFileData, iIMDShape *s )
 		if (p->x < s->min.x)
 		{
 			s->min.x = p->x;
-		}
-
-		/* Biggest x coord so far within our height window? */
-		if( p->x > tempXMax && p->y > DROID_VIS_LOWER && p->y < DROID_VIS_UPPER )
-		{
-			tempXMax = p->x;
-		}
-
-		/* Smallest x coord so far within our height window? */
-		if( p->x < tempXMin && p->y > DROID_VIS_LOWER && p->y < DROID_VIS_UPPER )
-		{
-			tempXMin = p->x;
 		}
 
 		if (p->y > s->max.y)
@@ -293,18 +280,6 @@ static BOOL _imd_load_points( const char **ppFileData, iIMDShape *s )
 		if (p->z < s->min.z)
 		{
 			s->min.z = p->z;
-		}
-
-		/* Biggest z coord so far within our height window? */
-		if( p->z > tempZMax && p->y > DROID_VIS_LOWER && p->y < DROID_VIS_UPPER )
-		{
-			tempZMax = p->z;
-		}
-
-		/* Smallest z coord so far within our height window? */
-		if( p->z < tempZMax && p->y > DROID_VIS_LOWER && p->y < DROID_VIS_UPPER )
-		{
-			tempZMin = p->z;
 		}
 
 		// for tight sphere calculations
@@ -394,7 +369,6 @@ static BOOL _imd_load_points( const char **ppFileData, iIMDShape *s )
 
 	if (zspan > maxspan)
 	{
-		maxspan = zspan;
 		dia1 = vzmin;
 		dia2 = vzmax;
 	}
@@ -455,7 +429,7 @@ static BOOL _imd_load_points( const char **ppFileData, iIMDShape *s )
  * \pre s->nconnectors set
  * \post s->connectors allocated
  */
-static BOOL _imd_load_connectors(const char **ppFileData, iIMDShape *s)
+static bool _imd_load_connectors(const char **ppFileData, iIMDShape *s)
 {
 	const char *pFileData = *ppFileData;
 	int cnt;
@@ -503,7 +477,14 @@ static iIMDShape *_imd_load_level(const char **ppFileData, const char *FileDataE
 	iIMDShape *s = NULL;
 
 	if (nlevels == 0)
+	{
 		return NULL;
+	}
+
+	// Load optional MATERIALS directive
+	pTmp = pFileData;	// remember position
+	i = sscanf(pFileData, "%255s %n", buffer, &cnt);
+	ASSERT_OR_RETURN(NULL, i == 1, "Bad directive following LEVEL");
 
 	s = (iIMDShape*)malloc(sizeof(iIMDShape));
 	if (s == NULL)
@@ -512,26 +493,19 @@ static iIMDShape *_imd_load_level(const char **ppFileData, const char *FileDataE
 		debug(LOG_ERROR, "_imd_load_level: Memory allocation error");
 		return NULL;
 	}
-
 	s->flags = 0;
 	s->nconnectors = 0; // Default number of connectors must be 0
 	s->npoints = 0;
 	s->npolys = 0;
-
 	s->points = NULL;
 	s->polys = NULL;
 	s->connectors = NULL;
 	s->next = NULL;
-
 	s->shadowEdgeList = NULL;
 	s->nShadowEdges = 0;
 	s->texpage = iV_TEX_INVALID;
 	s->tcmaskpage = iV_TEX_INVALID;
-
-	// Load optional MATERIALS directive
-	pTmp = pFileData;	// remember position
-	i = sscanf(pFileData, "%255s %n", buffer, &cnt);
-	ASSERT_OR_RETURN(NULL, i == 1, "Bad directive following LEVEL");
+	s->normalpage = iV_TEX_INVALID;
 	memset(s->material, 0, sizeof(s->material));
 	s->material[LIGHT_AMBIENT][3] = 1.0f;
 	s->material[LIGHT_DIFFUSE][3] = 1.0f;
@@ -634,13 +608,15 @@ iIMDShape *iV_ProcessIMD( const char **ppFileData, const char *FileDataEnd )
 {
 	const char *pFileName = GetLastResourceFilename(); // Last loaded texture page filename
 	const char *pFileData = *ppFileData;
-	char buffer[PATH_MAX], texfile[PATH_MAX];
+	char buffer[PATH_MAX], texfile[PATH_MAX], normalfile[PATH_MAX];
 	int cnt, nlevels;
 	iIMDShape *shape, *psShape;
 	UDWORD level;
 	int32_t imd_version;
 	uint32_t imd_flags;
-	BOOL bTextured = false;
+	bool bTextured = false;
+
+	memset(normalfile, 0, sizeof(normalfile));
 
 	if (sscanf(pFileData, "%255s %d%n", buffer, &imd_version, &cnt) != 2)
 	{
@@ -728,6 +704,45 @@ iIMDShape *iV_ProcessIMD( const char **ppFileData, const char *FileDataEnd )
 		bTextured = true;
 	}
 
+	if (strncmp(buffer, "NORMALMAP", 9) == 0)
+	{
+		char ch, texType[PATH_MAX];
+		int i;
+
+		/* the first parameter for textures is always ignored; which is why we ignore
+		 * nlevels read in above */
+		ch = *pFileData++;
+
+		// Run up to the dot or till the buffer is filled. Leave room for the extension.
+		for (i = 0; i < PATH_MAX-5 && (ch = *pFileData++) != '\0' && ch != '.'; ++i)
+		{
+ 			normalfile[i] = ch;
+		}
+		normalfile[i] = '\0';
+
+		if (sscanf(pFileData, "%255s%n", texType, &cnt) != 1)
+		{
+			debug(LOG_ERROR, "iV_ProcessIMD %s normal map info corrupt: %s", pFileName, buffer);
+			return NULL;
+		}
+		pFileData += cnt;
+
+		if (strcmp(texType, "png") != 0)
+		{
+			debug(LOG_ERROR, "iV_ProcessIMD %s: only png normal maps supported", pFileName);
+			return NULL;
+		}
+		sstrcat(normalfile, ".png");
+
+		/* -Now- read in LEVELS directive */
+		if (sscanf(pFileData, "%255s %d%n", buffer, &nlevels, &cnt) != 2)
+		{
+			debug(LOG_ERROR, "iV_ProcessIMD %s bad levels info: %s", pFileName, buffer);
+			return NULL;
+		}
+		pFileData += cnt;
+	}
+
 	if (strncmp(buffer, "LEVELS", 6) != 0)
 	{
 		debug(LOG_ERROR, "iV_ProcessIMD: expecting 'LEVELS' directive (%s)", buffer);
@@ -759,6 +774,13 @@ iIMDShape *iV_ProcessIMD( const char **ppFileData, const char *FileDataEnd )
 	if (bTextured)
 	{
 		int texpage = iV_GetTexture(texfile);
+		int normalpage = iV_TEX_INVALID;
+
+		if (normalfile[0] != '\0')
+		{
+			debug(LOG_WARNING, "Loading normal map %s for %s", normalfile, pFileName);
+			normalpage = iV_GetTexture(normalfile);
+		}
 
 		ASSERT_OR_RETURN(NULL, texpage >= 0, "%s could not load tex page %s", pFileName, texfile);
 
@@ -766,6 +788,7 @@ iIMDShape *iV_ProcessIMD( const char **ppFileData, const char *FileDataEnd )
 		for (psShape = shape; psShape != NULL; psShape = psShape->next)
 		{
 			psShape->texpage = texpage;
+			psShape->normalpage = normalpage;
 		}
 
 		// check if model should use team colour mask

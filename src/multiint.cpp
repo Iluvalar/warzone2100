@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2010  Warzone 2100 Project
+	Copyright (C) 2005-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -25,7 +25,8 @@
  * along with connection and game options.
  */
 
-#include "lib/framework/frame.h"
+#include "lib/framework/wzapp.h"
+#include "lib/framework/wzconfig.h"
 
 #include <time.h>
 
@@ -54,8 +55,6 @@
 #include "lib/widget/widgint.h"
 #include "lib/widget/label.h"
 
-#include "lib/iniparser/iniparser.h"
-
 #include "challenge.h"
 #include "main.h"
 #include "objects.h"
@@ -81,6 +80,7 @@
 #include "game.h"
 #include "warzoneconfig.h"
 #include "modding.h"
+#include "qtscript.h"
 
 #include "multiplay.h"
 #include "multiint.h"
@@ -132,34 +132,33 @@ static const unsigned gnImage[] = {IMAGE_GN_0, IMAGE_GN_1, IMAGE_GN_2, IMAGE_GN_
 // vars
 extern char	MultiCustomMapsPath[PATH_MAX];
 extern char	MultiPlayersPath[PATH_MAX];
-extern char VersionString[80];		// from netplay.c
-extern BOOL bSendingMap;			// used to indicate we are sending a map
+extern bool bSendingMap;			// used to indicate we are sending a map
 
-BOOL						bHosted			= false;				//we have set up a game
+bool						bHosted			= false;				//we have set up a game
 char						sPlayer[128];							// player name (to be used)
 static int					colourChooserUp = -1;
 static int					teamChooserUp = -1;
 static int					aiChooserUp = -1;
 static int					difficultyChooserUp = -1;
 static int					positionChooserUp = -1;
-static BOOL				SettingsUp		= false;
+static bool				SettingsUp		= false;
 static UBYTE				InitialProto	= 0;
 static W_SCREEN				*psConScreen;
 static SDWORD				dwSelectedGame	=0;						//player[] and games[] indexes
 static UDWORD				gameNumber;								// index to games icons
-static BOOL					safeSearch		= false;				// allow auto game finding.
+static bool					safeSearch		= false;				// allow auto game finding.
 static bool disableLobbyRefresh = false;	// if we allow lobby to be refreshed or not.
 static UDWORD hideTime=0;
 static bool EnablePasswordPrompt = false;	// if we need the password prompt
 LOBBY_ERROR_TYPES LobbyError = ERROR_NOERROR;
-static BOOL allowChangePosition = true;
-static char tooltipbuffer[256] ={'\0'};
+static bool allowChangePosition = true;
+static char tooltipbuffer[MaxGames][256] = {{'\0'}};
 /// end of globals.
 // ////////////////////////////////////////////////////////////////////////////
 // Function protos
 
 // widget functions
-static BOOL addMultiEditBox(UDWORD formid, UDWORD id, UDWORD x, UDWORD y, char const *tip, char const *tipres, UDWORD icon, UDWORD iconhi, UDWORD iconid);
+static bool addMultiEditBox(UDWORD formid, UDWORD id, UDWORD x, UDWORD y, char const *tip, char const *tipres, UDWORD icon, UDWORD iconhi, UDWORD iconid);
 static void addBlueForm					(UDWORD parent,UDWORD id, const char *txt,UDWORD x,UDWORD y,UDWORD w,UDWORD h);
 static void drawReadyButton(UDWORD player);
 static void displayPasswordEditBox(WIDGET *psWidget, UDWORD xOffset, UDWORD yOffset, WZ_DECL_UNUSED PIELIGHT *pColours);
@@ -189,6 +188,7 @@ static void showPasswordForm(void);
 // Game option functions
 static	void	addGameOptions();
 static	void	addChatBox			(void);
+static void		addConsoleBox(void);
 static	void	disableMultiButs	(void);
 static	void	processMultiopWidgets(UDWORD);
 static	void	SendFireUp			(void);
@@ -200,16 +200,16 @@ static void		closeTeamChooser	(void);
 static void		closePositionChooser	(void);
 static void		closeAiChooser		(void);
 static void		closeDifficultyChooser	(void);
-static BOOL		SendColourRequest	(UBYTE player, UBYTE col);
-static BOOL		SendPositionRequest	(UBYTE player, UBYTE chosenPlayer);
-static BOOL		safeToUseColour		(UDWORD player,UDWORD col);
-static BOOL		changeReadyStatus	(UBYTE player, BOOL bReady);
+static bool		SendColourRequest	(UBYTE player, UBYTE col);
+static bool		SendPositionRequest	(UBYTE player, UBYTE chosenPlayer);
+static bool		safeToUseColour		(UDWORD player,UDWORD col);
+static bool		changeReadyStatus	(UBYTE player, bool bReady);
 static	void stopJoining(void);
 static int difficultyIcon(int difficulty);
 // ////////////////////////////////////////////////////////////////////////////
 // map previews..
 
-static const char *difficultyList[] = { "Easy", "Medium", "Hard", "Insane" };
+static const char *difficultyList[] = { N_("Easy"), N_("Medium"), N_("Hard"), N_("Insane") };
 static const int difficultyValue[] = { 1, 10, 15, 20 };
 
 struct AIDATA
@@ -217,10 +217,14 @@ struct AIDATA
 	char name[MAX_LEN_AI_NAME];
 	char slo[MAX_LEN_AI_NAME];
 	char vlo[MAX_LEN_AI_NAME];
+	char js[MAX_LEN_AI_NAME];
 	char tip[255];
 	int assigned;	///< How many AIs have we assigned of this type
 };
 static std::vector<AIDATA> aidata;
+
+/// Player name overrides
+static char nameOverrides[MAX_PLAYERS][MAX_LEN_AI_NAME];
 
 const char *getAIName(int player)
 {
@@ -238,7 +242,7 @@ int getNextAIAssignment(const char *name)
 {
 	int ai = matchAIbyName(name);
 	int match = aidata[ai].assigned;
-	
+
 	for (int i = 0; i < game.maxPlayers; i++)
 	{
 		if (ai == NetPlay.players[i].ai)
@@ -256,7 +260,7 @@ int getNextAIAssignment(const char *name)
 
 void loadMultiScripts()
 {
-	// TODO: Only load AI scripts (not vals) once.
+	bool defaultRules = true;
 
 	// Reset assigned counter
 	std::vector<AIDATA>::iterator it;
@@ -265,23 +269,29 @@ void loadMultiScripts()
 		(*it).assigned = 0;
 	}
 
+	// Load extra script for challenges
+	if (challengeActive)
+	{
+		WzConfig challenge(sRequestResult);
+		challenge.beginGroup("scripts");
+		if (challenge.contains("extra"))
+		{
+			loadGlobalScript("challenges/" + challenge.value("extra").toString());
+		}
+		if (challenge.contains("rules"))
+		{
+			loadGlobalScript("challenges/" + challenge.value("rules").toString());
+			defaultRules = false;
+		}
+		challenge.endGroup();
+	}
+
 	// Load multiplayer rules
 	resForceBaseDir("messages/");
 	resLoadFile("SMSG", "multiplay.txt");
-	resForceBaseDir("multiplay/skirmish/");
-	resLoadFile("SCRIPT", "rules.slo");
-	resLoadFile("SCRIPTVAL", "rules.vlo");
-
-	// Load extra tech levels
-	if (current_tech == 2)
+	if (defaultRules)
 	{
-		resLoadFile("SCRIPT", "sktech.slo");
-		resLoadFile("SCRIPTVAL", "sk2tech.vlo");
-	}
-	else if (current_tech == 3)
-	{
-		resLoadFile("SCRIPT", "sktech.slo");
-		resLoadFile("SCRIPTVAL", "sk3tech.vlo");
+		loadGlobalScript("multiplay/skirmish/rules.js");
 	}
 
 	// Backup data hashes, since AI and scavenger scripts aren't run on all clients.
@@ -292,21 +302,48 @@ void loadMultiScripts()
 	resForceBaseDir("multiplay/skirmish/");
 	for (int i = 0; i < game.maxPlayers; i++)
 	{
+		if (NetPlay.players[i].ai < 0 && i == selectedPlayer)
+		{
+			NetPlay.players[i].ai = 0;  // For autogames.
+		}
 		// The i == selectedPlayer hack is to enable autogames
 		if (bMultiPlayer && game.type == SKIRMISH && (!NetPlay.players[i].allocated || i == selectedPlayer)
 		    && NetPlay.players[i].ai >= 0 && myResponsibility(i))
 		{
-			resLoadFile("SCRIPT", aidata[NetPlay.players[i].ai].slo);
-			resLoadFile("SCRIPTVAL", aidata[NetPlay.players[i].ai].vlo);
+			if (challengeActive) // challenge file may override
+			{
+				WzConfig challenge(sRequestResult); // so inefficient, but no other way
+				challenge.beginGroup("player_" + QString::number(i + 1));
+				if (challenge.contains("ai"))
+				{
+					QString val = challenge.value("ai").toString();
+					challenge.endGroup();
+					if (val.compare("null") == 0)
+					{
+						continue; // no AI
+					}
+					loadPlayerScript(val, i, NetPlay.players[i].difficulty);
+					continue;
+				}
+				challenge.endGroup();
+			}
+			if (aidata[NetPlay.players[i].ai].slo[0] != '\0')
+			{
+				resLoadFile("SCRIPT", aidata[NetPlay.players[i].ai].slo);
+				resLoadFile("SCRIPTVAL", aidata[NetPlay.players[i].ai].vlo);
+			}
+			// autogames are to be implemented differently for qtscript, do not start for human players yet
+			if (!NetPlay.players[i].allocated && aidata[NetPlay.players[i].ai].js[0] != '\0')
+			{
+				loadPlayerScript(QString("multiplay/skirmish/") + aidata[NetPlay.players[i].ai].js, i, NetPlay.players[i].difficulty);
+			}
 		}
 	}
 
 	// Load scavengers
-	resForceBaseDir("multiplay/script/");
 	if (game.scavengers && myResponsibility(scavengerPlayer()))
 	{
-		resLoadFile("SCRIPT", "scavfact.slo");
-		resLoadFile("SCRIPTVAL", "scavfact.vlo");
+		loadPlayerScript("multiplay/script/scavfact.js", scavengerPlayer(), DIFFICULTY_EASY);
 	}
 
 	// Restore data hashes, since AI and scavenger scripts aren't run on all clients.
@@ -354,13 +391,16 @@ void loadMapPreview(bool hideInterface)
 	char			*pFileData = NULL;
 	LEVEL_DATASET	*psLevel = NULL;
 	PIELIGHT		plCliffL, plCliffH, plWater, plRoadL, plRoadH, plGroundL, plGroundH;
-
 	UDWORD			x, y, height;
 	UBYTE			col;
 	MAPTILE			*psTile,*WTile;
 	UDWORD oursize;
 	Vector2i playerpos[MAX_PLAYERS];	// Will hold player positions
 	char  *ptr = NULL, *imageData = NULL;
+
+	// absurd hack, since there is a problem with updating this crap piece of info, we're setting it to
+	// true by default for now, like it used to be
+	game.mapHasScavengers = true; // this is really the wrong place for it, but this is where it has to be
 
 	if(psMapTiles)
 	{
@@ -392,7 +432,7 @@ void loadMapPreview(bool hideInterface)
 
 	// load the map data
 	ptr = strrchr(aFileName, '/');
-	ASSERT(ptr, "this string was supposed to contain a /");
+	ASSERT_OR_RETURN(, ptr, "this string was supposed to contain a /");
 	strcpy(ptr, "/game.map");
 	if (!mapLoad(aFileName, true))
 	{
@@ -542,18 +582,20 @@ void readAIs()
 
 		sstrcpy(path, basepath);
 		sstrcat(path, *i);
-		inifile *inif = inifile_load(path);
-		if (!inif)
+		WzConfig aiconf(path);
+		if (aiconf.status() != QSettings::NoError)
 		{
 			debug(LOG_ERROR, "Failed to open AI %s", path);
 			continue;
 		}
+
 		AIDATA ai;
-		inifile_set_current_section(inif, "AI");
-		sstrcpy(ai.name, inifile_get(inif, "name", "error"));
-		sstrcpy(ai.slo, inifile_get(inif, "slo", "error"));
-		sstrcpy(ai.vlo, inifile_get(inif, "vlo", "error"));
-		sstrcpy(ai.tip, inifile_get(inif, "tip", "Click to choose this AI"));
+		aiconf.beginGroup("AI");
+		sstrcpy(ai.name, aiconf.value("name", "error").toString().toAscii().constData());
+		sstrcpy(ai.slo, aiconf.value("slo", "").toString().toAscii().constData());
+		sstrcpy(ai.vlo, aiconf.value("vlo", "").toString().toAscii().constData());
+		sstrcpy(ai.js, aiconf.value("js", "").toString().toAscii().constData());
+		sstrcpy(ai.tip, aiconf.value("tip", "Click to choose this AI").toString().toAscii().constData());
 		if (strcmp(ai.name, "Nexus") == 0)
 		{
 			std::vector<AIDATA>::iterator it;
@@ -564,7 +606,6 @@ void readAIs()
 		{
 			aidata.push_back(ai);
 		}
-		inifile_delete(inif);
 	}
 	PHYSFS_freeList(files);
 }
@@ -589,7 +630,7 @@ static void decideWRF(void)
 // ////////////////////////////////////////////////////////////////////////////
 // Connection Options Screen.
 
-static BOOL OptionsInet(void)			//internet options
+static bool OptionsInet(void)			//internet options
 {
 	psConScreen = widgCreateScreen();
 	widgSetTipFont(psConScreen,font_regular);
@@ -645,14 +686,14 @@ static BOOL OptionsInet(void)			//internet options
 	sContext.mx			= 0;
 	sContext.my			= 0;
 	widgGetFromID(psConScreen, CON_IP)->clicked(&sContext);
-	
+
 	SettingsUp = true;
 	return true;
 }
 
 // ////////////////////////////////////////////////////////////////////////////
 // Draw the connections screen.
-BOOL startConnectionScreen(void)
+bool startConnectionScreen(void)
 {
 	addBackdrop();										//background
 	addTopForm();										// logo
@@ -698,7 +739,6 @@ void runConnectionScreen(void)
 			bMultiMessages = false;
 			break;
 		case CON_TYPESID_START+0: // Lobby button
-			NETsetupTCPIP(""); //inet
 			if ((LobbyError != ERROR_KICKED) && (LobbyError != ERROR_CHEAT))
 			{
 				setLobbyError(ERROR_NOERROR);
@@ -721,9 +761,7 @@ void runConnectionScreen(void)
 				SettingsUp = false;
 			}
 
-			NETsetupTCPIP(addr); //inet
-
-			changeTitleMode(GAMEFIND);
+			joinGame(addr, 0);
 			break;
 		case CON_IP_CANCEL:
 			if (SettingsUp == true)
@@ -766,6 +804,70 @@ void setLobbyError (LOBBY_ERROR_TYPES error_type)
 	}
 }
 
+/**
+ * Try connecting to the given host, show
+ * the multiplayer screen or a error.
+ */
+bool joinGame(const char* host, uint32_t port)
+{
+	PLAYERSTATS	playerStats;
+	LOBBY_ERROR_TYPES oldError;
+	UDWORD id;
+
+	if(ingame.localJoiningInProgress)
+	{
+		return false;
+	}
+
+	if (!NETjoinGame(host, port, (char*)sPlayer))	// join
+	{
+		// Save the error.
+		oldError = getLobbyError();
+		if (!oldError)
+		{
+			oldError = ERROR_CONNECTION;
+		}
+		else if (oldError == ERROR_WRONGPASSWORD)
+		{
+			// Change to GAMEFIND, screen with a password dialog.
+			changeTitleMode(GAMEFIND);
+			showPasswordForm();
+
+			id = widgRunScreen(psWScreen); // Run the current set of widgets
+
+			if (id != CON_PASSWORD)
+			{
+				return false;
+			}
+
+			NETsetGamePassword(widgGetString(psWScreen, CON_PASSWORD));
+		}
+
+		// Hide a (maybe shown) password form.
+		hidePasswordForm();
+
+		// Change to GAMEFIND, screen.
+		changeTitleMode(GAMEFIND);
+
+		// Reset the error to the saved one.
+		setLobbyError(oldError);
+
+		// Shows the lobby error.
+		addGames();
+		addConsoleBox();
+		return false;
+	}
+	ingame.localJoiningInProgress	= true;
+
+	loadMultiStats(sPlayer,&playerStats);
+	setMultiStats(selectedPlayer, playerStats, false);
+	setMultiStats(selectedPlayer, playerStats, true);
+
+	changeTitleMode(MULTIOPTION);
+
+	return true;
+}
+
 // ////////////////////////////////////////////////////////////////////////////
 // Game Chooser Screen.
 
@@ -783,6 +885,7 @@ static void addGames(void)
 			gcount++;
 		}
 	}
+
 	W_BUTINIT sButInit;
 	sButInit.formID = FRONTEND_BOTFORM;
 	sButInit.width = GAMES_GAMEWIDTH;
@@ -799,7 +902,7 @@ static void addGames(void)
 		gcount = 0;
 	}
 	// in case they refresh, and a game becomes available.
-	widgDelete(psWScreen,FRONTEND_NOGAMESAVAILABLE);
+	widgDelete(psWScreen, FRONTEND_NOGAMESAVAILABLE);
 
 	// only have to do this if we have any games available.
 	if (!getLobbyError() && gcount)
@@ -811,27 +914,11 @@ static void addGames(void)
 			{
 
 				sButInit.id = GAMES_GAMESTART+i;
+				sButInit.x = 20;
+				sButInit.y = (UWORD)(45+((5+GAMES_GAMEHEIGHT)*i) );
 
-				if (gcount < 9)							// only center column needed.
-				{
-					sButInit.x = 165;
-					sButInit.y = (UWORD)(30+((5+GAMES_GAMEHEIGHT)*i) );
-				}
-				else
-				{
-					if (i<9)		//column 1
-					{
-						sButInit.x = 50;
-						sButInit.y = (UWORD)(30+((5+GAMES_GAMEHEIGHT)*i) );
-					}
-					else		//column 2
-					{
-						sButInit.x = 60+GAMES_GAMEWIDTH;
-						sButInit.y = (UWORD)(30+((5+GAMES_GAMEHEIGHT)*(i-9) ) );
-					}
-				}
 				// display the correct tooltip message.
-				if (!NETgameIsCorrectVersion(&NetPlay.games[i]))
+				if (!NETisCorrectVersion(NetPlay.games[i].game_version_major, NetPlay.games[i].game_version_minor))
 				{
 					sButInit.pTip = wrongVersionTip;
 				}
@@ -841,8 +928,20 @@ static void addGames(void)
 				}
 				else
 				{
-					ssprintf(tooltipbuffer, "Map:%s, Game:%s, Hosted by %s ", NetPlay.games[i].mapname, NetPlay.games[i].name, NetPlay.games[i].hostname);
-					sButInit.pTip = tooltipbuffer;
+					if (NetPlay.games[i].limits)
+					{
+						ssprintf(tooltipbuffer[i], _("Hosted by %s, Game Status: %s%s%s%s!"), NetPlay.games[i].hostname,
+								 NetPlay.games[i].privateGame ? _("[Password required]") : "",
+								 NetPlay.games[i].limits & NO_TANKS ? _("[No Tanks]") : "",
+								 NetPlay.games[i].limits & NO_BORGS ? _(" [No Cyborgs]") : "",
+								 NetPlay.games[i].limits & NO_VTOLS ? _(" [No VTOLs]") : ""
+								);
+					}
+					else
+					{
+						ssprintf(tooltipbuffer[i], "Hosted by %s", NetPlay.games[i].hostname);
+					}
+					sButInit.pTip = tooltipbuffer[i];
 				}
 				sButInit.UserData = i;
 
@@ -872,11 +971,11 @@ static void addGames(void)
 		case ERROR_WRONGVERSION:
 			txt = _("Wrong Game Version!");
 			break;
-		case ERROR_WRONGDATA: 
+		case ERROR_WRONGDATA:
 			 txt = _("You have an incompatible mod.");
 			 break;
 		// AFAIK, the only way this can really happy is if the Host's file is named wrong, or a client side error.
-		case ERROR_UNKNOWNFILEISSUE: 
+		case ERROR_UNKNOWNFILEISSUE:
 			 txt = _("Host couldn't send file?");
 			 debug(LOG_POPUP, "Warzone couldn't complete a file request.\n\nPossibly, Host's file is incorrect. Check your logs for more details.");
 			 break;
@@ -926,7 +1025,7 @@ void runGameFind(void )
 {
 	UDWORD id;
 	static UDWORD lastupdate=0;
-	static char game_password[64];		// check if StringSize is available
+	static char game_password[StringSize];
 
 	if (lastupdate > gameTime) lastupdate = 0;
 	if (gameTime-lastupdate > 6000 && !EnablePasswordPrompt)
@@ -937,6 +1036,7 @@ void runGameFind(void )
 			NETfindGame();						// find games synchronously
 		}
 		addGames();									//redraw list
+		addConsoleBox();
 	}
 
 	id = widgRunScreen(psWScreen);						// Run the current set of widgets
@@ -950,7 +1050,8 @@ void runGameFind(void )
 	{
 		ingame.localOptionsReceived = true;
 		NETfindGame();								// find games synchronously
-		addGames();										//redraw list.
+		addGames();									//redraw list.
+		addConsoleBox();
 	}
 	if (id == CON_PASSWORD)
 	{
@@ -960,54 +1061,26 @@ void runGameFind(void )
 
 	// below is when they hit a game box to connect to--ideally this would be where
 	// we would want a modal password entry box.
-	if (id >= GAMES_GAMESTART && id<=GAMES_GAMEEND)
+	if (id >= GAMES_GAMESTART && id <= GAMES_GAMEEND)
 	{
-		gameNumber = id-GAMES_GAMESTART;
+		gameNumber = id - GAMES_GAMESTART;
 
-		if (!(NetPlay.games[gameNumber].desc.dwFlags & SESSION_JOINDISABLED)) // if still joinable
+		if (NetPlay.games[gameNumber].privateGame)
 		{
-			if (NetPlay.games[gameNumber].privateGame)
-			{
-				showPasswordForm();
-			}
-			else
-			{
-				ingame.localOptionsReceived = false;			// note we are awaiting options
-				sstrcpy(game.name, NetPlay.games[gameNumber].name);		// store name
-
-				if (joinCampaign(gameNumber,(char*)sPlayer))
-				{
-					changeTitleMode(MULTIOPTION);
-				}
-				else
-				{
-					if (!getLobbyError())
-					{
-						setLobbyError(ERROR_CONNECTION);
-					}
-					addGames();
-				}
-			}
-		}
-
-	}
-	else if (id == CON_PASSWORDYES)
-	{
-		ingame.localOptionsReceived = false;			// note we are awaiting options
-		sstrcpy(game.name, NetPlay.games[gameNumber].name);		// store name
-
-		if (joinCampaign(gameNumber,(char*)sPlayer))
-		{
-			changeTitleMode(MULTIOPTION);
+			showPasswordForm();
 		}
 		else
 		{
-			if (!getLobbyError())
-			{
-				setLobbyError(ERROR_CONNECTION);
-			}
-			hidePasswordForm();
+			ingame.localOptionsReceived = false;					// note, we are awaiting options
+			sstrcpy(game.name, NetPlay.games[gameNumber].name);		// store name
+			joinGame(NetPlay.games[gameNumber].desc.host, 0);
 		}
+	}
+	else if (id == CON_PASSWORDYES)
+	{
+		ingame.localOptionsReceived = false;					// note, we are awaiting options
+		sstrcpy(game.name, NetPlay.games[gameNumber].name);		// store name
+		joinGame(NetPlay.games[gameNumber].desc.host, 0);
 	}
 	else if (id == CON_PASSWORDNO)
 	{
@@ -1025,6 +1098,18 @@ void runGameFind(void )
 	{
 		changeTitleMode(PROTOCOL);
 	}
+
+	// console box handling
+	iV_SetFont(font_small);
+	if(widgGetFromID(psWScreen, MULTIOP_CONSOLEBOX))
+	{
+		while(getNumberConsoleMessages() > getConsoleLineInfo())
+		{
+			removeTopConsoleMessage();
+		}
+		updateConsoleMessages();
+	}
+	displayConsoleMessages();
 }
 
 // Used to draw the password box for the lobby screen
@@ -1050,7 +1135,7 @@ static void showPasswordLabel( WIDGET *psWidget, UDWORD xOffset, UDWORD yOffset,
 	fy = yOffset + psWidget->y;
 
 	iV_SetFont(font_large);
-	iV_SetTextColour(WZCOL_TEXT_BRIGHT);
+	iV_SetTextColour(WZCOL_FORM_TEXT);
 
 	iV_DrawText(psLab->aText, fx, fy);
 	iV_SetTextColour(WZCOL_TEXT_MEDIUM);
@@ -1069,7 +1154,7 @@ void startGameFind(void)
 	sFormInit.x = MULTIOP_OPTIONSX;
 	sFormInit.y = MULTIOP_OPTIONSY;
 	sFormInit.width = MULTIOP_CHATBOXW;
-	sFormInit.height = 460;
+	sFormInit.height = 415;	// FIXME: Add box at bottom for server messages
 	sFormInit.pDisplay = intOpenPlainForm;
 	sFormInit.disableChildren = true;
 
@@ -1091,6 +1176,8 @@ void startGameFind(void)
 
 	NETfindGame();
 	addGames();	// now add games.
+	addConsoleBox();
+	displayConsoleMessages();
 
 	// Password stuff. Hidden by default.
 
@@ -1166,6 +1253,7 @@ static void hidePasswordForm(void)
 		widgReveal(psWScreen, MULTIOP_REFRESH);
 	}
 	addGames();
+	addConsoleBox();
 }
 
 static void showPasswordForm(void)
@@ -1230,12 +1318,12 @@ static void addBlueForm(UDWORD parent,UDWORD id, const char *txt,UDWORD x,UDWORD
 }
 
 
-typedef struct
+struct LimitIcon
 {
 	char const *stat;
 	char const *desc;
 	int         icon;
-} LimitIcon;
+};
 static const LimitIcon limitIcons[] =
 {
 	{"A0LightFactory",  N_("Tanks disabled!!"),  IMAGE_NO_TANK},
@@ -1287,7 +1375,9 @@ static void addGameOptions()
 	// game name box
 	if (!NetPlay.bComms)
 	{
-		addMultiEditBox(MULTIOP_OPTIONS, MULTIOP_GNAME, MCOL0, MROW2, _("Select Game Name"), _("One-Player Skirmish"), IMAGE_EDIT_GAME, IMAGE_EDIT_GAME_HI, MULTIOP_GNAME_ICON);
+		addMultiEditBox(MULTIOP_OPTIONS, MULTIOP_GNAME, MCOL0, MROW2, _("Select Game Name"), 
+		                challengeActive ? game.name : _("One-Player Skirmish"), IMAGE_EDIT_GAME, 
+		                IMAGE_EDIT_GAME_HI, MULTIOP_GNAME_ICON);
 		// disable for one-player skirmish
 		widgSetButtonState(psWScreen, MULTIOP_GNAME, WEDBS_DISABLE);
 		widgSetButtonState(psWScreen, MULTIOP_GNAME_ICON, WBUT_DISABLE);
@@ -1313,12 +1403,12 @@ static void addGameOptions()
 		widgSetButtonState(psWScreen, MULTIOP_PASSWORD_BUT, WBUT_DISABLE);
 	}
 	// buttons.
-	
+
 	// game type
 	addBlueForm(MULTIOP_OPTIONS,MULTIOP_GAMETYPE,_("Scavengers"),MCOL0,MROW5,MULTIOP_BLUEFORMW,27);
-	addMultiBut(psWScreen, MULTIOP_GAMETYPE, MULTIOP_CAMPAIGN, MCOL1, 2, MULTIOP_BUTW, MULTIOP_BUTH, _("Scavengers"), 
+	addMultiBut(psWScreen, MULTIOP_GAMETYPE, MULTIOP_CAMPAIGN, MCOL1, 2, MULTIOP_BUTW, MULTIOP_BUTH, _("Scavengers"),
 	            IMAGE_SCAVENGERS_ON, IMAGE_SCAVENGERS_ON_HI, true);
-	addMultiBut(psWScreen, MULTIOP_GAMETYPE, MULTIOP_SKIRMISH, MCOL2, 2, MULTIOP_BUTW, MULTIOP_BUTH, _("No Scavengers"), 
+	addMultiBut(psWScreen, MULTIOP_GAMETYPE, MULTIOP_SKIRMISH, MCOL2, 2, MULTIOP_BUTW, MULTIOP_BUTH, _("No Scavengers"),
 	            IMAGE_SCAVENGERS_OFF, IMAGE_SCAVENGERS_OFF_HI, true);
 
 	widgSetButtonState(psWScreen, MULTIOP_CAMPAIGN,	0);
@@ -1341,7 +1431,7 @@ static void addGameOptions()
 		}
 	}
 
-	if (game.maxPlayers == MAX_PLAYERS || !foundScavengerPlayerInMap)
+	if (game.maxPlayers == MAX_PLAYERS || !game.mapHasScavengers)
 	{
 		widgSetButtonState(psWScreen, MULTIOP_SKIRMISH, WBUT_LOCK);
 		widgSetButtonState(psWScreen, MULTIOP_CAMPAIGN, WBUT_DISABLE);	// full, cannot enable scavenger player
@@ -1350,22 +1440,8 @@ static void addGameOptions()
 	//just display the game options.
 	addMultiEditBox(MULTIOP_OPTIONS, MULTIOP_PNAME, MCOL0, MROW1, _("Select Player Name"), (char*) sPlayer, IMAGE_EDIT_PLAYER, IMAGE_EDIT_PLAYER_HI, MULTIOP_PNAME_ICON);
 
-	// Fog type
-	addBlueForm(MULTIOP_OPTIONS,MULTIOP_FOG,_("Fog"),MCOL0,MROW6,MULTIOP_BLUEFORMW,27);
-
-	addMultiBut(psWScreen,MULTIOP_FOG,MULTIOP_FOG_ON ,MCOL1,2,MULTIOP_BUTW,MULTIOP_BUTH, _("Fog Of War"), IMAGE_FOG_OFF, IMAGE_FOG_OFF_HI,true);//black stuff
-	addMultiBut(psWScreen,MULTIOP_FOG,MULTIOP_FOG_OFF,MCOL2,2,MULTIOP_BUTW,MULTIOP_BUTH, _("Distance Fog"),IMAGE_FOG_ON,IMAGE_FOG_ON_HI,true);
-	if(game.fog)
-	{
-		widgSetButtonState(psWScreen, MULTIOP_FOG_ON,WBUT_LOCK);
-	}
-	else
-	{
-		widgSetButtonState(psWScreen, MULTIOP_FOG_OFF,WBUT_LOCK);
-	}
-
 		// alliances
-		addBlueForm(MULTIOP_OPTIONS, MULTIOP_ALLIANCES, _("Alliances"), MCOL0, MROW7, MULTIOP_BLUEFORMW, 27);
+		addBlueForm(MULTIOP_OPTIONS, MULTIOP_ALLIANCES, _("Alliances"), MCOL0, MROW6, MULTIOP_BLUEFORMW, 27);
 
 		addMultiBut(psWScreen,MULTIOP_ALLIANCES,MULTIOP_ALLIANCE_N,MCOL1,2,MULTIOP_BUTW,MULTIOP_BUTH,
 				_("No Alliances"),IMAGE_NOALLI,IMAGE_NOALLI_HI,true);
@@ -1398,7 +1474,7 @@ static void addGameOptions()
 			break;
 		}
 
-		addBlueForm(MULTIOP_OPTIONS, MULTIOP_POWER, _("Power"), MCOL0, MROW8, MULTIOP_BLUEFORMW, 27);
+		addBlueForm(MULTIOP_OPTIONS, MULTIOP_POWER, _("Power"), MCOL0, MROW7, MULTIOP_BLUEFORMW, 27);
 		addMultiBut(psWScreen,MULTIOP_POWER,MULTIOP_POWLEV_LOW,MCOL1,2,MULTIOP_BUTW,MULTIOP_BUTH,
 			_("Low Power Levels"),IMAGE_POWLO,IMAGE_POWLO_HI,true);
 		addMultiBut(psWScreen,MULTIOP_POWER,MULTIOP_POWLEV_MED,MCOL2,2,MULTIOP_BUTW,MULTIOP_BUTH,
@@ -1436,7 +1512,7 @@ static void addGameOptions()
 			}
 		}
 
-		addBlueForm(MULTIOP_OPTIONS, MULTIOP_BASETYPE, _("Base"), MCOL0, MROW9, MULTIOP_BLUEFORMW, 27);
+		addBlueForm(MULTIOP_OPTIONS, MULTIOP_BASETYPE, _("Base"), MCOL0, MROW8, MULTIOP_BLUEFORMW, 27);
 		addMultiBut(psWScreen,MULTIOP_BASETYPE,MULTIOP_CLEAN,MCOL1,2,MULTIOP_BUTW,MULTIOP_BUTH,
 				_("Start with No Bases"), IMAGE_NOBASE,IMAGE_NOBASE_HI,true);
 		addMultiBut(psWScreen,MULTIOP_BASETYPE,MULTIOP_BASE,MCOL2,2,MULTIOP_BUTW,MULTIOP_BUTH,
@@ -1474,10 +1550,10 @@ static void addGameOptions()
 			break;
 		}
 
-	addBlueForm(MULTIOP_OPTIONS, MULTIOP_MAP_PREVIEW, _("Map Preview"), MCOL0, MROW10, MULTIOP_BLUEFORMW, 27);
-	addMultiBut(psWScreen,MULTIOP_MAP_PREVIEW, MULTIOP_MAP_BUT, MCOL2, 2, MULTIOP_BUTW, MULTIOP_BUTH, 
+	addBlueForm(MULTIOP_OPTIONS, MULTIOP_MAP_PREVIEW, _("Map Preview"), MCOL0, MROW9, MULTIOP_BLUEFORMW, 27);
+	addMultiBut(psWScreen,MULTIOP_MAP_PREVIEW, MULTIOP_MAP_BUT, MCOL2, 2, MULTIOP_BUTW, MULTIOP_BUTH,
 	            _("Click to see Map"), IMAGE_FOG_OFF, IMAGE_FOG_OFF_HI, true);
-	widgSetButtonState(psWScreen, MULTIOP_MAP_BUT,0); //1 = OFF  0=ON 
+	widgSetButtonState(psWScreen, MULTIOP_MAP_BUT,0); //1 = OFF  0=ON
 
 	// cancel
 	addMultiBut(psWScreen,MULTIOP_OPTIONS,CON_CANCEL,
@@ -1498,7 +1574,7 @@ static void addGameOptions()
 	if (ingame.bHostSetup)
 	{
 		addMultiBut(psWScreen,MULTIOP_OPTIONS,MULTIOP_STRUCTLIMITS,MULTIOP_STRUCTLIMITSX,MULTIOP_STRUCTLIMITSY,
-		            35, 28, challengeActive ? _("Show Structure Limits") : _("Set Structure Limits"), 
+		            35, 28, challengeActive ? _("Show Structure Limits") : _("Set Structure Limits"),
 		            IMAGE_SLIM, IMAGE_SLIM_HI, IMAGE_SLIM_HI);
 	}
 
@@ -1531,27 +1607,10 @@ static void addGameOptions()
 // ////////////////////////////////////////////////////////////////////////////
 // Colour functions
 
-static BOOL safeToUseColour(UDWORD player,UDWORD col)
+static bool safeToUseColour(unsigned player, unsigned otherPlayer)
 {
-	UDWORD i;
-
-	// if already using it, or we're the host
-	if( col == getPlayerColour(player) || NetPlay.isHost )
-	{
-		return true;						// already using it.
-	}
-
-	// player wants to be colour. check no other player to see if it is using that colour.....
-	for(i=0;i<MAX_PLAYERS;i++)
-	{
-		// if no human (except us) is using it
-		if( (i!=player) && isHumanPlayer(i) && (getPlayerColour(i) == col) )
-		{
-			return false;
-		}
-	}
-
-	return true;
+	// Player wants to take the colour from otherPlayer. May not take from a human otherPlayer, unless we're the host.
+	return player == otherPlayer || NetPlay.isHost || !isHumanPlayer(otherPlayer);
 }
 
 static void initChooser(int player)
@@ -1607,10 +1666,10 @@ static void addDifficultyChooser(int player)
 		sButInit.pTip = NULL;
 		switch (i)
 		{
-		case 0: sButInit.pTip = _("Less aggressive and starts with less units"); break;
+		case 0: sButInit.pTip = _("Less aggressive"); break;
 		case 1: sButInit.pTip = _("Plays nice"); break;
 		case 2: sButInit.pTip = _("No holds barred"); break;
-		case 3: sButInit.pTip = _("Starts with advantages and gets twice as much oil from derricks"); break;
+		case 3: sButInit.pTip = _("Starts with advantages"); break;
 		}
 		sButInit.pDisplay = displayDifficulty;
 		sButInit.UserData = i;
@@ -1655,7 +1714,7 @@ static void addAiChooser(int player)
 	{
 		sButInit.id = MULTIOP_AI_OPEN;
 		sButInit.pTip = _("Allow human players to join in this slot");
-		sButInit.UserData = AI_OPEN;
+		sButInit.UserData = (UDWORD)AI_OPEN;
 		sButInit.y = y;
 		y += step;
 		widgAddButton(psWScreen, &sButInit);
@@ -1664,7 +1723,7 @@ static void addAiChooser(int player)
 	// Closed button
 	sButInit.pTip = _("Leave this slot unused");
 	sButInit.id = MULTIOP_AI_CLOSED;
-	sButInit.UserData = AI_CLOSED;
+	sButInit.UserData = (UDWORD)AI_CLOSED;
 	sButInit.y = y;
 	y += step + 8;
 	widgAddButton(psWScreen, &sButInit);
@@ -1732,21 +1791,21 @@ static void addColourChooser(UDWORD player)
 				MULTIOP_ROW_WIDTH,MULTIOP_PLAYERHEIGHT);
 
 	// add the flags
-	int flagW = iV_GetImageWidth(FrontImages, IMAGE_PLAYER0);
-	int flagH = iV_GetImageHeight(FrontImages, IMAGE_PLAYER0);
+	int flagW = iV_GetImageWidth(FrontImages, IMAGE_PLAYERN);
+	int flagH = iV_GetImageHeight(FrontImages, IMAGE_PLAYERN);
 	int space = MULTIOP_ROW_WIDTH - 7 - flagW*MAX_PLAYERS_IN_GUI;
 	int spaceDiv = MAX_PLAYERS_IN_GUI;
 	space = std::min(space, 5*spaceDiv);
 	for (i = 0; i < MAX_PLAYERS_IN_GUI; i++)
 	{
-		addMultiBut(psWScreen,MULTIOP_COLCHOOSER_FORM, MULTIOP_COLCHOOSER+i,
+		addMultiBut(psWScreen, MULTIOP_COLCHOOSER_FORM, MULTIOP_COLCHOOSER + getPlayerColour(i),
 			i*(flagW*spaceDiv + space)/spaceDiv + 7,  4,  // x, y
 			flagW, flagH,  // w, h
-			_("Player colour"), IMAGE_PLAYER0 + i, IMAGE_PLAYER0_HI + i, IMAGE_PLAYER0_HI + i);
+			getPlayerColourName(i), IMAGE_PLAYERN, IMAGE_PLAYERN_HI, IMAGE_PLAYERN_HI, getPlayerColour(i));
 
 			if( !safeToUseColour(selectedPlayer,i))
 			{
-				widgSetButtonState(psWScreen,MULTIOP_COLCHOOSER+i ,WBUT_DISABLE);
+				widgSetButtonState(psWScreen, MULTIOP_COLCHOOSER + getPlayerColour(i), WBUT_DISABLE);
 			}
 	}
 
@@ -1767,7 +1826,7 @@ static void changeTeam(UBYTE player, UBYTE team)
 	netPlayersUpdated = true;
 }
 
-static BOOL SendTeamRequest(UBYTE player, UBYTE chosenTeam)
+static bool SendTeamRequest(UBYTE player, UBYTE chosenTeam)
 {
 	if(NetPlay.isHost)			// do or request the change.
 	{
@@ -1786,7 +1845,7 @@ static BOOL SendTeamRequest(UBYTE player, UBYTE chosenTeam)
 	return true;
 }
 
-BOOL recvTeamRequest(NETQUEUE queue)
+bool recvTeamRequest(NETQUEUE queue)
 {
 	UBYTE	player, team;
 
@@ -1816,7 +1875,7 @@ BOOL recvTeamRequest(NETQUEUE queue)
 	return true;
 }
 
-static BOOL SendReadyRequest(UBYTE player, BOOL bReady)
+static bool SendReadyRequest(UBYTE player, bool bReady)
 {
 	if(NetPlay.isHost)			// do or request the change.
 	{
@@ -1832,10 +1891,10 @@ static BOOL SendReadyRequest(UBYTE player, BOOL bReady)
 	return true;
 }
 
-BOOL recvReadyRequest(NETQUEUE queue)
+bool recvReadyRequest(NETQUEUE queue)
 {
 	UBYTE	player;
-	BOOL	bReady;
+	bool	bReady;
 
 	if (!NetPlay.isHost || !bHosted)  // Only host should act, and only if the game hasn't started yet.
 	{
@@ -1864,7 +1923,7 @@ BOOL recvReadyRequest(NETQUEUE queue)
 	return changeReadyStatus((UBYTE)player, bReady);
 }
 
-static BOOL changeReadyStatus(UBYTE player, BOOL bReady)
+static bool changeReadyStatus(UBYTE player, bool bReady)
 {
 	drawReadyButton(player);
 	NetPlay.players[player].ready = bReady;
@@ -1874,7 +1933,7 @@ static BOOL changeReadyStatus(UBYTE player, BOOL bReady)
 	return true;
 }
 
-static BOOL changePosition(UBYTE player, UBYTE position)
+static bool changePosition(UBYTE player, UBYTE position)
 {
 	int i;
 
@@ -1903,7 +1962,7 @@ static BOOL changePosition(UBYTE player, UBYTE position)
 	return false;
 }
 
-BOOL changeColour(UBYTE player, UBYTE col)
+bool changeColour(UBYTE player, UBYTE col)
 {
 	int i;
 
@@ -1935,7 +1994,7 @@ BOOL changeColour(UBYTE player, UBYTE col)
 	return false;
 }
 
-static BOOL SendColourRequest(UBYTE player, UBYTE col)
+static bool SendColourRequest(UBYTE player, UBYTE col)
 {
 	if(NetPlay.isHost)			// do or request the change
 	{
@@ -1952,7 +2011,7 @@ static BOOL SendColourRequest(UBYTE player, UBYTE col)
 	return true;
 }
 
-static BOOL SendPositionRequest(UBYTE player, UBYTE position)
+static bool SendPositionRequest(UBYTE player, UBYTE position)
 {
 	if(NetPlay.isHost)			// do or request the change
 	{
@@ -1970,7 +2029,7 @@ static BOOL SendPositionRequest(UBYTE player, UBYTE position)
 	return true;
 }
 
-BOOL recvColourRequest(NETQUEUE queue)
+bool recvColourRequest(NETQUEUE queue)
 {
 	UBYTE	player, col;
 
@@ -1996,7 +2055,7 @@ BOOL recvColourRequest(NETQUEUE queue)
 	return changeColour(player, col);
 }
 
-BOOL recvPositionRequest(NETQUEUE queue)
+bool recvPositionRequest(NETQUEUE queue)
 {
 	UBYTE	player, position;
 
@@ -2038,10 +2097,7 @@ static void addTeamChooser(UDWORD player)
 	initChooser(player);
 
 	// add form.
-	addBlueForm(MULTIOP_PLAYERS,MULTIOP_TEAMCHOOSER_FORM,"",
-				7,
-				playerBoxHeight(player),
-				MULTIOP_ROW_WIDTH,MULTIOP_TEAMSHEIGHT);
+	addBlueForm(MULTIOP_PLAYERS, MULTIOP_TEAMCHOOSER_FORM, "", 7, playerBoxHeight(player), MULTIOP_ROW_WIDTH, MULTIOP_TEAMSHEIGHT);
 
 	// tally up the team counts
 	for (i=0; i< game.maxPlayers ; i++)
@@ -2076,11 +2132,10 @@ static void addTeamChooser(UDWORD player)
 	// add a kick button
 	if (player != selectedPlayer && NetPlay.bComms && NetPlay.isHost && NetPlay.players[player].allocated)
 	{
-		addMultiBut(psWScreen,MULTIOP_TEAMCHOOSER_FORM, MULTIOP_TEAMCHOOSER_KICK,
-					8*(teamW + 5) + 7, 8,
-					iV_GetImageWidth(FrontImages,IMAGE_NOJOIN),		  //w
-					iV_GetImageHeight(FrontImages,IMAGE_NOJOIN),		  //h
-					_("Kick player"), IMAGE_NOJOIN, IMAGE_NOJOIN, IMAGE_NOJOIN);
+		const int imgwidth = iV_GetImageWidth(FrontImages, IMAGE_NOJOIN);
+		const int imgheight = iV_GetImageHeight(FrontImages, IMAGE_NOJOIN);
+		addMultiBut(psWScreen, MULTIOP_TEAMCHOOSER_FORM, MULTIOP_TEAMCHOOSER_KICK, MULTIOP_ROW_WIDTH - imgwidth - 4, 8, imgwidth, imgheight,
+		            ("Kick player"), IMAGE_NOJOIN, IMAGE_NOJOIN, IMAGE_NOJOIN);
 	}
 
 	teamChooserUp = player;
@@ -2142,7 +2197,7 @@ static bool canChooseTeamFor(int i)
 // ////////////////////////////////////////////////////////////////////////////
 // box for players.
 
-void addPlayerBox(BOOL players)
+void addPlayerBox(bool players)
 {
 	// if background isn't there, then return since were not ready to draw the box yet!
 	if(widgGetFromID(psWScreen,FRONTEND_BACKDROP) == NULL)
@@ -2294,20 +2349,13 @@ void addPlayerBox(BOOL players)
 				sButInit.width = MULTIOP_PLAYERWIDTH - MULTIOP_TEAMSWIDTH - MULTIOP_READY_WIDTH - MULTIOP_COLOUR_WIDTH;
 				sButInit.height = MULTIOP_PLAYERHEIGHT;
 				sButInit.pTip = NULL;
-				if ((selectedPlayer == i || NetPlay.isHost) && NetPlay.players[i].allocated)
+				if ((selectedPlayer == i || NetPlay.isHost) && NetPlay.players[i].allocated && allowChangePosition)
 				{
 					sButInit.pTip = _("Click to change player position");
 				}
-				else if (!NetPlay.players[i].allocated && NetPlay.isHost)
+				else if (!NetPlay.players[i].allocated && NetPlay.isHost && !challengeActive)
 				{
-					if (!challengeActive)
-					{
-						sButInit.pTip = _("Click to change AI");
-					}
-					else
-					{
-						sButInit.pTip = _("You cannot change AI in a challenge");
-					}
+					sButInit.pTip = _("Click to change AI");
 				}
 				sButInit.pDisplay = displayPlayer;
 				sButInit.UserData = i;
@@ -2407,6 +2455,45 @@ static void addChatBox(void)
 	return;
 }
 
+static void addConsoleBox(void)
+{
+	if(widgGetFromID(psWScreen, FRONTEND_TOPFORM))
+	{
+		widgDelete(psWScreen, FRONTEND_TOPFORM);
+	}
+
+	if(widgGetFromID(psWScreen, MULTIOP_CONSOLEBOX))
+	{
+		return;
+	}
+
+	W_FORMINIT sFormInit;
+
+	sFormInit.formID = FRONTEND_BACKDROP;							// add the form
+	sFormInit.id = MULTIOP_CONSOLEBOX;
+	sFormInit.x = MULTIOP_CONSOLEBOXX;
+	sFormInit.y = MULTIOP_CONSOLEBOXY;
+	sFormInit.style = WFORM_PLAIN;
+	sFormInit.width = MULTIOP_CONSOLEBOXW;
+	sFormInit.height = MULTIOP_CONSOLEBOXH;
+	sFormInit.disableChildren = true;								// wait till open!
+	sFormInit.pDisplay = intOpenPlainForm;
+	widgAddForm(psWScreen, &sFormInit);
+
+	flushConsoleMessages();											// add the chatbox.
+	initConsoleMessages();
+	enableConsoleDisplay(true);
+	setConsoleBackdropStatus(false);
+	setDefaultConsoleJust(LEFT_JUSTIFY);
+	setConsoleSizePos(MULTIOP_CONSOLEBOXX + 4 + D_W, MULTIOP_CONSOLEBOXY + 14 + D_H, MULTIOP_CONSOLEBOXW - 4);
+	setConsolePermanence(true, true);
+	setConsoleLineInfo(4);											// use x lines on chat window
+
+	addConsoleMessage(_("Connecting to the lobby server..."), DEFAULT_JUSTIFY, SYSTEM_MESSAGE);
+	displayConsoleMessages();
+	return;
+}
+
 // ////////////////////////////////////////////////////////////////////////////
 static void disableMultiButs(void)
 {
@@ -2428,9 +2515,6 @@ static void disableMultiButs(void)
 
 	if (!NetPlay.isHost)
 	{
-		if( game.fog) widgSetButtonState(psWScreen,MULTIOP_FOG_OFF ,WBUT_DISABLE);		//fog
-		if(!game.fog) widgSetButtonState(psWScreen,MULTIOP_FOG_ON ,WBUT_DISABLE);
-
 			if(game.base != CAMP_CLEAN)	widgSetButtonState(psWScreen,MULTIOP_CLEAN ,WBUT_DISABLE);	// camapign subtype.
 			if(game.base != CAMP_BASE)	widgSetButtonState(psWScreen,MULTIOP_BASE ,WBUT_DISABLE);
 			if(game.base != CAMP_WALLS)	widgSetButtonState(psWScreen,MULTIOP_DEFENCE,WBUT_DISABLE);
@@ -2603,32 +2687,6 @@ static void processMultiopWidgets(UDWORD id)
 			widgSetButtonState(psWScreen, MULTIOP_SKIRMISH,WBUT_LOCK);
 			game.scavengers = false;
 			resetReadyStatus(false);
-			if(bHosted)
-			{
-				sendOptions();
-			}
-			break;
-
-		case MULTIOP_FOG_ON:
-			widgSetButtonState(psWScreen, MULTIOP_FOG_ON,WBUT_LOCK);
-			widgSetButtonState(psWScreen, MULTIOP_FOG_OFF,0);
-			game.fog = true;
-
-			resetReadyStatus(false);
-
-			if(bHosted)
-			{
-				sendOptions();
-			}
-			break;
-
-		case MULTIOP_FOG_OFF:
-			widgSetButtonState(psWScreen, MULTIOP_FOG_ON,0);
-			widgSetButtonState(psWScreen, MULTIOP_FOG_OFF,WBUT_LOCK);
-			game.fog = false;
-
-			resetReadyStatus(false);
-
 			if(bHosted)
 			{
 				sendOptions();
@@ -2844,11 +2902,11 @@ static void processMultiopWidgets(UDWORD id)
 		else
 		{
 			NETclose();
-			widgDelete(psWScreen, FRONTEND_BACKDROP);
-			challengeActive = false;
+			pie_LoadBackDrop(SCREEN_RANDOMBDROP);
 			bHosted = false;
 			ingame.localJoiningInProgress = false;
-			changeTitleMode(TITLE);
+			changeTitleMode(SINGLE);
+			addChallenges();
 		}
 		break;
 	case MULTIOP_MAP_BUT:
@@ -2961,7 +3019,10 @@ static void processMultiopWidgets(UDWORD id)
 
 	// clicked on a player
 	STATIC_ASSERT(MULTIOP_PLAYER_START + MAX_PLAYERS - 1 <= MULTIOP_PLAYER_END);
-	if (id >= MULTIOP_PLAYER_START && id <= MULTIOP_PLAYER_START + MAX_PLAYERS - 1 && (id - MULTIOP_PLAYER_START == selectedPlayer || NetPlay.isHost || (positionChooserUp >= 0 && !isHumanPlayer(id - MULTIOP_PLAYER_START))))
+	if (id >= MULTIOP_PLAYER_START && id <= MULTIOP_PLAYER_START + MAX_PLAYERS - 1
+	    && allowChangePosition
+	    && (id - MULTIOP_PLAYER_START == selectedPlayer || NetPlay.isHost
+	        || (positionChooserUp >= 0 && !isHumanPlayer(id - MULTIOP_PLAYER_START))))
 	{
 		int player = id - MULTIOP_PLAYER_START;
 		if ((player == selectedPlayer || (NetPlay.players[player].allocated && NetPlay.isHost))
@@ -3038,7 +3099,7 @@ void startMultiplayerGame(void)
 		{
 			debug(LOG_NET, "limiter was NOT activated, setting defaults");
 
-			// NOTE: TRUNK <->svn/2.3 difference, we don't load limiter_tex!
+			// NOTE: master <-> 2.3 difference, we don't load limiter_tex!
 			if (!resLoad("wrf/limiter_tex.wrf", 501))
 			{
 				debug(LOG_INFO, "Unable to load limiter_tex.  Defaults not set.");
@@ -3060,7 +3121,7 @@ void startMultiplayerGame(void)
 		resetDataHash();	// need to reset it, since host's data has changed.
 		createLimitSet();
 		debug(LOG_NET,"sending our options to all clients");
-		sendOptions(); 
+		sendOptions();
 		NEThaltJoining();							// stop new players entering.
 		ingame.TimeEveryoneIsInGame = 0;
 		ingame.isAllPlayersDataOK = false;
@@ -3068,11 +3129,7 @@ void startMultiplayerGame(void)
 		SendFireUp();								//bcast a fireup message
 	}
 
-	// set the fog correctly..
-	setRevealStatus(game.fog);
-	war_SetFog(!game.fog);
-
-	debug(LOG_NET, "title mode STARTGAME is set--Starting Game!"); 
+	debug(LOG_NET, "title mode STARTGAME is set--Starting Game!");
 	changeTitleMode(STARTGAME);
 
 	bHosted = false;
@@ -3223,17 +3280,13 @@ void frontendMultiMessages(void)
 			break;
 		}
 		case NET_FIREUP:					// campaign game started.. can fire the whole shebang up...
-			debug(LOG_NET, "NET_FIREUP was received ..."); 
+			debug(LOG_NET, "NET_FIREUP was received ...");
 			if(ingame.localOptionsReceived)
 			{
 				debug(LOG_NET, "& local Options Received (MP game)");
 				ingame.TimeEveryoneIsInGame = 0;			// reset time
 				resetDataHash();
 				decideWRF();
-
-				// set the fog correctly..
-				setRevealStatus(game.fog);
-				war_SetFog(!game.fog);
 
 				bMultiPlayer = true;
 				bMultiMessages = true;
@@ -3308,7 +3361,8 @@ void runMultiOptions(void)
 {
 	static UDWORD	lastrefresh = 0;
 	UDWORD			id, value, i;
-	char			sTemp[128];
+	char                    sTemp[128], oldGameMap[128];
+	int                     oldMaxPlayers;
 	PLAYERSTATS		playerStats;
 	W_CONTEXT		context;
 
@@ -3380,7 +3434,8 @@ void runMultiOptions(void)
 	if(multiRequestUp)
 	{
 		id = widgRunScreen(psRScreen);						// a requester box is up.
-		if( runMultiRequester(id,&id,(char*)&sTemp,&value))
+		bool isHoverPreview;
+		if (runMultiRequester(id, &id, (char *)&sTemp, &value, &isHoverPreview))
 		{
 			switch(id)
 			{
@@ -3399,17 +3454,30 @@ void runMultiOptions(void)
 				netPlayersUpdated = true;
 				break;
 			case MULTIOP_MAP:
+				sstrcpy(oldGameMap, game.map);
+				oldMaxPlayers = game.maxPlayers;
+
 				sstrcpy(game.map, sTemp);
-				game.maxPlayers =(UBYTE) value;
-				loadMapPreview(true);
+				game.maxPlayers = value;
+				loadMapPreview(!isHoverPreview);
+
+				if (isHoverPreview)
+				{
+					sstrcpy(game.map, oldGameMap);
+					game.maxPlayers = oldMaxPlayers;
+				}
 
 				widgSetString(psWScreen,MULTIOP_MAP,sTemp);
 				addGameOptions();
 				break;
 			default:
+				loadMapPreview(false);  // Restore the preview of the old map.
 				break;
 			}
-			addPlayerBox( !ingame.bHostSetup );
+			if (!isHoverPreview)
+			{
+				addPlayerBox( !ingame.bHostSetup );
+			}
 		}
 	}
 	else
@@ -3421,7 +3489,7 @@ void runMultiOptions(void)
 			{
 				return;
 			}
-			inputLooseFocus();	// remove the mousepress from the input stream.
+			inputLoseFocus();	// remove the mousepress from the input stream.
 			hideTime = 0;
 		}
 
@@ -3444,18 +3512,11 @@ void runMultiOptions(void)
 
 	if (CancelPressed())
 	{
-		if (multiRequestUp)
-		{
-			changeTitleMode(lastTitleMode);
-		}
-		else
-		{
-			processMultiopWidgets(CON_CANCEL);  // "Press" the cancel button to clean up net connections and stuff.
-		}
+		processMultiopWidgets(CON_CANCEL);  // "Press" the cancel button to clean up net connections and stuff.
 	}
 }
 
-BOOL startMultiOptions(BOOL bReenter)
+bool startMultiOptions(bool bReenter)
 {
 	PLAYERSTATS		nullStats;
 	UBYTE i;
@@ -3463,6 +3524,7 @@ BOOL startMultiOptions(BOOL bReenter)
 	netPlayersUpdated = true;
 
 	addBackdrop();
+	loadMapPreview(false);
 	addTopForm();
 
 	if (getLobbyError() != ERROR_CHEAT)
@@ -3481,7 +3543,7 @@ BOOL startMultiOptions(BOOL bReenter)
 			ingame.pStructureLimits = NULL;
 		}
 	}
-	
+
 	if(!bReenter)
 	{
 		teamChooserUp = -1;
@@ -3496,6 +3558,7 @@ BOOL startMultiOptions(BOOL bReenter)
 			setPlayerColour(i,i);						//reset all colors as well
 		}
 
+		game.mapHasScavengers = true; // FIXME, should default to false
 		if(!NetPlay.bComms)			// force skirmish if no comms.
 		{
 			game.type = SKIRMISH;
@@ -3508,10 +3571,10 @@ BOOL startMultiOptions(BOOL bReenter)
 
 		loadMultiStats((char*)sPlayer,&nullStats);
 
+		memset(nameOverrides, 0, sizeof(nameOverrides));
 		if (challengeActive)
 		{
-			inifile	*inif = inifile_load(sRequestResult);
-			inifile_set_current_section(inif, "challenge");
+			WzConfig challenge(sRequestResult);
 
 			resetReadyStatus(false);
 			removeWildcards((char*)sPlayer);
@@ -3523,43 +3586,51 @@ BOOL startMultiOptions(BOOL bReenter)
 			}
 			bHosted = true;
 
-			sstrcpy(game.map, inifile_get(inif, "Map", game.map));
-			game.maxPlayers = inifile_get_as_int(inif, "MaxPlayers", game.maxPlayers);	// TODO, read from map itself, not here!!
-			game.scavengers = inifile_get_as_bool(inif, "Scavengers", game.scavengers);
+			challenge.beginGroup("challenge");
+			sstrcpy(game.map, challenge.value("Map", game.map).toString().toAscii().constData());
+			game.maxPlayers = challenge.value("MaxPlayers", game.maxPlayers).toInt();	// TODO, read from map itself, not here!!
+			game.scavengers = challenge.value("Scavengers", game.scavengers).toInt();
 			game.alliance = ALLIANCES_TEAMS;
 			netPlayersUpdated = true;
 			mapDownloadProgress = 100;
-			game.power = inifile_get_as_int(inif, "challenge:Power", game.power);
-			game.base = inifile_get_as_int(inif, "challenge:Bases", game.base + 1) - 1;		// count from 1 like the humans do
-			allowChangePosition = inifile_get_as_bool(inif, "challenge:AllowPositionChange", false);
+			game.power = challenge.value("Power", game.power).toInt();
+			game.base = challenge.value("Bases", game.base + 1).toInt() - 1;		// count from 1 like the humans do
+			sstrcpy(game.name, challenge.value("name").toString().toUtf8().constData());
+			allowChangePosition = challenge.value("AllowPositionChange", false).toBool();
+			challenge.endGroup();
 
 			for (int i = 0; i < MAX_PLAYERS; i++)
 			{
-				char key[64];
-				const char *value;
-
-				ssprintf(key, "player_%d:team", i + 1);
-				NetPlay.players[i].team = inifile_get_as_int(inif, key, NetPlay.players[i].team + 1) - 1;
-				ssprintf(key, "player_%d:position", i + 1);
-				if (inifile_key_exists(inif, key))
+				challenge.beginGroup("player_" + QString::number(i + 1));
+				if (challenge.contains("team"))
 				{
-					changePosition(i, inifile_get_as_int(inif, key, NetPlay.players[i].position));
+					NetPlay.players[i].team = challenge.value("team").toInt() - 1;
+				}
+				else // team is a required key!
+				{
+					NetPlay.players[i].ai = AI_CLOSED;
+				}
+				if (challenge.contains("name"))
+				{
+					sstrcpy(nameOverrides[i], challenge.value("name").toString().toUtf8().constData());
+				}
+				if (challenge.contains("position"))
+				{
+					changePosition(i, challenge.value("position", NetPlay.players[i].position).toInt());
 				}
 				if (i != 0)	// player index zero is always the challenger
 				{
-					ssprintf(key, "player_%d:difficulty", i + 1);
-					value = inifile_get(inif, key, "Medium");
+					QString value = challenge.value("difficulty", "Medium").toString();
 					for (int j = 0; j < ARRAY_SIZE(difficultyList); j++)
 					{
-						if (strcasecmp(difficultyList[j], value) == 0)
+						if (strcasecmp(difficultyList[j], value.toAscii().constData()) == 0)
 						{
 							game.skDiff[i] = difficultyValue[j];
 						}
 					}
 				}
+				challenge.endGroup();
 			}
-
-			inifile_delete(inif);
 
 			ingame.localOptionsReceived = true;
 			addGameOptions();									// update game options box.
@@ -3579,6 +3650,8 @@ BOOL startMultiOptions(BOOL bReenter)
 	{
 		disableMultiButs();
 	}
+
+	loadMapPreview(false);
 
 	return true;
 }
@@ -3602,99 +3675,116 @@ void displayChatEdit(WIDGET *psWidget, UDWORD xOffset, UDWORD yOffset, PIELIGHT 
 // ////////////////////////////////////////////////////////////////////////////
 void displayRemoteGame(WIDGET *psWidget, UDWORD xOffset, UDWORD yOffset, PIELIGHT *pColours)
 {
-	UDWORD x = xOffset+psWidget->x;
-	UDWORD y = yOffset+psWidget->y;
-	UDWORD	i = psWidget->UserData;
-	char tmp[80], gamename[StringSize];
-	unsigned int ping;
+	UDWORD x = xOffset + psWidget->x;
+	UDWORD y = yOffset + psWidget->y;
+	UDWORD	gameID = psWidget->UserData;
+	char tmp[80], name[StringSize];
 
-	if (LobbyError != ERROR_NOERROR)
+	if ( (LobbyError != ERROR_NOERROR) && (bMultiPlayer && !NetPlay.bComms))
 	{
+		addConsoleMessage(_("Can't connect to lobby server!"), DEFAULT_JUSTIFY, NOTIFY_MESSAGE);
 		return;
 	}
 
-	// Draw blue boxes.
-	drawBlueBox(x,y,psWidget->width,psWidget->height);
-	drawBlueBox(x,y,94,psWidget->height);
-	drawBlueBox(x,y,55,psWidget->height);
+	// Draw blue boxes for games (buttons) & headers
+	drawBlueBox(x, y, psWidget->width, psWidget->height);
+	drawBlueBox(x, y, GAMES_STATUS_START - 4 ,psWidget->height);
+	drawBlueBox(x, y, GAMES_PLAYERS_START - 4 ,psWidget->height);
+	drawBlueBox(x, y, GAMES_MAPNAME_START - 4, psWidget->height);
 
 	//draw game info
-	iV_SetFont(font_regular);													// font
+	iV_SetFont(font_regular);
 
-	// get game info.
-	// TODO: Check whether this code is used at all in skirmish games, if not, remove it.
-	if ((NetPlay.games[i].desc.dwFlags & SESSION_JOINDISABLED)
-		|| strcmp(NetPlay.games[i].modlist,getModList()) != 0
-		|| (bMultiPlayer
-			&& !NetPlay.bComms
-			&& NETgetGameFlagsUnjoined(gameNumber,1) == SKIRMISH                                  // the LAST bug...
-			&& NetPlay.games[gameNumber].desc.dwCurrentPlayers >= NetPlay.games[gameNumber].desc.dwMaxPlayers - 1))
+	// As long as they got room, and mods are the same then we proccess the button(s) 
+	if ((NetPlay.games[gameID].desc.dwCurrentPlayers == NetPlay.games[gameID].desc.dwMaxPlayers)
+		|| strcmp(NetPlay.games[gameID].modlist, getModList()) != 0 )
 	{
-		iV_SetTextColour(WZCOL_TEXT_MEDIUM);
-		// FIXME: We should really use another way to indicate that the game is full than our current big fat cross.
-		// need some sort of closed thing here!
-		iV_DrawImage(FrontImages,IMAGE_NOJOIN,x+18,y+11);
+		// FIXME: We should really use another way to indicate that the game is full other than our current big fat X.
+		// If game is full or wrong mod loaded
+		iV_SetTextColour(WZCOL_TEXT_DARK);
+		iV_DrawImage(FrontImages, IMAGE_NO, x + GAMES_STATUS_START, y + 3);
+		iV_DrawImage(FrontImages, IMAGE_LAMP_RED, x - 14, y + 8);
+		widgSetButtonState(psWScreen, psWidget->id, WBUT_DISABLE);
 	}
-	else if (NETgameIsCorrectVersion(&NetPlay.games[i]))
+	else if (NETisCorrectVersion(NetPlay.games[gameID].game_version_major, NetPlay.games[gameID].game_version_minor))
 	{
-		if (NetPlay.games[gameNumber].desc.dwCurrentPlayers >= NetPlay.games[gameNumber].desc.dwMaxPlayers)
+
+		iV_SetTextColour(WZCOL_FORM_TEXT);
+		ssprintf(tmp, "%d/%d", NetPlay.games[gameID].desc.dwCurrentPlayers, NetPlay.games[gameID].desc.dwMaxPlayers);
+		iV_DrawText(tmp, x + GAMES_PLAYERS_START + 4 , y + 18);
+
+		//draw type overlay.
+		if (NetPlay.games[gameID].privateGame)	// check to see if it is a private game
 		{
-			iV_SetTextColour(WZCOL_TEXT_MEDIUM);
+			iV_DrawImage(FrontImages, IMAGE_LOCKED_NOBG, x + GAMES_STATUS_START, y + 3);
+			iV_DrawImage(FrontImages, IMAGE_LAMP_AMBER, x - 14, y + 8);
 		}
 		else
-		{
-			iV_SetTextColour(WZCOL_TEXT_BRIGHT);
+		{	// "Normal" game, not private.
+			iV_DrawImage(FrontImages, IMAGE_SKIRMISH_OVER, x + GAMES_STATUS_START, y + 3);
+			iV_DrawImage(FrontImages, IMAGE_LAMP_GREEN, x - 14, y + 8);
 		}
-		iV_DrawText(_("Players"), x + 5, y + 18);
-		ssprintf(tmp, "%d/%d", NetPlay.games[i].desc.dwCurrentPlayers, NetPlay.games[i].desc.dwMaxPlayers);
-		iV_DrawText(tmp, x + 17, y + 33);
+
+		// see what host limits are... then draw them.
+		if (NetPlay.games[gameID].limits)
+		{
+			if(NetPlay.games[gameID].limits & NO_TANKS)
+				iV_DrawImage(FrontImages, IMAGE_NO_TANK, x + GAMES_STATUS_START + 37, y + 2);
+			if(NetPlay.games[gameID].limits & NO_BORGS)
+				iV_DrawImage(FrontImages, IMAGE_NO_CYBORG, x + GAMES_STATUS_START + (37 * 2), y + 2);
+			if(NetPlay.games[gameID].limits & NO_VTOLS)
+				iV_DrawImage(FrontImages, IMAGE_NO_VTOL, x + GAMES_STATUS_START + (37 * 3) , y + 2);
+		}	
 	}
 	else
 	{	//don't allow people to join games frome a different version of the game.
-		iV_SetTextColour(WZCOL_TEXT_MEDIUM);
-		// FIXME: Need a Wrong version icon!
-		iV_DrawImage(FrontImages,IMAGE_NOJOIN,x+18,y+11);
-	}
-	
-	//draw type overlay.
-	if( NETgetGameFlagsUnjoined(i,1) == CAMPAIGN)
-	{
-		iV_DrawImage(FrontImages, IMAGE_ARENA_OVER, x + 59, y + 3);
-	}
-	else if (NetPlay.games[i].privateGame)	// check to see if it is a private game
-	{
-		iV_DrawImage(FrontImages, IMAGE_LOCKED_NOBG, x+62, y+3);	// lock icon
-	}
-	else
-	{
-		iV_DrawImage(FrontImages, IMAGE_SKIRMISH_OVER, x+62, y+3);	// SKIRMISH
+		// FIXME: Need a 'Wrong version' icon
+		iV_SetTextColour(WZCOL_TEXT_DARK);
+		iV_DrawImage(FrontImages, IMAGE_NOJOIN, x + GAMES_STATUS_START + 42, y + 6 );
+		iV_DrawImage(FrontImages, IMAGE_LAMP_RED, x - 14, y + 8);
+		widgSetButtonState(psWScreen, psWidget->id, WBUT_DISABLE);
 	}
 
-	// ping rating
-	ping = NETgetGameFlagsUnjoined(i, 2);
-	if (ping < PING_MED)
+	//draw game name, chop when we get a too long name
+	sstrcpy(name, NetPlay.games[gameID].name);
+	while (iV_GetTextWidth(name) > (psWidget->width-110) )
 	{
-		iV_DrawImage(FrontImages,IMAGE_LAMP_GREEN,x+70,y+26);
+		name[strlen(name)-1]='\0';
 	}
-	else if (ping >= PING_MED && ping < PING_HI)
-	{
-		iV_DrawImage(FrontImages,IMAGE_LAMP_AMBER,x+70,y+26);
-	}
-	else
-	{
-		iV_DrawImage(FrontImages,IMAGE_LAMP_RED,x+70,y+26);
-	}
+	iV_DrawText(name, x + GAMES_GAMENAME_START, y + 12);
 
-	//draw game name
-	sstrcpy(gamename, NetPlay.games[i].name);
-	while(iV_GetTextWidth(gamename) > (psWidget->width-110) )
+	// draw map name, chop when we get a too long name
+	sstrcpy(name, NetPlay.games[gameID].mapname);
+	while (iV_GetTextWidth(name) > (psWidget->width-110) )
 	{
-		gamename[strlen(gamename)-1]='\0';
+		name[strlen(name)-1]='\0';
 	}
-	iV_DrawText(gamename, x + 100, y + 18);	// name
+	iV_DrawText(name, x + GAMES_MAPNAME_START, y + 12);	// map name
 
-	iV_SetFont(font_small);											// font
-	iV_DrawText(NetPlay.games[i].versionstring, x + 100, y + 32);	// version
+	iV_SetFont(font_small);
+	// draw mod name (if any)
+	strlen(NetPlay.games[gameID].modlist) ? sprintf(name, _("Mods: %s"), NetPlay.games[gameID].modlist) : sstrcpy(name, _("Mods: None!"));
+	iV_DrawText(name, x + GAMES_MODNAME_START, y + 24 );
+
+	// draw version string
+	sprintf(name, _("Version: %s"), NetPlay.games[gameID].versionstring);
+	iV_DrawText(name, x + GAMES_GAMENAME_START + 6, y + 24 );
+
+	// crappy hack to only draw this once for the header.  TODO fix GUI
+	if (gameID == 0)
+	{
+	 iV_SetTextColour(WZCOL_YELLOW);
+	 // make the 'header' for the table...
+	 drawBlueBox(x , y - 12 , GAMES_GAMEWIDTH, 12);
+	 ssprintf(tmp, "Game Name");
+	 iV_DrawText(tmp, x - 2 + GAMES_GAMENAME_START + 48, y - 3);
+	 ssprintf(tmp, "Map Name");
+	 iV_DrawText(tmp, x - 2 + GAMES_MAPNAME_START + 48, y - 3);
+	 ssprintf(tmp, "Players");
+	 iV_DrawText(tmp, x - 2 + GAMES_PLAYERS_START, y - 3);
+	 ssprintf(tmp, "Status");
+	 iV_DrawText(tmp, x - 2 + GAMES_STATUS_START + 48, y - 3);
+	}
 }
 
 void displayTeamChooser(WIDGET *psWidget, UDWORD xOffset, UDWORD yOffset, PIELIGHT *pColours)
@@ -3722,8 +3812,8 @@ void displayPosition(WIDGET *psWidget, UDWORD xOffset, UDWORD yOffset, PIELIGHT 
 
 	drawBlueBox(x, y, psWidget->width, psWidget->height);
 	iV_SetFont(font_regular);
-	iV_SetTextColour(WZCOL_TEXT_BRIGHT);
-	ssprintf(text, "Click to take player slot %d", NetPlay.players[i].position);
+	iV_SetTextColour(WZCOL_FORM_TEXT);
+	ssprintf(text, _("Click to take player slot %d"), NetPlay.players[i].position);
 	iV_DrawText(text, x + 10, y + 22);
 }
 
@@ -3732,12 +3822,12 @@ static void displayAi(WIDGET *psWidget, UDWORD xOffset, UDWORD yOffset, PIELIGHT
 	const int x = xOffset + psWidget->x;
 	const int y = yOffset + psWidget->y;
 	const int j = psWidget->UserData;
-	const char *commsText[] = { "Open", "Closed" };
+	const char *commsText[] = { N_("Open"), N_("Closed") };
 
 	drawBlueBox(x, y, psWidget->width, psWidget->height);
 	iV_SetFont(font_regular);
-	iV_SetTextColour(WZCOL_TEXT_BRIGHT);
-	iV_DrawText((j >= 0) ? aidata[j].name : commsText[j + 2], x + 10, y + 22);
+	iV_SetTextColour(WZCOL_FORM_TEXT);
+	iV_DrawText((j >= 0) ? aidata[j].name : gettext(commsText[j + 2]), x + 10, y + 22);
 }
 
 static int difficultyIcon(int difficulty)
@@ -3761,9 +3851,9 @@ static void displayDifficulty(WIDGET *psWidget, UDWORD xOffset, UDWORD yOffset, 
 	ASSERT_OR_RETURN(, j < ARRAY_SIZE(difficultyList), "Bad difficulty found: %d", j);
 	drawBlueBox(x, y, psWidget->width, psWidget->height);
 	iV_SetFont(font_regular);
-	iV_SetTextColour(WZCOL_TEXT_BRIGHT);
+	iV_SetTextColour(WZCOL_FORM_TEXT);
 	iV_DrawImage(FrontImages, difficultyIcon(j), x + 5, y + 5);
-	iV_DrawText(difficultyList[j], x + 42, y + 22);
+	iV_DrawText(gettext(difficultyList[j]), x + 42, y + 22);
 }
 
 // ////////////////////////////////////////////////////////////////////////////
@@ -3785,7 +3875,7 @@ void displayPlayer(WIDGET *psWidget, UDWORD xOffset, UDWORD yOffset, PIELIGHT *p
 
 		snprintf(mapProgressString, MAX_STR_LENGTH, _("Sending Map: %d%% "), progress);
 		iV_SetFont(font_regular); // font
-		iV_SetTextColour(WZCOL_TEXT_BRIGHT);
+		iV_SetTextColour(WZCOL_FORM_TEXT);
 		iV_DrawText(mapProgressString, x + 15, y + 22);
 	}
 	else if (mapDownloadProgress != 100 && j == selectedPlayer)
@@ -3793,7 +3883,7 @@ void displayPlayer(WIDGET *psWidget, UDWORD xOffset, UDWORD yOffset, PIELIGHT *p
 		static char mapProgressString[MAX_STR_LENGTH] = {'\0'};
 		snprintf(mapProgressString, MAX_STR_LENGTH, _("Map: %d%% downloaded"), mapDownloadProgress);
 		iV_SetFont(font_regular); // font
-		iV_SetTextColour(WZCOL_TEXT_BRIGHT);
+		iV_SetTextColour(WZCOL_FORM_TEXT);
 		iV_DrawText(mapProgressString, x + 5, y + 22);
 		return;
 	}
@@ -3802,7 +3892,7 @@ void displayPlayer(WIDGET *psWidget, UDWORD xOffset, UDWORD yOffset, PIELIGHT *p
 		drawBlueBox(x,y,psWidget->width,psWidget->height);							// right
 
 		iV_SetFont(font_regular);											// font
-		iV_SetTextColour(WZCOL_TEXT_BRIGHT);
+		iV_SetTextColour(WZCOL_FORM_TEXT);
 
 		// name
 		std::string name = NetPlay.players[j].name;
@@ -3814,33 +3904,29 @@ void displayPlayer(WIDGET *psWidget, UDWORD xOffset, UDWORD yOffset, PIELIGHT *p
 			}
 			name += "...";
 		}
+		std::string subText;
 		if (j == NET_HOST_ONLY && NetPlay.bComms)
 		{
-			iV_DrawText(name.c_str(), x + nameX, y + 18);
-			iV_SetFont(font_small);
-			iV_SetTextColour(WZCOL_TEXT_MEDIUM);
-			iV_DrawText(_("HOST"), x + nameX, y + 28);
-			iV_SetFont(font_regular);
-			iV_SetTextColour(WZCOL_TEXT_BRIGHT);
+			subText += _("HOST");
 		}
-		else if (NetPlay.bComms && NetPlay.isHost)
+		if (NetPlay.bComms && j != selectedPlayer)
 		{
 			char buf[250] = {'\0'};
 
 			// show "actual" ping time
-			iV_DrawText(name.c_str(), x + nameX, y + 18);
+			ssprintf(buf, "%s%s: %03d", subText.empty()? "" : ", ", _("Ping"), ingame.PingTimes[j]);
+			subText += buf;
+		}
+		iV_DrawText(name.c_str(), x + nameX, y + (subText.empty()? 22 : 18));
+		if (!subText.empty())
+		{
 			iV_SetFont(font_small);
 			iV_SetTextColour(WZCOL_TEXT_MEDIUM);
-			ssprintf(buf, "Ping: %03d", ingame.PingTimes[j]);
-			iV_DrawText(buf, x + nameX, y + 28);
+			iV_DrawText(subText.c_str(), x + nameX, y + 28);
 			iV_SetFont(font_regular);
-			iV_SetTextColour(WZCOL_TEXT_BRIGHT);
+			iV_SetTextColour(WZCOL_FORM_TEXT);
 		}
-		else
-		{
-			iV_DrawText(name.c_str(), x + nameX, y + 22);
-		}
-		
+
 		if(getMultiStats(j).played < 5)
 		{
 			iV_DrawImage(FrontImages, IMAGE_MEDAL_DUMMY, x + 4, y + 13);
@@ -3925,13 +4011,13 @@ void displayPlayer(WIDGET *psWidget, UDWORD xOffset, UDWORD yOffset, PIELIGHT *p
 			iV_DrawImage(FrontImages, IMAGE_PLAYER_PC, x, y + 11);
 		}
 		iV_SetFont(font_regular);
-		iV_SetTextColour(WZCOL_TEXT_BRIGHT);
+		iV_SetTextColour(WZCOL_FORM_TEXT);
 		ASSERT_OR_RETURN(, NetPlay.players[j].ai < (int)aidata.size(), "Uh-oh, AI index out of bounds");
 		switch (NetPlay.players[j].ai)
 		{
-		case AI_OPEN: sstrcpy(aitext, "Open"); break;
-		case AI_CLOSED: sstrcpy(aitext, "Closed"); break;
-		default: sstrcpy(aitext, aidata[NetPlay.players[j].ai].name); break;
+		case AI_OPEN: sstrcpy(aitext, _("Open")); break;
+		case AI_CLOSED: sstrcpy(aitext, _("Closed")); break;
+		default: sstrcpy(aitext, nameOverrides[j][0] == '\0' ? aidata[NetPlay.players[j].ai].name : nameOverrides[j]); break;
 		}
 		iV_DrawText(aitext, x + nameX, y + 22);
 	}
@@ -3948,7 +4034,7 @@ void displayColour(WIDGET *psWidget, UDWORD xOffset, UDWORD yOffset, PIELIGHT *p
 	{
 		int player = getPlayerColour(j);
 		STATIC_ASSERT(MAX_PLAYERS <= 16);
-		iV_DrawImage(FrontImages, IMAGE_PLAYER0 + player, x + 7, y + 9);
+		iV_DrawImageTc(FrontImages, IMAGE_PLAYERN, IMAGE_PLAYERN_TC, x + 7, y + 9, pal_GetTeamColour(player));
 	}
 }
 
@@ -3991,12 +4077,13 @@ void displayMultiBut(WIDGET *psWidget, UDWORD xOffset, UDWORD yOffset, PIELIGHT 
 {
 	UDWORD	x = xOffset+psWidget->x;
 	UDWORD	y = yOffset+psWidget->y;
-	BOOL	Hilight = false;
+	bool	Hilight = false;
 	UDWORD	Down = 0;
 	UDWORD	Grey = 0;
-	UWORD	im_norm = UNPACKDWORD_TRI_A((UDWORD)psWidget->UserData);
-	UWORD	im_down = UNPACKDWORD_TRI_B((UDWORD)psWidget->UserData);
-	UWORD	im_hili = UNPACKDWORD_TRI_C((UDWORD)psWidget->UserData);
+	UWORD	im_norm = UNPACKDWORD_QUAD_A((UDWORD)psWidget->UserData);
+	UWORD	im_down = UNPACKDWORD_QUAD_B((UDWORD)psWidget->UserData);
+	UWORD	im_hili = UNPACKDWORD_QUAD_C((UDWORD)psWidget->UserData);
+	unsigned tc     = UNPACKDWORD_QUAD_D(psWidget->UserData);
 	UWORD	hiToUse = im_hili;
 
 	// FIXME: This seems to be a way to conserve space, so you can use a
@@ -4064,29 +4151,33 @@ void displayMultiBut(WIDGET *psWidget, UDWORD xOffset, UDWORD yOffset, PIELIGHT 
 		Grey = 1;
 	}
 
+	int toDraw[3];
+	int numToDraw = 0;
 
 	// now display
-	iV_DrawImage(FrontImages, im_norm, x, y);
+	toDraw[numToDraw++] = im_norm;
 
 	// hilights etc..
-	if(Hilight && !Grey)
+	if (Down)
 	{
-		if (Down)
-		{
-			iV_DrawImage(FrontImages, im_down, x, y);
-		}
-
-		if (hiToUse)
-		{
-			iV_DrawImage(FrontImages, hiToUse, x, y);
-		}
-
+		toDraw[numToDraw++] = im_down;
 	}
-	else if (Down)
+	if(Hilight && !Grey && hiToUse)
 	{
-		iV_DrawImage(FrontImages, im_down, x, y);
+		toDraw[numToDraw++] = hiToUse;
 	}
 
+	for (int n = 0; n < numToDraw; ++n)
+	{
+		if (tc == MAX_PLAYERS)
+		{
+			iV_DrawImage(FrontImages, toDraw[n], x, y);
+		}
+		else
+		{
+			iV_DrawImageTc(FrontImages, toDraw[n], toDraw[n] + 1, x, y, pal_GetTeamColour(tc));
+		}
+	}
 
 	if (Grey)
 	{
@@ -4100,7 +4191,7 @@ void displayMultiBut(WIDGET *psWidget, UDWORD xOffset, UDWORD yOffset, PIELIGHT 
 /////////////////////////////////////////////////////////////////////////////////////////
 // common widgets
 
-static BOOL addMultiEditBox(UDWORD formid, UDWORD id, UDWORD x, UDWORD y, char const *tip, char const *tipres, UDWORD icon, UDWORD iconhi, UDWORD iconid)
+static bool addMultiEditBox(UDWORD formid, UDWORD id, UDWORD x, UDWORD y, char const *tip, char const *tipres, UDWORD icon, UDWORD iconhi, UDWORD iconid)
 {
 	W_EDBINIT sEdInit;                           // editbox
 	sEdInit.formID = formid;
@@ -4122,7 +4213,7 @@ static BOOL addMultiEditBox(UDWORD formid, UDWORD id, UDWORD x, UDWORD y, char c
 
 /////////////////////////////////////////////////////////////////////////////////////////
 
-BOOL addMultiBut(W_SCREEN *screen, UDWORD formid, UDWORD id, UDWORD x, UDWORD y, UDWORD width, UDWORD height, const char* tipres, UDWORD norm, UDWORD down, UDWORD hi)
+bool addMultiBut(W_SCREEN *screen, UDWORD formid, UDWORD id, UDWORD x, UDWORD y, UDWORD width, UDWORD height, const char* tipres, UDWORD norm, UDWORD down, UDWORD hi, unsigned tc)
 {
 	W_BUTINIT sButInit;
 	sButInit.formID = formid;
@@ -4133,7 +4224,7 @@ BOOL addMultiBut(W_SCREEN *screen, UDWORD formid, UDWORD id, UDWORD x, UDWORD y,
 	sButInit.height= (unsigned short) height;
 	sButInit.pTip = tipres;
 	sButInit.pDisplay = displayMultiBut;
-	sButInit.UserData = PACKDWORD_TRI(norm, down, hi);
+	sButInit.UserData = PACKDWORD_QUAD(norm, down, hi, tc);
 
 	return widgAddButton(screen, &sButInit);
 }

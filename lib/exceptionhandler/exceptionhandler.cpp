@@ -1,6 +1,6 @@
 /*
 	This file is part of Warzone 2100.
-	Copyright (C) 2007-2010  Warzone 2100 Project
+	Copyright (C) 2007-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -159,7 +159,7 @@ static struct sigaction oldAction[NSIG];
 
 
 static struct utsname sysInfo;
-static BOOL gdbIsAvailable = false, programIsAvailable = false, sysInfoValid = false;
+static bool gdbIsAvailable = false, programIsAvailable = false, sysInfoValid = false;
 static char
 	executionDate[MAX_DATE_STRING] = {'\0'},
 	programPID[MAX_PID_STRING] = {'\0'},
@@ -736,7 +736,7 @@ static bool fetchProgramPath(char * const programPath, size_t const bufSize, con
  *
  * \param programCommand Command used to launch this program. Only used for POSIX handler.
  */
-void setupExceptionHandler(int argc, char * argv[])
+void setupExceptionHandler(int argc, const char ** argv, const char *packageVersion)
 {
 #if defined(WZ_OS_UNIX) && !defined(WZ_OS_MAC)
 	const char *programCommand;
@@ -744,12 +744,12 @@ void setupExceptionHandler(int argc, char * argv[])
 #endif
 #if !defined(WZ_OS_MAC)
 	// Initialize info required for the debug dumper
-	dbgDumpInit(argc, argv);
+	dbgDumpInit(argc, argv, packageVersion);
 #endif
 
 #if defined(WZ_OS_WIN)
 # if defined(WZ_CC_MINGW)
-	ExchndlSetup();
+	ExchndlSetup(packageVersion);
 # else
 	prevExceptionHandler = SetUnhandledExceptionFilter(windowsExceptionHandler);
 # endif // !defined(WZ_CC_MINGW)
@@ -775,19 +775,18 @@ void setupExceptionHandler(int argc, char * argv[])
 bool OverrideRPTDirectory(char *newPath)
 {
 # if defined(WZ_CC_MINGW)
-	TCHAR buf[MAX_PATH];
+	wchar_t buf[MAX_PATH];
 
-	if (!MultiByteToWideChar(CP_UTF8, 0, newPath, strlen(newPath), (WCHAR *)buf, 0))
+	if (!MultiByteToWideChar(CP_UTF8, 0, newPath, -1, buf, MAX_PATH))
 	{
 		//conversion failed-- we won't use the user's directory.
 
 		LPVOID lpMsgBuf;
-		LPVOID lpDisplayBuf;
 		DWORD dw = GetLastError();
 		TCHAR szBuffer[4196];
 
 		FormatMessage(
-			FORMAT_MESSAGE_ALLOCATE_BUFFER | 
+			FORMAT_MESSAGE_ALLOCATE_BUFFER |
 			FORMAT_MESSAGE_FROM_SYSTEM |
 			FORMAT_MESSAGE_IGNORE_INSERTS,
 			NULL,
@@ -797,17 +796,15 @@ bool OverrideRPTDirectory(char *newPath)
 			0, NULL );
 
 		wsprintf(szBuffer, _T("Exception handler failed setting new directory with error %d: %s\n"), dw, lpMsgBuf);
-		MessageBox((HWND)MB_ICONEXCLAMATION, szBuffer, _T("Error"), MB_OK); 
+		MessageBox((HWND)MB_ICONEXCLAMATION, szBuffer, _T("Error"), MB_OK);
 
 		LocalFree(lpMsgBuf);
-		LocalFree(lpDisplayBuf);
 
 		return false;
 	}
-	_tcscpy(buf, newPath);
-	PathRemoveFileSpec(buf);
-	_tcscat(buf, _T("\\logs\\")); // stuff it in the logs directory
-	_tcscat(buf, _T("Warzone2100.RPT"));
+	PathRemoveFileSpecW(buf);
+	wcscat(buf, L"\\logs\\"); // stuff it in the logs directory
+	wcscat(buf, L"Warzone2100.RPT");
 	ResetRPTDirectory(buf);
 #endif
 	return true;

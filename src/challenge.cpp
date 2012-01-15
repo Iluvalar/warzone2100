@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2010  Warzone 2100 Project
+	Copyright (C) 2005-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -32,9 +32,11 @@
 #include <sys/types.h>
 #endif
 
+#include <QtCore/QTime>
 #include "lib/framework/frame.h"
 #include "lib/framework/input.h"
-#include "lib/iniparser/iniparser.h"
+#include "lib/framework/wzconfig.h"
+#include "lib/netplay/netplay.h"
 #include "lib/ivis_opengl/bitimage.h"
 #include "lib/ivis_opengl/pieblitfunc.h"
 #include "lib/widget/button.h"
@@ -46,6 +48,7 @@
 #include "loadsave.h"
 #include "multiplay.h"
 #include "scores.h"
+#include "mission.h"
 
 #define totalslots 36			// challenge slots
 #define slotsInColumn 12		// # of slots in a column
@@ -87,6 +90,41 @@ static void displayLoadBanner(WIDGET *psWidget, UDWORD xOffset, UDWORD yOffset, 
 	pie_BoxFill(x + 2, y + 2, x + psWidget->width - 2, y + psWidget->height - 2, WZCOL_MENU_BACKGROUND);
 }
 
+// quite the hack, game name is stored in global sRequestResult
+void updateChallenge(bool gameWon)
+{
+	char sPath[64], *fStr;
+	int seconds = 0, newtime = (gameTime - mission.startTime) / GAME_TICKS_PER_SEC;
+	bool victory = false;
+	WzConfig scores(CHALLENGE_SCORES);
+
+	fStr = strrchr(sRequestResult, '/');
+	fStr++;	// skip slash
+	if (fStr == '\0')
+	{
+		debug(LOG_ERROR, "Bad path to challenge file (%s)", sRequestResult);
+		return;
+	}
+	sstrcpy(sPath, fStr);
+	sPath[strlen(sPath) - 4] = '\0';	// remove .ini
+	scores.beginGroup(sPath);
+	victory = scores.value("Victory", false).toBool();
+	seconds = scores.value("Seconds", 0).toInt();
+
+	// Update score if we have a victory and best recorded was a loss,
+	// or both were losses but time is higher, or both were victories
+	// but time is lower.
+	if ((!victory && gameWon)
+	    || (!gameWon && !victory && newtime > seconds)
+	    || (gameWon && victory && newtime < seconds))
+	{
+		scores.setValue("Seconds", newtime);
+		scores.setValue("Victory", gameWon);
+		scores.setValue("Player", NetPlay.players[selectedPlayer].name);
+	}
+	scores.endGroup();
+}
+
 // ////////////////////////////////////////////////////////////////////////////
 static void displayLoadSlot(WIDGET *psWidget, UDWORD xOffset, UDWORD yOffset, WZ_DECL_UNUSED PIELIGHT *pColours)
 {
@@ -102,7 +140,7 @@ static void displayLoadSlot(WIDGET *psWidget, UDWORD xOffset, UDWORD yOffset, WZ
 		sstrcpy(butString, ((W_BUTTON *)psWidget)->pText);
 
 		iV_SetFont(font_regular);									// font
-		iV_SetTextColour(WZCOL_TEXT_BRIGHT);
+		iV_SetTextColour(WZCOL_FORM_TEXT);
 
 		while (iV_GetTextWidth(butString) > psWidget->width)
 		{
@@ -230,10 +268,9 @@ bool addChallenges()
 	for (i = files; *i != NULL; ++i)
 	{
 		W_BUTTON *button;
-		char description[totalslotspace];
-		char highscore[totalslotspace];
-		const char *name, *difficulty, *map, *givendescription;
-		inifile *inif;
+		QString name, map, difficulty, highscore, description;
+		bool victory;
+		int seconds;
 
 		// See if this filename contains the extension we're looking for
 		if (!strstr(*i, ".ini"))
@@ -243,53 +280,39 @@ bool addChallenges()
 		}
 
 		/* First grab any high score associated with this challenge */
-		inif = inifile_load(CHALLENGE_SCORES);
 		sstrcpy(sPath, *i);
 		sPath[strlen(sPath) - 4] = '\0';	// remove .ini
-		sstrcpy(highscore, "no score");
-		if (inif)
+		highscore = "no score";
+		WzConfig scores(CHALLENGE_SCORES);
+		scores.beginGroup(sPath);
+		name = scores.value("Player", "NO NAME").toString();
+		victory = scores.value("Victory", false).toBool();
+		seconds = scores.value("Seconds", -1).toInt();
+		if (seconds > 0)
 		{
-			char key[64];
-			bool victory;
-			int seconds;
-
-			ssprintf(key, "%s:Player", sPath);
-			name = inifile_get(inif, key, "NO NAME");
-			ssprintf(key, "%s:Victory", sPath);
-			victory = inifile_get_as_bool(inif, key, false);
-			ssprintf(key, "%s:Seconds", sPath);
-			seconds = inifile_get_as_int(inif, key, -1);
-			if (seconds > 0)
-			{
-				getAsciiTime(key, seconds * GAME_TICKS_PER_SEC);
-				ssprintf(highscore, "%s by %s (%s)", key, name, victory ? "Victory" : "Survived");
-			}
-			inifile_delete(inif);
+			QTime format = QTime(0, 0, 0).addSecs(seconds);
+			highscore = format.toString(Qt::TextDate) + " by " + name + " (" + QString(victory ? "Victory" : "Survived") + ")";
 		}
-
 		ssprintf(sPath, "%s/%s", sSearchPath, *i);
-		inif = inifile_load(sPath);
-		inifile_set_current_section(inif, "challenge");
-		if (!inif)
+		WzConfig challenge(sPath);
+		if (challenge.status() != QSettings::NoError)
 		{
-			debug(LOG_ERROR, "Could not open \"%s\"", sPath);
-			continue;
+			debug(LOG_ERROR, "failure to open %s", sPath);
 		}
-		name = inifile_get(inif, "Name", "BAD NAME");
-		map = inifile_get(inif, "Map", "BAD MAP");
-		difficulty = inifile_get(inif, "difficulty", "BAD DIFFICULTY");
-		givendescription = inifile_get(inif, "description", "");
-		ssprintf(description, "%s, %s, %s. %s", map, difficulty, highscore, givendescription);
+		challenge.beginGroup("challenge");
+		name = challenge.value("Name", "BAD NAME").toString();
+		map = challenge.value("Map", "BAD MAP").toString();
+		difficulty = challenge.value("Difficulty", "BAD DIFFICULTY").toString();
+		description = map + ", " + difficulty + ", " + highscore + ". " + challenge.value("Description", "").toString();
 
 		button = (W_BUTTON*)widgGetFromID(psRequestScreen, CHALLENGE_ENTRY_START + slotCount);
 
 		debug(LOG_SAVE, "We found [%s]", *i);
 
 		/* Set the button-text */
-		sstrcpy(sSlotCaps[slotCount], name);		// store it!
-		sstrcpy(sSlotTips[slotCount], description);	// store it, too!
-		sstrcpy(sSlotFile[slotCount], sPath);		// store filename
-		inifile_delete(inif);
+		sstrcpy(sSlotCaps[slotCount], name.toAscii().constData());		// store it!
+		sstrcpy(sSlotTips[slotCount], description.toAscii().constData());	// store it, too!
+		sstrcpy(sSlotFile[slotCount], sPath);					// store filename
 
 		/* Add button */
 		button->pTip = sSlotTips[slotCount];
@@ -314,7 +337,7 @@ bool closeChallenges()
 	widgDelete(psRequestScreen, CHALLENGE_FORM);
 	widgReleaseScreen(psRequestScreen);
 	// need to "eat" up the return key so it don't pass back to game.
-	inputLooseFocus();
+	inputLoseFocus();
 	challengesUp = false;
 	return true;
 }

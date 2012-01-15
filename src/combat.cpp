@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2010  Warzone 2100 Project
+	Copyright (C) 2005-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -39,15 +39,12 @@
 // maximum random pause for firing
 #define RANDOM_PAUSE	500
 
-// Watermelon:real projectile
 /* Fire a weapon at something */
 bool combFire(WEAPON *psWeap, BASE_OBJECT *psAttacker, BASE_OBJECT *psTarget, int weapon_slot)
 {
 	WEAPON_STATS	*psStats;
-	UDWORD                  damLevel;
 	UDWORD			firePause;
 	SDWORD			longRange;
-	DROID			*psDroid = NULL;
 	int				compIndex;
 
 	CHECK_OBJECT(psAttacker);
@@ -75,10 +72,13 @@ bool combFire(WEAPON *psWeap, BASE_OBJECT *psAttacker, BASE_OBJECT *psTarget, in
 		return false;
 	}
 
+	unsigned fireTime = gameTime - deltaGameTime;  // Can fire earliest at the start of the tick.
+
 	/*see if reload-able weapon and out of ammo*/
 	if (psStats->reloadTime && !psWeap->ammo)
 	{
-		if (gameTime - psWeap->lastFired < weaponReloadTime(psStats, psAttacker->player))
+		fireTime = std::max(fireTime, psWeap->lastFired + weaponReloadTime(psStats, psAttacker->player));
+		if (gameTime <= fireTime)
 		{
 			return false;
 		}
@@ -88,39 +88,12 @@ bool combFire(WEAPON *psWeap, BASE_OBJECT *psAttacker, BASE_OBJECT *psTarget, in
 
 	/* See when the weapon last fired to control it's rate of fire */
 	firePause = weaponFirePause(psStats, psAttacker->player);
+	firePause = std::max(firePause, 1u);  // Don't shoot infinitely many shots at once.
+	fireTime = std::max(fireTime, psWeap->lastFired + firePause);
 
-	// increase the pause if heavily damaged
-	switch (psAttacker->type)
-	{
-	case OBJ_DROID:
-		psDroid = (DROID *)psAttacker;
-		damLevel = PERCENT(psDroid->body, psDroid->originalBody);
-		break;
-	case OBJ_STRUCTURE:
-		damLevel = PERCENT(((STRUCTURE *)psAttacker)->body, structureBody((STRUCTURE *)psAttacker));
-		break;
-	default:
-		damLevel = 100;
-		break;
-	}
-
-	if (damLevel < HEAVY_DAMAGE_LEVEL)
-	{
-		firePause += firePause;
-	}
-
-	if (gameTime - psWeap->lastFired <= firePause)
+	if (gameTime <= fireTime)
 	{
 		/* Too soon to fire again */
-		return false;
-	}
-
-	// add a random delay to the fire
-	// With logical updates, a good graphics gard no longer gives a better ROF.
-	// TODO Should still replace this with something saner, such as a ±1% random deviation in reload time.
-	int fireChance = gameTime - (psWeap->lastFired + firePause);
-	if (gameRand(RANDOM_PAUSE) > fireChance)
-	{
 		return false;
 	}
 
@@ -133,7 +106,7 @@ bool combFire(WEAPON *psWeap, BASE_OBJECT *psAttacker, BASE_OBJECT *psTarget, in
 
 	/* Check we can see the target */
 	if (psAttacker->type == OBJ_DROID && !isVtolDroid((DROID *)psAttacker)
-	    && (proj_Direct(psStats) || actionInsideMinRange(psDroid, psTarget, psStats)))
+	    && (proj_Direct(psStats) || actionInsideMinRange((DROID *)psAttacker, psTarget, psStats)))
 	{
 		if(!lineOfFire(psAttacker, psTarget, weapon_slot, true))
 		{
@@ -215,7 +188,7 @@ bool combFire(WEAPON *psWeap, BASE_OBJECT *psAttacker, BASE_OBJECT *psTarget, in
 	else if ((dist <= longRange && dist >= psStats->minRange)
 	         || (psAttacker->type == OBJ_DROID
 	             && !proj_Direct(psStats)
-	             && actionInsideMinRange(psDroid, psTarget, psStats)))
+	             && actionInsideMinRange((DROID *)psAttacker, psTarget, psStats)))
 	{
 		// get weapon chance to hit in the long range
 		baseHitChance = weaponLongHit(psStats,psAttacker->player);
@@ -277,8 +250,13 @@ bool combFire(WEAPON *psWeap, BASE_OBJECT *psAttacker, BASE_OBJECT *psTarget, in
 
 	/* -------!!! From that point we are sure that we are firing !!!------- */
 
+	// Add a random delay to the next shot.
+	// TODO Add deltaFireTime to the time it takes to fire next. If just adding to psWeap->lastFired, it might put it in the future, causing assertions. And if not sometimes putting it in the future, the fire rate would be lower than advertised.
+	//int fireJitter = firePause/100;  // ±1% variation in fire rate.
+	//int deltaFireTime = gameRand(fireJitter*2 + 1) - fireJitter;
+
 	/* note when the weapon fired */
-	psWeap->lastFired = gameTime;
+	psWeap->lastFired = fireTime;
 
 	/* reduce ammo if salvo */
 	if (psStats->reloadTime)
@@ -300,7 +278,7 @@ bool combFire(WEAPON *psWeap, BASE_OBJECT *psAttacker, BASE_OBJECT *psTarget, in
 		int32_t flightTime;
 		if (proj_Direct(psStats) || dist <= psStats->minRange)
 		{
-			flightTime = dist / psStats->flightSpeed;
+			flightTime = dist * GAME_TICKS_PER_SEC / psStats->flightSpeed;
 		}
 		else
 		{
@@ -323,6 +301,10 @@ bool combFire(WEAPON *psWeap, BASE_OBJECT *psAttacker, BASE_OBJECT *psTarget, in
 		}
 
 		predict += Vector3i(iSinCosR(psDroid->sMove.moveDir, psDroid->sMove.speed*flightTime / GAME_TICKS_PER_SEC), 0);
+		if (!isFlying(psDroid))
+		{
+			predict.z = map_Height(removeZ(predict));  // Predict that the object will be on the ground.
+		}
 	}
 
 	/* Fire off the bullet to the miss location. The miss is only visible if the player owns the target. (Why? - Per) */
@@ -355,7 +337,7 @@ bool combFire(WEAPON *psWeap, BASE_OBJECT *psAttacker, BASE_OBJECT *psTarget, in
 	CLIP(predict.x, 0, world_coord(mapWidth - 1));
 	CLIP(predict.y, 0, world_coord(mapHeight - 1));
 
-	proj_SendProjectileAngled(psWeap, psAttacker, psAttacker->player, predict, psTarget, bVisibleAnyway, weapon_slot, min_angle);
+	proj_SendProjectileAngled(psWeap, psAttacker, psAttacker->player, predict, psTarget, bVisibleAnyway, weapon_slot, min_angle, fireTime);
 	return true;
 }
 
@@ -436,10 +418,9 @@ void counterBatteryFire(BASE_OBJECT *psAttacker, BASE_OBJECT *psTarget)
  * \param damage amount of damage to deal
  * \param weaponClass the class of the weapon that deals the damage
  * \param weaponSubClass the subclass of the weapon that deals the damage
- * \param angle angle of impact (from the damage dealing projectile in relation to this object)
  * \return < 0 when the dealt damage destroys the object, > 0 when the object survives
  */
-int32_t objDamage(BASE_OBJECT *psObj, UDWORD damage, UDWORD originalhp, WEAPON_CLASS weaponClass, WEAPON_SUBCLASS weaponSubClass, HIT_SIDE impactSide)
+int32_t objDamage(BASE_OBJECT *psObj, UDWORD damage, UDWORD originalhp, WEAPON_CLASS weaponClass, WEAPON_SUBCLASS weaponSubClass)
 {
 	int	actualDamage, armour, level = 1;
 
@@ -462,7 +443,7 @@ int32_t objDamage(BASE_OBJECT *psObj, UDWORD damage, UDWORD originalhp, WEAPON_C
 	// apply game difficulty setting
 	damage = modifyForDifficultyLevel(damage, psObj->player != selectedPlayer);
 
-	armour = psObj->armour[impactSide][weaponClass];
+	armour = psObj->armour[weaponClass];
 
 	debug(LOG_ATTACK, "objDamage(%d): body %d armour %d damage: %d", psObj->id, psObj->body, armour, damage);
 
@@ -496,6 +477,7 @@ int32_t objDamage(BASE_OBJECT *psObj, UDWORD damage, UDWORD originalhp, WEAPON_C
 	actualDamage = MAX(actualDamage, MIN_WEAPON_DAMAGE);
 
 	objTrace(psObj->id, "objDamage: Penetrated %d", actualDamage);
+	syncDebug("damage%u dam%u,o%u,wc%d.%d,ar%d,lev%d,aDam%d", psObj->id, damage, originalhp, weaponClass, weaponSubClass, armour, level, actualDamage);
 
 	// for some odd reason, we have 0 hitpoints.
 	if (!originalhp)
@@ -513,6 +495,8 @@ int32_t objDamage(BASE_OBJECT *psObj, UDWORD damage, UDWORD originalhp, WEAPON_C
 	// Subtract the dealt damage from the droid's remaining body points
 	psObj->body -= actualDamage;
 
+	syncDebugObject(psObj, 'D');
+
 	return (int64_t)65536 * actualDamage / originalhp;
 }
 
@@ -521,13 +505,11 @@ int32_t objDamage(BASE_OBJECT *psObj, UDWORD damage, UDWORD originalhp, WEAPON_C
  * \param damage amount of damage to deal
  * \param weaponClass the class of the weapon that deals the damage
  * \param weaponSubClass the subclass of the weapon that deals the damage
- * \param angle angle of impact (from the damage dealing projectile in relation to this object)
  * \return guess at amount of damage
  */
-unsigned int objGuessFutureDamage(WEAPON_STATS *psStats, unsigned int player, BASE_OBJECT *psTarget, HIT_SIDE i)
+unsigned int objGuessFutureDamage(WEAPON_STATS *psStats, unsigned int player, BASE_OBJECT *psTarget)
 {
 	unsigned int damage;
-	int impactSide;
 	int	actualDamage, armour = 0, level = 1;
 
 	if (psTarget == NULL)
@@ -545,8 +527,7 @@ unsigned int objGuessFutureDamage(WEAPON_STATS *psStats, unsigned int player, BA
 	// apply game difficulty setting
 	damage = modifyForDifficultyLevel(damage, psTarget->player != selectedPlayer);
 
-	for (impactSide = 0; impactSide != NUM_HIT_SIDES; ++impactSide)
-		armour = MAX(armour, psTarget->armour[impactSide][psStats->weaponClass]);
+	armour = MAX(armour, psTarget->armour[psStats->weaponClass]);
 
 	//debug(LOG_ATTACK, "objGuessFutureDamage(%d): body %d armour %d damage: %d", psObj->id, psObj->body, armour, damage);
 

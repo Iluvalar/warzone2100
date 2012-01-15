@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2010  Warzone 2100 Project
+	Copyright (C) 2005-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -44,11 +44,17 @@
  * [ c f i l ]
  * [ 0 0 0 1 ]
  */
-typedef struct { SDWORD a, b, c,  d, e, f,  g, h, i,  j, k, l; } SDMATRIX;
+struct SDMATRIX
+{
+	SDWORD a, b, c,
+	       d, e, f,
+	       g, h, i,
+	       j, k, l;
+};
 static SDMATRIX	aMatrixStack[MATRIX_MAX];
 static SDMATRIX *psMatrix = &aMatrixStack[0];
 
-BOOL drawing_interface = true;
+bool drawing_interface = true;
 
 //*************************************************************************
 
@@ -108,21 +114,6 @@ void pie_MatEnd(void)
 	glPopMatrix();
 }
 
-
-void pie_MATTRANS(float x, float y, float z)
-{
-	GLfloat matrix[16];
-
-	psMatrix->j = x * FP12_MULTIPLIER;
-	psMatrix->k = y * FP12_MULTIPLIER;
-	psMatrix->l = z * FP12_MULTIPLIER;
-
-	glGetFloatv(GL_MODELVIEW_MATRIX, matrix);
-	matrix[12] = x;
-	matrix[13] = y;
-	matrix[14] = z;
-	glLoadMatrixf(matrix);
-}
 
 void pie_TRANSLATE(int32_t x, int32_t y, int32_t z)
 {
@@ -376,22 +367,6 @@ void pie_SetGeometricOffset(int x, int y)
 	rendSurface.ycentre = y;
 }
 
-
-/** Inverse rotate 3D vector with current rotation matrix.
- *  @param v1       3D vector to rotate
- *  @param[out] v2  inverse rotated 3D vector
- */
-void pie_VectorInverseRotate0(const Vector3i *v1, Vector3i *v2)
-{
-	/*
-	 * invMatrix = transpose(sub3x3Matrix(curMatrix))
-	 * v2 = invMatrix . v1
-	 */
-	v2->x = (v1->x * psMatrix->a + v1->y * psMatrix->b + v1->z * psMatrix->c) / FP12_MULTIPLIER;
-	v2->y = (v1->x * psMatrix->d + v1->y * psMatrix->e + v1->z * psMatrix->f) / FP12_MULTIPLIER;
-	v2->z = (v1->x * psMatrix->g + v1->y * psMatrix->h + v1->z * psMatrix->i) / FP12_MULTIPLIER;
-}
-
 /** Sets up transformation matrices/quaternions and trig tables
  */
 void pie_MatInit(void)
@@ -400,15 +375,3 @@ void pie_MatInit(void)
 	pie_MatReset();
 }
 
-void pie_RotateTranslate3i(const Vector3i *v, Vector3i *s)
-{
-	/*
-	 *     [ 1 0 0 0 ]               [ 1 0 0 0 ]
-	 *     [ 0 0 1 0 ]               [ 0 0 1 0 ]
-	 * s = [ 0 1 0 0 ] . curMatrix . [ 0 1 0 0 ] . v
-	 *     [ 0 0 0 1 ]               [ 0 0 0 1 ]
-	 */
-	s->x = ((int64_t)v->x * psMatrix->a + (int64_t)v->y * psMatrix->g + (int64_t)v->z * psMatrix->d + psMatrix->j) / FP12_MULTIPLIER;
-	s->y = ((int64_t)v->x * psMatrix->c + (int64_t)v->y * psMatrix->i + (int64_t)v->z * psMatrix->f + psMatrix->l) / FP12_MULTIPLIER;
-	s->z = ((int64_t)v->x * psMatrix->b + (int64_t)v->y * psMatrix->h + (int64_t)v->z * psMatrix->e + psMatrix->k) / FP12_MULTIPLIER;
-}

@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2010  Warzone 2100 Project
+	Copyright (C) 2005-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -37,9 +37,6 @@
 #define ROT_ACCEL_CONSTANT 4.0f
 #define ROT_VELOCITY_CONSTANT 2.5f
 
-#define CAM_X_SHIFT	((VISIBLE_XTILES/2)*128)
-#define CAM_Z_SHIFT	((VISIBLE_YTILES/2)*128)
-
 /* The different tracking states */
 enum
 {
@@ -52,7 +49,7 @@ CAM_TRACK_LOCATION
 };
 
 /* Storage for old viewnagles etc */
-typedef struct _warcam
+struct WARCAM
 {
 UDWORD	status;
 UDWORD	trackClass;
@@ -69,17 +66,17 @@ Vector3f	rotAccel;
 
 UDWORD	oldDistance;
 BASE_OBJECT *target;
-}WARCAM;
+};
 
 /* Externally referenced functions */
 extern void	initWarCam			( void );
-extern void	setWarCamActive		( BOOL status );
-extern BOOL	getWarCamStatus		( void );
+extern void	setWarCamActive		( bool status );
+extern bool	getWarCamStatus		( void );
 extern void camToggleStatus		( void );
-extern BOOL processWarCam		( void );
+extern bool processWarCam		( void );
 extern void	camToggleInfo		( void );
 extern void	requestRadarTrack	( SDWORD x, SDWORD y );
-extern BOOL	getRadarTrackingStatus( void );
+extern bool	getRadarTrackingStatus( void );
 extern void	toggleRadarAllignment( void );
 extern void	camInformOfRotation ( Vector3i *rotation );
 extern BASE_OBJECT *camFindDroidTarget(void);

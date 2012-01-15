@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2010  Warzone 2100 Project
+	Copyright (C) 2005-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -20,20 +20,10 @@
 /** \file
  *  Renderer setup and state control routines for 3D rendering.
  */
-
-#include <GLee.h>
 #include "lib/framework/frame.h"
-
-#include <SDL.h>
-#include <SDL_mouse.h>
-#include <physfs.h>
 #include "lib/framework/opengl.h"
 
-#if defined(WZ_OS_MAC)
-# include <OpenGL/glu.h>
-#else
-# include <GL/glu.h>
-#endif
+#include <physfs.h>
 
 #include "lib/ivis_opengl/pieblitfunc.h"
 #include "lib/ivis_opengl/piestate.h"
@@ -46,19 +36,20 @@
  *	Global Variables
  */
 
-// Variables for the coloured mouse cursor
-static CURSOR MouseCursor = CURSOR_ARROW;
-static bool ColouredMouse = false;
-static IMAGEFILE* MouseCursors = NULL;
-static uint16_t MouseCursorIDs[CURSOR_MAX];
-static bool MouseVisible = true;
-
+static bool shadersAvailable;
 static GLuint shaderProgram[SHADER_MAX];
 static GLfloat shaderStretch = 0;
-static GLint locTeam, locStretch, locTCMask, locFog;
+static GLint locTeam, locStretch, locTCMask, locFog, locNormalMap, locEcm, locTime;
 static SHADER_MODE currentShaderMode = SHADER_NONE;
 unsigned int pieStateCount = 0; // Used in pie_GetResetCounts
 static RENDER_STATE rendStates;
+static GLint ecmState = 0;
+static GLfloat timeState = 0.0f;
+
+void rendStatesRendModeHack()
+{
+	rendStates.rendMode = REND_ALPHA;
+}
 
 /*
  *	Source
@@ -89,45 +80,41 @@ void pie_SetDefaultStates(void)//Sets all states
 
 //***************************************************************************
 //
-// pie_EnableFog(BOOL val)
+// pie_EnableFog(bool val)
 //
 // Global enable/disable fog to allow fog to be turned of ingame
 //
 //***************************************************************************
-void pie_EnableFog(BOOL val)
+void pie_EnableFog(bool val)
 {
 	if (rendStates.fogEnabled != val)
 	{
 		debug(LOG_FOG, "pie_EnableFog: Setting fog to %s", val ? "ON" : "OFF");
 		rendStates.fogEnabled = val;
-		if (val == true)
+		if (val)
 		{
 			pie_SetFogColour(WZCOL_FOG);
 		}
 		else
 		{
-			PIELIGHT black;
-
-			black.rgba = 0;
-			black.byte.a = 255;
-			pie_SetFogColour(black); // clear background to black
+			pie_SetFogColour(WZCOL_BLACK); // clear background to black
 		}
 	}
 }
 
-BOOL pie_GetFogEnabled(void)
+bool pie_GetFogEnabled(void)
 {
 	return rendStates.fogEnabled;
 }
 
 //***************************************************************************
 //
-// pie_SetFogStatus(BOOL val)
+// pie_SetFogStatus(bool val)
 //
 // Toggle fog on and off for rendering objects inside or outside the 3D world
 //
 //***************************************************************************
-BOOL pie_GetFogStatus(void)
+bool pie_GetFogStatus(void)
 {
 	return rendStates.fog;
 }
@@ -142,33 +129,14 @@ PIELIGHT pie_GetFogColour(void)
 	return rendStates.fogColour;
 }
 
-void pie_SetRendMode(REND_MODE rendMode)
+bool pie_GetShaderAvailability(void)
 {
-	if (rendMode != rendStates.rendMode)
-	{
-		rendStates.rendMode = rendMode;
-		switch (rendMode)
-		{
-			case REND_OPAQUE:
-				glDisable(GL_BLEND);
-				break;
+	return shadersAvailable;
+}
 
-			case REND_ALPHA:
-				glEnable(GL_BLEND);
-				glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-				break;
-
-			case REND_ADDITIVE:
-				glEnable(GL_BLEND);
-				glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-				break;
-
-			case REND_MULTIPLICATIVE:
-				glEnable(GL_BLEND);
-				glBlendFunc(GL_ZERO, GL_SRC_COLOR);
-				break;
-		}
-	}
+void pie_SetShaderAvailability(bool availability)
+{
+	shadersAvailable = availability;
 }
 
 // Read shader into text buffer
@@ -280,7 +248,7 @@ static bool loadShaders(GLuint *program, const char *definitions,
 
 			glShaderSource(shader, 2, (const char **)buffer, NULL);
 			glCompileShader(shader);
-			
+
 			// Check for compilation errors
 			glGetShaderiv(shader, GL_COMPILE_STATUS, &status);
 			if (!status)
@@ -317,7 +285,7 @@ static bool loadShaders(GLuint *program, const char *definitions,
 		}
 	}
 
-	return success;	
+	return success;
 }
 
 // Run from screen.c on init. FIXME: do some kind of FreeShaders on failure.
@@ -352,44 +320,147 @@ void pie_DeactivateShader(void)
 	glUseProgram(0);
 }
 
+void pie_SetShaderTime(uint32_t shaderTime)
+{
+	uint32_t base = shaderTime % 1000;
+	if (base > 500)
+	{
+		base = 1000 - base;	// cycle
+	}
+	timeState = (GLfloat)base / 1000.0f;
+}
+
+void pie_SetShaderEcmEffect(bool value)
+{
+	ecmState = (int)value;
+}
+
 void pie_SetShaderStretchDepth(float stretch)
 {
 	shaderStretch = stretch;
 }
 
-void pie_ActivateShader(SHADER_MODE shaderMode, PIELIGHT teamcolour, int maskpage)
+void pie_ActivateFallback(SHADER_MODE, iIMDShape* shape, PIELIGHT teamcolour, PIELIGHT colour)
 {
+	if (shape->tcmaskpage == iV_TEX_INVALID)
+	{
+		return;
+	}
+
+	//Set the environment colour with tcmask
+	GLfloat tc_env_colour[4];
+	pal_PIELIGHTtoRGBA4f(&tc_env_colour[0], teamcolour);
+
+	// TU0
+	glActiveTexture(GL_TEXTURE0);
+	pie_SetTexturePage(shape->texpage);
+	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE,	GL_COMBINE);
+	glTexEnvfv(GL_TEXTURE_ENV, GL_TEXTURE_ENV_COLOR, tc_env_colour);
+
+	// TU0 RGB
+	glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_RGB,		GL_ADD_SIGNED);
+	glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_RGB,		GL_TEXTURE);
+	glTexEnvi(GL_TEXTURE_ENV, GL_OPERAND0_RGB,		GL_SRC_COLOR);
+	glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE1_RGB,		GL_CONSTANT);
+	glTexEnvi(GL_TEXTURE_ENV, GL_OPERAND1_RGB,		GL_SRC_COLOR);
+
+	// TU0 Alpha
+	glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_ALPHA,		GL_REPLACE);
+	glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_ALPHA,		GL_TEXTURE);
+	glTexEnvi(GL_TEXTURE_ENV, GL_OPERAND0_ALPHA,	GL_SRC_ALPHA);
+
+	// TU1
+	glActiveTexture(GL_TEXTURE1);
+	glEnable(GL_TEXTURE_2D);
+	glBindTexture(GL_TEXTURE_2D, _TEX_PAGE[shape->tcmaskpage].id);
+	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE,	GL_COMBINE);
+
+	// TU1 RGB
+	glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_RGB,		GL_INTERPOLATE);
+	glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_RGB,		GL_PREVIOUS);
+	glTexEnvi(GL_TEXTURE_ENV, GL_OPERAND0_RGB,		GL_SRC_COLOR);
+	glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE1_RGB,		GL_TEXTURE0);
+	glTexEnvi(GL_TEXTURE_ENV, GL_OPERAND1_RGB,		GL_SRC_COLOR);
+	glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE2_RGB,		GL_TEXTURE);
+	glTexEnvi(GL_TEXTURE_ENV, GL_OPERAND2_RGB,		GL_SRC_ALPHA);
+
+	// TU1 Alpha
+	glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_ALPHA,		GL_REPLACE);
+	glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_ALPHA,		GL_PREVIOUS);
+	glTexEnvi(GL_TEXTURE_ENV, GL_OPERAND0_ALPHA,	GL_SRC_ALPHA);
+
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_CONSTANT_COLOR, GL_ZERO);
+	glBlendColor(colour.byte.r / 255.0, colour.byte.g / 255.0,
+				colour.byte.b / 255.0, colour.byte.a / 255.0);
+
+	glActiveTexture(GL_TEXTURE0);
+}
+
+void pie_DeactivateFallback()
+{
+	glDisable(GL_BLEND);
+	rendStates.rendMode = REND_OPAQUE;
+
+	glActiveTexture(GL_TEXTURE1);
+	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+	glDisable(GL_TEXTURE_2D);
+
+	glActiveTexture(GL_TEXTURE0);
+	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+}
+
+void pie_ActivateShader(SHADER_MODE shaderMode, iIMDShape* shape, PIELIGHT teamcolour, PIELIGHT colour)
+{
+	int maskpage = shape->tcmaskpage;
+	int normalpage = shape->normalpage;
 	GLfloat colour4f[4];
 
 	if (shaderMode != currentShaderMode)
 	{
-		GLint locTex0, locTex1;
+		GLint locTex0, locTex1, locTex2;
 
 		glUseProgram(shaderProgram[shaderMode]);
 		locTex0 = glGetUniformLocation(shaderProgram[shaderMode], "Texture0");
 		locTex1 = glGetUniformLocation(shaderProgram[shaderMode], "Texture1");
+		locTex2 = glGetUniformLocation(shaderProgram[shaderMode], "Texture2");
 		locTeam = glGetUniformLocation(shaderProgram[shaderMode], "teamcolour");
 		locStretch = glGetUniformLocation(shaderProgram[shaderMode], "stretch");
 		locTCMask = glGetUniformLocation(shaderProgram[shaderMode], "tcmask");
+		locNormalMap = glGetUniformLocation(shaderProgram[shaderMode], "normalmap");
 		locFog = glGetUniformLocation(shaderProgram[shaderMode], "fogEnabled");
+		locEcm = glGetUniformLocation(shaderProgram[shaderMode], "ecmEffect");
+		locTime = glGetUniformLocation(shaderProgram[shaderMode], "graphicsCycle");
 
 		// These never change
 		glUniform1i(locTex0, 0);
 		glUniform1i(locTex1, 1);
+		glUniform1i(locTex2, 2);
 
 		currentShaderMode  = shaderMode;
 	}
+
+	glColor4ubv(colour.vector);
+	pie_SetTexturePage(shape->texpage);
 
 	pal_PIELIGHTtoRGBA4f(&colour4f[0], teamcolour);
 	glUniform4fv(locTeam, 1, &colour4f[0]);
 	glUniform1f(locStretch, shaderStretch);
 	glUniform1i(locTCMask, maskpage != iV_TEX_INVALID);
+	glUniform1i(locNormalMap, normalpage != iV_TEX_INVALID);
 	glUniform1i(locFog, rendStates.fog);
+	glUniform1f(locTime, timeState);
+	glUniform1i(locEcm, ecmState);
 
 	if (maskpage != iV_TEX_INVALID)
 	{
 		glActiveTexture(GL_TEXTURE1);
-		pie_SetTexturePage(maskpage);
+		glBindTexture(GL_TEXTURE_2D, _TEX_PAGE[maskpage].id);
+	}
+	if (normalpage != iV_TEX_INVALID)
+	{
+		glActiveTexture(GL_TEXTURE2);
+		glBindTexture(GL_TEXTURE_2D, _TEX_PAGE[normalpage].id);
 	}
 	glActiveTexture(GL_TEXTURE0);
 
@@ -449,11 +520,11 @@ void pie_UpdateFogDistance(float begin, float end)
 }
 
 //
-// pie_SetFogStatus(BOOL val)
+// pie_SetFogStatus(bool val)
 //
 // Toggle fog on and off for rendering objects inside or outside the 3D world
 //
-void pie_SetFogStatus(BOOL val)
+void pie_SetFogStatus(bool val)
 {
 	float fog_colour[4];
 
@@ -523,7 +594,7 @@ void pie_SetTexturePage(SDWORD num)
 	}
 }
 
-void pie_SetAlphaTest(BOOL keyingOn)
+void pie_SetAlphaTest(bool keyingOn)
 {
 	if (keyingOn != rendStates.keyingOn)
 	{
@@ -539,51 +610,43 @@ void pie_SetAlphaTest(BOOL keyingOn)
 	}
 }
 
-void pie_InitColourMouse(IMAGEFILE* img, const uint16_t cursorIDs[CURSOR_MAX])
+void pie_SetRendMode(REND_MODE rendMode)
 {
-	MouseCursors = img;
-	memcpy(MouseCursorIDs, cursorIDs, sizeof(MouseCursorIDs));
-}
-
-/** Selects the given mouse cursor.
- *  \param cursor   mouse cursor to render
- *  \param coloured wether a coloured or black&white cursor should be used
- */
-void pie_SetMouse(CURSOR cursor, bool coloured)
-{
-	ASSERT(cursor < CURSOR_MAX, "Attempting to load non-existent cursor: %u", (unsigned int)cursor);
-
-	MouseCursor = cursor;
-
-	frameSetCursor(MouseCursor);
-	ColouredMouse = coloured;
-}
-
-/** Draws the current mouse cursor at the given coordinates
- *  \param X,Y mouse coordinates
- */
-void pie_DrawMouse(unsigned int X, unsigned int Y)
-{
-	if (ColouredMouse && MouseVisible)
+	if (rendMode != rendStates.rendMode)
 	{
-		ASSERT(MouseCursors != NULL, "Drawing coloured mouse cursor while no coloured mouse cursors have been loaded yet!");
+		rendStates.rendMode = rendMode;
+		switch (rendMode)
+		{
+			case REND_OPAQUE:
+				glDisable(GL_BLEND);
+				break;
 
-		iV_DrawImage(MouseCursors, MouseCursorIDs[MouseCursor], X, Y);
-	}
-}
+			case REND_ALPHA:
+				glEnable(GL_BLEND);
+				glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+				break;
 
-/** Set the visibility of the mouse cursor */
-void pie_ShowMouse(bool visible)
-{
-	MouseVisible = visible;
-	if (MouseVisible && !ColouredMouse)
-	{
-		SDL_ShowCursor(SDL_ENABLE);
+			case REND_ADDITIVE:
+				glEnable(GL_BLEND);
+				glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+				break;
+
+			case REND_MULTIPLICATIVE:
+				glEnable(GL_BLEND);
+				glBlendFunc(GL_ZERO, GL_SRC_COLOR);
+				break;
+
+			case REND_PREMULTIPLIED:
+				glEnable(GL_BLEND);
+				glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+				break;
+
+			default:
+				ASSERT(false, "Bad render state");
+				break;
+		}
 	}
-	else
-	{
-		SDL_ShowCursor(SDL_DISABLE);
-	}
+	return;
 }
 
 bool _glerrors(const char *function, const char *file, int line)

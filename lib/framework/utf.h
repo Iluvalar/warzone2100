@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 2007  Giel van Schijndel
-	Copyright (C) 2007-2010  Warzone 2100 Project
+	Copyright (C) 2007-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -102,47 +102,5 @@ char *UTF32toUTF8(const utf_32_char *unicode_string, size_t *nbytes);
  *  \return a UTF-32 nul terminated string (use free() to deallocate it)
  */
 utf_32_char *UTF8toUTF32(const char *utf8_string, size_t *nbytes);
-
-typedef utf_16_char QChar;  // TODO Use the real QChar instead.
-struct QString  // TODO Use the real QString instead.
-{
-	typedef std::basic_string<utf_16_char> S;
-
-	struct QByteArray
-	{
-		char const *constData() const { return w.c_str(); }
-		std::string w;
-	};
-
-	static QString fromUtf8(char const *utf8_string)
-	{
-		QString ret;
-
-		utf_16_char *tmp = UTF8toUTF16(utf8_string, NULL);
-		ret.s.assign(tmp);
-		free(tmp);
-
-		return ret;
-	}
-	QByteArray toUtf8() const
-	{
-		QByteArray ret;
-
-		char *tmp = UTF16toUTF8(s.c_str(), NULL);
-		ret.w.assign(tmp);
-		free(tmp);
-
-		return ret;
-	}
-	int length() const                                   { return s.length(); }
-	bool isEmpty() const                                 { return s.empty(); }
-	QString &insert(int position, QChar ch)              { s.insert(position, 1, ch); return *this; }
-	QString &remove(int position, int n)                 { s.erase(position, n); return *this; }
-	QChar &operator [](int position)                     { return s[position]; }
-	QChar operator [](int position) const                { return s[position]; }
-
-private:
-	S s;
-};
 
 #endif // __INCLUDE_LIB_FRAMEWORK_UTF8_H__

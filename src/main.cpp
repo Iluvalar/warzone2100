@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2010  Warzone 2100 Project
+	Copyright (C) 2005-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -22,22 +22,24 @@
  */
 
 // Get platform defines before checking for them!
-#include "lib/framework/frame.h"
-
-#include <SDL.h>
+#include "lib/framework/wzapp.h"
+#include <QtCore/QTextCodec>
+#include <QtGui/QApplication>
+#include <QtGui/QMessageBox>
 
 #if defined(WZ_OS_WIN)
 #  include <shlobj.h> /* For SHGetFolderPath */
+#  include <shellapi.h> /* CommandLineToArgvW */
 #elif defined(WZ_OS_UNIX)
 #  include <errno.h>
 #endif // WZ_OS_WIN
 
-#include "lib/framework/configfile.h"
 #include "lib/framework/input.h"
+#include "lib/framework/frameint.h"
 #include "lib/framework/physfs_ext.h"
-#include "lib/framework/tagfile.h"
 #include "lib/exceptionhandler/exceptionhandler.h"
 #include "lib/exceptionhandler/dumpinfo.h"
+#include "lib/framework/wzfs.h"
 
 #include "lib/sound/playlist.h"
 #include "lib/gamelib/gtime.h"
@@ -65,6 +67,7 @@
 #include "mission.h"
 #include "modding.h"
 #include "multiplay.h"
+#include "qtscript.h"
 #include "research.h"
 #include "scripttabs.h"
 #include "seqdisp.h"
@@ -86,11 +89,11 @@
 #  define WZ_DATADIR "data"
 #endif
 
-typedef enum _focus_state
+enum FOCUS_STATE
 {
 	FOCUS_OUT,		// Window does not have the focus
 	FOCUS_IN,		// Window has got the focus
-} FOCUS_STATE;
+};
 
 #if defined(WZ_OS_WIN)
 # define WZ_WRITEDIR "Warzone 2100 master"
@@ -103,6 +106,8 @@ typedef enum _focus_state
 # define WZ_WRITEDIR ".warzone2100-master"
 #endif
 
+bool customDebugfile = false;		// Default false: user has NOT specified where to store the stdout/err file.
+
 char datadir[PATH_MAX] = ""; // Global that src/clparse.c:ParseCommandLine can write to, so it can override the default datadir on runtime. Needs to be empty on startup for ParseCommandLine to work!
 char configdir[PATH_MAX] = ""; // specifies custom USER directory. Same rules apply as datadir above.
 
@@ -114,33 +119,49 @@ char * override_mods[MAX_MODS] = { NULL };
 char * override_mod_list = NULL;
 bool use_override_mods = false;
 
+char *current_map[3] = { NULL };
+
 char * loaded_mods[MAX_MODS] = { NULL };
 char * mod_list = NULL;
-bool customDebugfile = false;		// Default false: user has NOT specified where to store the stdout/err file.
 int num_loaded_mods = 0;
 
 
 // Warzone 2100 . Pumpkin Studios
 
 //flag to indicate when initialisation is complete
-BOOL	gameInitialised = false;
+bool	gameInitialised = false;
 char	SaveGamePath[PATH_MAX];
 char	ScreenDumpPath[PATH_MAX];
 char	MultiForcesPath[PATH_MAX];
 char	MultiCustomMapsPath[PATH_MAX];
 char	MultiPlayersPath[PATH_MAX];
 char	KeyMapPath[PATH_MAX];
-
 // Start game in title mode:
 static GS_GAMEMODE gameStatus = GS_TITLE_SCREEN;
 // Status of the gameloop
 static int gameLoopStatus = 0;
 static FOCUS_STATE focusState = FOCUS_IN;
 
+class PhysicsEngineHandler : public QAbstractFileEngineHandler
+{
+public:
+	QAbstractFileEngine *create(const QString &fileName) const;
+};
+
+inline QAbstractFileEngine *PhysicsEngineHandler::create(const QString &fileName) const
+{
+	if (fileName.toLower().startsWith("wz::"))
+	{
+		QString newPath = fileName;
+		return new PhysicsFileSystem(newPath.remove(0, 4));
+	}
+	return NULL;
+}
+
 extern void debug_callback_stderr( void**, const char * );
 extern void debug_callback_win32debug( void**, const char * );
 
-static BOOL inList( char * list[], const char * item )
+static bool inList( char * list[], const char * item )
 {
 	int i = 0;
 #ifdef DEBUG
@@ -172,7 +193,6 @@ void addSubdirs( const char * basedir, const char * subdir, const bool appendToP
 	char buf[256];
 	char ** subdirlist = PHYSFS_enumerateFiles( subdir );
 	char ** i = subdirlist;
-
 	while( *i != NULL )
 	{
 #ifdef DEBUG
@@ -202,7 +222,6 @@ void removeSubdirs( const char * basedir, const char * subdir, char * checkList[
 	char tmpstr[PATH_MAX];
 	char ** subdirlist = PHYSFS_enumerateFiles( subdir );
 	char ** i = subdirlist;
-
 	while( *i != NULL )
 	{
 #ifdef DEBUG
@@ -256,6 +275,33 @@ void setOverrideMods(char * modlist)
 	override_mod_list = modlist;
 	use_override_mods = true;
 }
+
+void setCurrentMap(char* map, int maxPlayers)
+{
+	free(current_map[0]);
+	free(current_map[1]);
+	// Transform "Sk-Rush-T2" into "4c-Rush.wz" so it can be matched by the map loader
+	current_map[0] = (char*)malloc(strlen(map) + 1 + 7);
+	snprintf(current_map[0], 3, "%d", maxPlayers);
+	strcat(current_map[0], "c-");
+	if (strncmp(map, "Sk-", 3) == 0)
+	{
+		strcat(current_map[0], map + 3);
+	}
+	else
+	{
+		strcat(current_map[0], map);
+	}
+	if (strncmp(current_map[0] + strlen(current_map[0]) - 3, "-T", 2) == 0)
+	{
+		current_map[0][strlen(current_map[0]) - 3] = '\0';
+	}
+	current_map[1] = (char*)malloc(strlen(map) + 1 + 7);
+	strcpy(current_map[1], current_map[0]);
+	strcat(current_map[1],".wz");
+	current_map[2] = NULL;
+}
+
 void clearOverrideMods(void)
 {
 	int i;
@@ -276,31 +322,6 @@ void addLoadedMod(const char * modname)
 		return;
 	}
 	char *mod = strdup(modname);
-	int modlen = strlen(mod);
-	if (modlen >= 3 && strcmp(&mod[modlen-3], ".wz")==0)
-	{
-		// remove ".wz" from end
-		mod[modlen-3] = 0;
-		modlen -= 3;
-	}
-	if (modlen >= 4 && strcmp(&mod[modlen-4], ".cam")==0)
-	{
-		// remove ".cam.wz" from end
-		mod[modlen-4] = 0;
-		modlen -= 4;
-	}
-	else if (modlen >= 4 && strcmp(&mod[modlen-4], ".mod")==0)
-	{
-		// remove ".mod.wz" from end
-		mod[modlen-4] = 0;
-		modlen -= 4;
-	}
-	else if (modlen >= 5 && strcmp(&mod[modlen-5], ".gmod")==0)
-	{
-		// remove ".gmod.wz" from end
-		mod[modlen-5] = 0;
-		modlen -= 5;
-	}
 	// Yes, this is an online insertion sort.
 	// I swear, for the numbers of mods this is going to be dealing with
 	// (i.e. 0 to 2), it really is faster than, say, Quicksort.
@@ -319,6 +340,7 @@ void addLoadedMod(const char * modname)
 	loaded_mods[i] = mod;
 	num_loaded_mods++;
 }
+
 void clearLoadedMods(void)
 {
 	int i;
@@ -333,6 +355,7 @@ void clearLoadedMods(void)
 		mod_list = NULL;
 	}
 }
+
 char * getModList(void)
 {
 	int i;
@@ -378,7 +401,8 @@ static bool getCurrentDir(char * const dest, size_t const size)
 		return false;
 	}
 #elif defined(WZ_OS_WIN)
-	const int len = GetCurrentDirectoryA(size, dest);
+	wchar_t tmpWStr[PATH_MAX];
+	const int len = GetCurrentDirectoryW(PATH_MAX, tmpWStr);
 
 	if (len == 0)
 	{
@@ -390,7 +414,7 @@ static bool getCurrentDir(char * const dest, size_t const size)
 		FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM, NULL, err, 0, (char*)&err_string, 0, NULL);
 
 		// Print an error message with the above description
-		debug(LOG_ERROR, "getPlatformUserDir: GetCurrentDirectoryA failed (error code: %d): %s", err, err_string);
+		debug(LOG_ERROR, "getPlatformUserDir: GetCurrentDirectory failed (error code: %d): %s", err, err_string);
 
 		// Free our chunk of memory FormatMessageA gave us
 		LocalFree(err_string);
@@ -401,6 +425,12 @@ static bool getCurrentDir(char * const dest, size_t const size)
 	{
 		debug(LOG_ERROR, "getPlatformUserDir: The buffer to contain our current directory is too small (%u bytes and %d needed)", (unsigned int)size, len);
 
+		return false;
+	}
+	if (WideCharToMultiByte(CP_UTF8, 0, tmpWStr, -1, dest, size, NULL, NULL) == 0)
+	{
+		dest[0] = '\0';
+		debug(LOG_ERROR, "Encoding conversion error.");
 		return false;
 	}
 #else
@@ -415,9 +445,16 @@ static bool getCurrentDir(char * const dest, size_t const size)
 static void getPlatformUserDir(char * const tmpstr, size_t const size)
 {
 #if defined(WZ_OS_WIN)
-	ASSERT(size >= MAX_PATH, "size (%u) is smaller than the required minimum of MAX_PATH (%u)", size, (size_t)MAX_PATH);
-	if ( SUCCEEDED( SHGetFolderPathA( NULL, CSIDL_PERSONAL|CSIDL_FLAG_CREATE, NULL, SHGFP_TYPE_CURRENT, tmpstr ) ) )
+	wchar_t tmpWStr[MAX_PATH];
+	if ( SUCCEEDED( SHGetFolderPathW( NULL, CSIDL_PERSONAL|CSIDL_FLAG_CREATE, NULL, SHGFP_TYPE_CURRENT, tmpWStr ) ) )
+	{
+		if (WideCharToMultiByte(CP_UTF8, 0, tmpWStr, -1, tmpstr, size, NULL, NULL) == 0)
+		{
+			debug(LOG_ERROR, "Encoding conversion error.");
+			exit(1);
+		}
 		strlcat(tmpstr, PHYSFS_getDirSeparator(), size);
+	}
 	else
 #elif defined(WZ_OS_MAC)
 	FSRef fsref;
@@ -441,7 +478,7 @@ static void getPlatformUserDir(char * const tmpstr, size_t const size)
 	{
 		debug(LOG_FATAL, "Can't get UserDir?");
 		abort();
-}
+	}
 }
 
 
@@ -520,10 +557,21 @@ static void initialize_ConfigDir(void)
  */
 static void initialize_PhysicsFS(const char* argv_0)
 {
+	int result = PHYSFS_init(argv_0);
+
+	if (!result)
+	{
+		debug(LOG_FATAL, "There was a problem trying to init Physfs.  Error was %s", PHYSFS_getLastError());
+		exit(-1);
+	}
+}
+
+static void check_Physfs(void)
+{
+	const PHYSFS_ArchiveInfo **i;
+	bool zipfound = false;
 	PHYSFS_Version compiled;
 	PHYSFS_Version linked;
-
-	PHYSFS_init(argv_0);
 
 	PHYSFS_VERSION(&compiled);
 	PHYSFS_getLinkedVersion(&linked);
@@ -532,6 +580,25 @@ static void initialize_PhysicsFS(const char* argv_0)
 	      compiled.major, compiled.minor, compiled.patch);
 	debug(LOG_WZ, "Linked against PhysFS version: %d.%d.%d",
 	      linked.major, linked.minor, linked.patch);
+	if (linked.major < 2)
+	{
+		debug(LOG_FATAL, "At least version 2 of PhysicsFS required!");
+		exit(-1);
+	}
+
+    for (i = PHYSFS_supportedArchiveTypes(); *i != NULL; i++)
+    {
+		debug(LOG_WZ, "[**] Supported archive(s): [%s], which is [%s].", (*i)->extension, (*i)->description);
+		if (!strncasecmp("zip", (*i)->extension, 3) && !zipfound)
+		{
+			zipfound = true;
+		}
+    }
+	if (!zipfound)
+	{
+		debug(LOG_FATAL, "Your Physfs wasn't compiled with zip support.  Please recompile Physfs with zip support.  Exiting program.");
+		exit(-1);
+	}
 }
 
 
@@ -540,7 +607,7 @@ static void initialize_PhysicsFS(const char* argv_0)
  *
  * Priority:
  * Lower loads first. Current:
- * -datadir > User's home dir > SVN data > AutoPackage > BaseDir > DEFAULT_DATADIR
+ * -datadir > User's home dir > source tree data > AutoPackage > BaseDir > DEFAULT_DATADIR
  *
  * Only -datadir and home dir are allways examined. Others only if data still not found.
  *
@@ -583,7 +650,7 @@ static void scanDataDirs( void )
 
 	if( !PHYSFS_exists("gamedesc.lev") )
 	{
-		// Data in SVN dir
+		// Data in source tree
 		sstrcpy(tmpstr, prefix);
 		sstrcat(tmpstr, "/data/");
 		registerSearchPath( tmpstr, 3 );
@@ -741,7 +808,7 @@ static void startGameLoop(void)
 	// Trap the cursor if cursor snapping is enabled
 	if (war_GetTrapCursor())
 	{
-		SDL_WM_GrabInput(SDL_GRAB_ON);
+		wzGrabMouse();
 	}
 
 	// set a flag for the trigger/event system to indicate initialisation is complete
@@ -754,6 +821,7 @@ static void startGameLoop(void)
 	if (game.type == SKIRMISH)
 	{
 		eventFireCallbackTrigger((TRIGGER_TYPE)CALL_START_NEXT_LEVEL);
+		triggerEvent(TRIGGER_START_LEVEL);
 	}
 	screen_disableMapPreview();
 }
@@ -783,7 +851,7 @@ static void stopGameLoop(void)
 	// Disable cursor trapping
 	if (war_GetTrapCursor())
 	{
-		SDL_WM_GrabInput(SDL_GRAB_OFF);
+		wzReleaseMouse();
 	}
 
 	gameInitialised = false;
@@ -819,7 +887,7 @@ static bool initSaveGameLoad(void)
 	// Trap the cursor if cursor snapping is enabled
 	if (war_GetTrapCursor())
 	{
-		SDL_WM_GrabInput(SDL_GRAB_ON);
+		wzGrabMouse();
 	}
 	if (challengeActive)
 	{
@@ -856,7 +924,7 @@ static void runGameLoop(void)
 			stopGameLoop();
 			startGameLoop(); // Restart gameloop
 			break;
-		// Never trown:
+		// Never thrown:
 		case GAMECODE_FASTEXIT:
 		case GAMECODE_RESTARTGAME:
 			break;
@@ -879,12 +947,7 @@ static void runTitleLoop(void)
 		case TITLECODE_QUITGAME:
 			debug(LOG_MAIN, "TITLECODE_QUITGAME");
 			stopTitleLoop();
-			{
-				// Create a quit event to halt game loop.
-				SDL_Event quitEvent;
-				quitEvent.type = SDL_QUIT;
-				SDL_PushEvent(&quitEvent);
-			}
+			wzQuit();
 			break;
 		case TITLECODE_SAVEGAMELOAD:
 			{
@@ -919,138 +982,100 @@ static void runTitleLoop(void)
 	}
 }
 
-
-/*!
- * Activation (focus change) eventhandler
- */
-static void handleActiveEvent(SDL_ActiveEvent * activeEvent)
-{
-	// Ignore focus loss through SDL_APPMOUSEFOCUS, since it mostly happens accidentialy
-	// active.state is a bitflag! Mixed events (eg. APPACTIVE|APPMOUSEFOCUS) will thus not be ignored.
-	if ( activeEvent->state == SDL_APPMOUSEFOCUS )
-	{
-		setMouseScroll(activeEvent->gain);
-		return;
-	}
-
-	if ( activeEvent->gain == 1 )
-	{
-		debug( LOG_NEVER, "WM_SETFOCUS");
-		if (focusState != FOCUS_IN)
-		{
-			focusState = FOCUS_IN;
-
-			// Don't pause in multiplayer!
-			if (war_GetPauseOnFocusLoss() && !NetPlay.bComms)
-			{
-				gameTimeStart();
-				audio_ResumeAll();
-				cdAudio_Resume();
-			}
-			// enable scrolling
-			setScrollPause(false);
-			resetScroll();
-		}
-	}
-	else
-	{
-		debug( LOG_NEVER, "WM_KILLFOCUS");
-		if (focusState != FOCUS_OUT)
-		{
-			focusState = FOCUS_OUT;
-
-			// Don't pause in multiplayer!
-			if (war_GetPauseOnFocusLoss() && !NetPlay.bComms)
-			{
-				gameTimeStop();
-				audio_PauseAll();
-				cdAudio_Pause();
-			}
-			/* Have to tell the input system that we've lost focus */
-			inputLooseFocus();
-			// stop scrolling
-			setScrollPause(true);
-		}
-	}
-}
-
-
 /*!
  * The mainloop.
  * Fetches events, executes appropriate code
  */
-static void mainLoop(void)
+void mainLoop(void)
 {
-	SDL_Event event;
+	frameUpdate(); // General housekeeping
 
-	while (true)
+	// Screenshot key is now available globally
+	if (keyPressed(KEY_F10))
 	{
-		frameUpdate(); // General housekeeping
+		kf_ScreenDump();
+		inputLoseFocus();		// remove it from input stream
+	}
 
-		/* Deal with any windows messages */
-		while (SDL_PollEvent(&event))
+	if (NetPlay.bComms || focusState == FOCUS_IN || !war_GetPauseOnFocusLoss())
+	{
+		if (loop_GetVideoStatus())
 		{
-			switch (event.type)
-			{
-				case SDL_KEYUP:
-				case SDL_KEYDOWN:
-					inputHandleKeyEvent(&event.key);
-					break;
-				case SDL_MOUSEBUTTONUP:
-				case SDL_MOUSEBUTTONDOWN:
-					inputHandleMouseButtonEvent(&event.button);
-					break;
-				case SDL_MOUSEMOTION:
-					inputHandleMouseMotionEvent(&event.motion);
-					break;
-				case SDL_ACTIVEEVENT:
-					handleActiveEvent(&event.active);
-					break;
-				case SDL_QUIT:
-					saveConfig();
-					return;
-				default:
-					break;
-			}
+			videoLoop(); // Display the video if neccessary
 		}
-		// Screenshot key is now available globally
-		if(keyPressed(KEY_F10))
+		else switch (GetGameMode())
 		{
-			kf_ScreenDump();
-			inputLooseFocus();		// remove it from input stream
+			case GS_NORMAL: // Run the gameloop code
+				runGameLoop();
+				break;
+			case GS_TITLE_SCREEN: // Run the titleloop code
+				runTitleLoop();
+				break;
+			default:
+				break;
 		}
-
-		// only pause when not in multiplayer, no focus, and we actually want to pause
-		if (NetPlay.bComms || focusState == FOCUS_IN || !war_GetPauseOnFocusLoss())
-		{
-			if (loop_GetVideoStatus())
-			{
-				videoLoop(); // Display the video if neccessary
-			}
-			else switch (GetGameMode())
-			{
-				case GS_NORMAL: // Run the gameloop code
-					runGameLoop();
-					break;
-				case GS_TITLE_SCREEN: // Run the titleloop code
-					runTitleLoop();
-					break;
-				default:
-					break;
-			}
-
-			realTimeUpdate(); // Update realTime.
-		}
+		realTimeUpdate(); // Update realTime.
 	}
 }
 
-int main(int argc, char *argv[])
+bool getUTF8CmdLine(int* const utfargc, const char*** const utfargv) // explicitely pass by reference
 {
+#ifdef WZ_OS_WIN
+	int wargc;
+	wchar_t** wargv = CommandLineToArgvW(GetCommandLineW(), &wargc);
+
+	if (wargv == NULL)
+	{
+		const int err = GetLastError();
+		char* err_string;
+
+		// Retrieve a (locally encoded) string describing the error (uses LocalAlloc() to allocate memory)
+		FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM, NULL, err, 0, (char*)&err_string, 0, NULL);
+
+		debug(LOG_FATAL, "CommandLineToArgvW failed: %s (code:%d)", err_string, err);
+
+		LocalFree(err_string); // Free the chunk of memory FormatMessageA gave us
+		LocalFree(wargv);
+		return false;
+	}
+	// the following malloc and UTF16toUTF8 will create leaks.
+	*utfargv = (const char**)malloc(sizeof(const char*) * wargc);
+	if (!*utfargv)
+	{
+		debug(LOG_FATAL, "Out of memory!");
+		abort();
+		return false;
+	}
+	for (int i = 0; i < wargc; ++i)
+	{
+		STATIC_ASSERT(sizeof(wchar_t) == sizeof(utf_16_char)); // Should be true on windows
+		(*utfargv)[i] = UTF16toUTF8((const utf_16_char*)wargv[i], NULL); // only returns null when memory runs out
+		if ((*utfargv)[i] == NULL)
+		{
+			*utfargc = i;
+			LocalFree(wargv);
+			abort();
+			return false;
+		}
+	}
+	*utfargc = wargc;
+	LocalFree(wargv);
+#endif
+	return true;
+}
+
+// for backend detection
+extern const char *BACKEND;
+
+int realmain(int argc, char *argv[])
+{
+	wzMain(argc, argv);
+	int utfargc = argc;
+	const char** utfargv = (const char**)argv;
+
 #ifdef WZ_OS_MAC
 	cocoaInit();
 #endif
-
-	setupExceptionHandler(argc, argv);
 
 	debug_init();
 	debug_register_callback( debug_callback_stderr, NULL, NULL, NULL );
@@ -1058,21 +1083,28 @@ int main(int argc, char *argv[])
 	debug_register_callback( debug_callback_win32debug, NULL, NULL, NULL );
 #endif // WZ_OS_WIN && DEBUG_INSANE
 
+	// *****
+	// NOTE: Try *NOT* to use debug() output routines without some other method of informing the user.  All this output is sent to /dev/nul at this point on some platforms!
+	// *****
+	if (!getUTF8CmdLine(&utfargc, &utfargv))
+	{
+		return EXIT_FAILURE;
+	}
+	QTextCodec::setCodecForCStrings(QTextCodec::codecForName("UTF-8"));	// make Qt treat all C strings in Warzone as UTF-8
+
+	setupExceptionHandler(utfargc, utfargv, version_getFormattedVersionString());
+
 	/*** Initialize PhysicsFS ***/
-	initialize_PhysicsFS(argv[0]);
+	initialize_PhysicsFS(utfargv[0]);
 
 	/*** Initialize translations ***/
 	initI18n();
 
 	// find early boot info
-	if ( !ParseCommandLineEarly(argc, (const char**)argv) ) {
-		return -1;
+	if (!ParseCommandLineEarly(utfargc, utfargv))
+	{
+		return EXIT_FAILURE;
 	}
-
-	debug(LOG_WZ, "Using language: %s", getLanguage());
-
-	debug(LOG_MEMORY, "sizeof: SIMPLE_OBJECT=%ld, BASE_OBJECT=%ld, DROID=%ld, STRUCTURE=%ld, FEATURE=%ld, PROJECTILE=%ld",
-	      (long)sizeof(SIMPLE_OBJECT), (long)sizeof(BASE_OBJECT), (long)sizeof(DROID), (long)sizeof(STRUCTURE), (long)sizeof(FEATURE), (long)sizeof(PROJECTILE));
 
 	/* Initialize the write/config directory for PhysicsFS.
 	 * This needs to be done __after__ the early commandline parsing,
@@ -1083,7 +1115,7 @@ int main(int argc, char *argv[])
 
 	/*** Initialize directory structure ***/
 	make_dir(ScreenDumpPath, "screenshots", NULL);
-	make_dir(SaveGamePath, "savegame", NULL);
+	make_dir(SaveGamePath, "savegames", NULL);
 	make_dir(MultiCustomMapsPath, "maps", NULL); // MUST have this to prevent crashes when getting map
 	PHYSFS_mkdir("music");
 	PHYSFS_mkdir("logs");		// a place to hold our netplay, mingw crash reports & WZ logs
@@ -1103,13 +1135,20 @@ int main(int argc, char *argv[])
 		// Note: We are using fopen(), and not physfs routines to open the file
 		// log name is logs/(or \)WZlog-MMDD_HHMMSS.txt
 		snprintf(buf, sizeof(buf), "%slogs%sWZlog-%02d%02d_%02d%02d%02d.txt", PHYSFS_getWriteDir(), PHYSFS_getDirSeparator(),
-			newtime->tm_mon, newtime->tm_mday, newtime->tm_hour, newtime->tm_min, newtime->tm_sec );
+			newtime->tm_mon + 1, newtime->tm_mday, newtime->tm_hour, newtime->tm_min, newtime->tm_sec );
 		debug_register_callback( debug_callback_file, debug_callback_file_init, debug_callback_file_exit, buf );
 	}
-	debug(LOG_WZ, "Warzone 2100 - %s", version_getFormattedVersionString());
 
-	/* Put these files in the writedir root */
-	setRegistryFilePath("config");
+	// NOTE: it is now safe to use debug() calls to make sure output gets captured.
+	check_Physfs();
+	debug(LOG_WZ, "Warzone 2100 - %s", version_getFormattedVersionString());
+	debug(LOG_WZ, "Using language: %s", getLanguage());
+	debug(LOG_WZ, "Backend: %s", BACKEND);
+	debug(LOG_MEMORY, "sizeof: SIMPLE_OBJECT=%ld, BASE_OBJECT=%ld, DROID=%ld, STRUCTURE=%ld, FEATURE=%ld, PROJECTILE=%ld",
+	      (long)sizeof(SIMPLE_OBJECT), (long)sizeof(BASE_OBJECT), (long)sizeof(DROID), (long)sizeof(STRUCTURE), (long)sizeof(FEATURE), (long)sizeof(PROJECTILE));
+
+
+	/* Put in the writedir root */
 	sstrcpy(KeyMapPath, "keymap.map");
 
 	// initialise all the command line states
@@ -1117,13 +1156,16 @@ int main(int argc, char *argv[])
 
 	debug(LOG_MAIN, "initializing");
 
+	PhysicsEngineHandler engine;	// register abstract physfs filesystem
+
 	loadConfig();
 
 	NETinit(true);
 
 	// parse the command line
-	if (!ParseCommandLine(argc, (const char**)argv)) {
-		return -1;
+	if (!ParseCommandLine(utfargc, utfargv))
+	{
+		return EXIT_FAILURE;
 	}
 
 	// Save new (commandline) settings
@@ -1143,7 +1185,7 @@ int main(int argc, char *argv[])
 		soundTest();
 	}
 
-	// Now we check the mods to see if they exsist or not (specified on the command line)
+	// Now we check the mods to see if they exist or not (specified on the command line)
 	// They are all capped at 100 mods max(see clparse.c)
 	// FIX ME: I know this is a bit hackish, but better than nothing for now?
 	{
@@ -1162,7 +1204,7 @@ int main(int argc, char *argv[])
 			}
 			ssprintf(modtocheck, "mods/global/%s", modname);
 			result = PHYSFS_exists(modtocheck);
-			result |= PHYSFS_isDirectory(modtocheck); 
+			result |= PHYSFS_isDirectory(modtocheck);
 			if (!result)
 			{
 				debug(LOG_ERROR, "The (global) mod (%s) you have specified doesn't exist!", modname);
@@ -1182,7 +1224,7 @@ int main(int argc, char *argv[])
 			}
 			ssprintf(modtocheck, "mods/campaign/%s", modname);
 			result = PHYSFS_exists(modtocheck);
-			result |= PHYSFS_isDirectory(modtocheck); 
+			result |= PHYSFS_isDirectory(modtocheck);
 			if (!result)
 			{
 				debug(LOG_ERROR, "The mod_ca (%s) you have specified doesn't exist!", modname);
@@ -1202,7 +1244,7 @@ int main(int argc, char *argv[])
 			}
 			ssprintf(modtocheck, "mods/multiplay/%s", modname);
 			result = PHYSFS_exists(modtocheck);
-			result |= PHYSFS_isDirectory(modtocheck); 
+			result |= PHYSFS_isDirectory(modtocheck);
 			if (!result)
 			{
 				debug(LOG_ERROR, "The mod_mp (%s) you have specified doesn't exist!", modname);
@@ -1214,9 +1256,21 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if (!frameInitialise( "Warzone 2100", pie_GetVideoBufferWidth(), pie_GetVideoBufferHeight(), pie_GetVideoBufferDepth(), war_getFSAA(), war_getFullscreen(), war_GetVsync()))
+	if (!wzMain2())
 	{
-		return -1;
+		return EXIT_FAILURE;
+	}
+	int w = pie_GetVideoBufferWidth();
+	int h = pie_GetVideoBufferHeight();
+
+	char buf[256];
+	ssprintf(buf, "Video Mode %d x %d (%s)", w, h, war_getFullscreen() ? "fullscreen" : "window");
+	addDumpInfo(buf);
+
+	debug(LOG_MAIN, "Final initialization");
+	if (!frameInitialise())
+	{
+		return EXIT_FAILURE;
 	}
 	war_SetWidth(pie_GetVideoBufferWidth());
 	war_SetHeight(pie_GetVideoBufferHeight());
@@ -1232,7 +1286,7 @@ int main(int argc, char *argv[])
 
 	if (!systemInitialise())
 	{
-		return -1;
+		return EXIT_FAILURE;
 	}
 
 	//set all the pause states to false
@@ -1241,7 +1295,6 @@ int main(int argc, char *argv[])
 	/* Runtime unit testing */
 	if (selfTest)
 	{
-		tagTest();
 		parseTest();
 		levTest();
 		mapTest();
@@ -1249,13 +1302,12 @@ int main(int argc, char *argv[])
 		exit(0);
 	}
 
-	{
-		// Copy this info to be used by the crash handler for the dump file
-		char buf[256];
+	// Copy this info to be used by the crash handler for the dump file
+	ssprintf(buf,"Using Backend: %s", BACKEND);
+	addDumpInfo(buf);
+	ssprintf(buf,"Using language: %s", getLanguageName());
+	addDumpInfo(buf);
 
-		ssprintf(buf,"Using language: %s", getLanguageName());
-		addDumpInfo(buf);
-	}
 	// Do the game mode specific initialisation.
 	switch(GetGameMode())
 	{
@@ -1273,20 +1325,17 @@ int main(int argc, char *argv[])
 			break;
 	}
 
-	debug(LOG_MAIN, "Entering main loop");
-
-	// Enter the mainloop
-	mainLoop();
-	debug(LOG_MAIN, "Shutting down Warzone 2100");
-
 #if defined(WZ_CC_MSVC) && defined(DEBUG)
 	debug_MEMSTATS();
 #endif
-
-	atexit(systemShutdown);
+	debug(LOG_MAIN, "Entering main loop");
+	wzMain3();
+	saveConfig();
+	systemShutdown();
+	wzShutdown();
+	debug(LOG_MAIN, "Completed shutting down Warzone 2100");
 	return EXIT_SUCCESS;
 }
-
 
 /*!
  * Get the mode the game is currently in
@@ -1295,7 +1344,6 @@ GS_GAMEMODE GetGameMode(void)
 {
 	return gameStatus;
 }
-
 
 /*!
  * Set the current mode

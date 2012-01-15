@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2010  Warzone 2100 Project
+	Copyright (C) 2005-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -24,7 +24,8 @@
 #include "lib/widget/widgbase.h"
 
 // determines which option screen to use. when in GS_TITLE_SCREEN mode.
-typedef enum _title_mode {
+enum tMode
+{
 	TITLE,			// 0 intro mode
 	SINGLE,			// 1 single player menu
 	MULTI,			// 2 multiplayer menu
@@ -46,7 +47,7 @@ typedef enum _title_mode {
 	AUDIO_OPTIONS,          // 18 audio options menu
 	VIDEO_OPTIONS,          // 19 video options menu
 	MOUSE_OPTIONS,          // 20 mouse options menu
-} tMode;
+};
 
 extern tMode titleMode;					// the global case
 extern tMode lastTitleMode;
@@ -55,25 +56,26 @@ extern tMode lastTitleMode;
 
 extern char	aLevelName[MAX_LEVEL_NAME_SIZE+1];	//256];			// vital! the wrf file to use.
 
-extern BOOL	bLimiterLoaded;
+extern bool	bLimiterLoaded;
 
 
 void changeTitleMode(tMode mode);
-BOOL runTitleMenu(void);
-BOOL runSinglePlayerMenu(void);
-BOOL runMultiPlayerMenu(void);
-BOOL runGameOptionsMenu(void);
-BOOL runOptionsMenu(void);
-BOOL runGraphicsOptionsMenu(void);
-BOOL runAudioOptionsMenu(void);
-BOOL runVideoOptionsMenu(void);
-BOOL runMouseOptionsMenu(void);
-BOOL runTutorialMenu(void);
+bool runTitleMenu(void);
+bool runSinglePlayerMenu(void);
+bool runMultiPlayerMenu(void);
+bool runGameOptionsMenu(void);
+bool runOptionsMenu(void);
+bool runGraphicsOptionsMenu(void);
+bool runAudioOptionsMenu(void);
+bool runVideoOptionsMenu(void);
+bool runMouseOptionsMenu(void);
+bool runTutorialMenu(void);
 
 void addTopForm(void);
 void addBottomForm(void);
 void addBackdrop(void);
 void addTextButton(UDWORD id, UDWORD PosX, UDWORD PosY, const char *txt, unsigned int style);
+void addSmallTextButton(UDWORD id, UDWORD PosX, UDWORD PosY, const char *txt, unsigned int style);
 void addTextHint(UDWORD id, UDWORD PosX, UDWORD PosY, const char *txt);
 void addText(UDWORD id, UDWORD PosX, UDWORD PosY, const char *txt, UDWORD formID);
 void addSideText(UDWORD id, UDWORD PosX, UDWORD PosY, const char *txt);
@@ -82,7 +84,7 @@ void addFEAISlider(UDWORD id, UDWORD parent, UDWORD x, UDWORD y, UDWORD stops, U
 
 void displayTextOption(WIDGET *psWidget, UDWORD xOffset, UDWORD yOffset, PIELIGHT *pColours);
 
-BOOL CancelPressed(void);
+bool CancelPressed(void);
 
 
 // ////////////////////////////////////////////////////////////////////////////
@@ -137,6 +139,10 @@ BOOL CancelPressed(void);
 #define FRONTEND_POS7Y			250
 #define FRONTEND_POS7M			290
 
+#define FRONTEND_POS8X			-30				// special case for our hyperlink
+#define FRONTEND_POS8Y			278
+
+
 #define FRONTEND_SIDEX			44
 #define FRONTEND_SIDEY			FRONTEND_BOTFORMY
 #define FRONTEND_LOGOW			248
@@ -156,6 +162,7 @@ enum
 	FRONTEND_LOADCAM2,					// loading via --GAME CAM_2A
 	FRONTEND_LOADCAM3,					// loading via --GAME CAM_3A
 	FRONTEND_PASSWORDFORM,
+	FRONTEND_HYPERLINK,
 	// begin menu
 	FRONTEND_SINGLEPLAYER	= 20100,	// title screen
 	FRONTEND_MULTIPLAYER,
@@ -195,12 +202,12 @@ enum
 	FRONTEND_SSHAKE_R,
 	FRONTEND_FMVMODE,
 	FRONTEND_FMVMODE_R,
+	FRONTEND_SCANLINES,
+	FRONTEND_SCANLINES_R,
 	FRONTEND_SUBTITLES,
 	FRONTEND_SUBTITLES_R,
 	FRONTEND_SHADOWS,
 	FRONTEND_SHADOWS_R,
-	FRONTEND_FOGTYPE,
-	FRONTEND_FOGTYPE_R,
 
 	FRONTEND_AUDIOOPTIONS = 23000,          // Audio Options Menu
 	FRONTEND_3D_FX,						// 3d sound volume
@@ -220,10 +227,10 @@ enum
 	FRONTEND_TAKESEFFECT,
 	FRONTEND_VSYNC,
 	FRONTEND_VSYNC_R,
+	FRONTEND_FSAA,
+	FRONTEND_FSAA_R,
 
 	FRONTEND_MOUSEOPTIONS = 25000,          // Mouse Options Menu
-	FRONTEND_CURSORMODE,
-	FRONTEND_CURSORMODE_R,
 	FRONTEND_TRAP,
 	FRONTEND_TRAP_R,
 	FRONTEND_MFLIP,

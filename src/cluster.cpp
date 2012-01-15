@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2010  Warzone 2100 Project
+	Copyright (C) 2005-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -31,6 +31,8 @@
 #include "map.h"
 #include "scriptcb.h"
 #include "scripttabs.h"
+#include "projectile.h"
+#include "qtscript.h"
 
 // distance between units for them to be in the same cluster
 #define CLUSTER_DIST	(TILE_UNITS*8)
@@ -315,7 +317,7 @@ static SDWORD clustFindUnused(void)
 void clustUpdateObject(BASE_OBJECT * psObj)
 {
 	SDWORD	newCluster, oldCluster, i;
-	BOOL	found;
+	bool	found;
 	SDWORD	player;
 
 	newCluster = clustFindUnused();
@@ -518,11 +520,9 @@ void clustObjectSeen(BASE_OBJECT *psObj, BASE_OBJECT *psViewer)
 	{
 		ASSERT(psObj->cluster != (UBYTE)~0, "object not in a cluster");
 		if ( (player != (SDWORD)psObj->player) &&
-			 psObj->visible[player] &&
+			 hasSharedVision(psViewer->player, player) &&
 			!(aClusterVisibility[psObj->cluster] & (1 << player)))
 		{
-//			DBPRINTF(("cluster %d (player %d) seen by player %d\n",
-//				clustGetClusterID(psObj), psObj->player, player));
 			aClusterVisibility[psObj->cluster] |= 1 << player;
 
 			psScrCBObjSeen = psObj;
@@ -559,6 +559,7 @@ void clustObjectAttacked(BASE_OBJECT *psObj)
 	{
 		psScrCBTarget = psObj;
 		eventFireCallbackTrigger((TRIGGER_TYPE)CALL_ATTACKED);
+		triggerEventAttacked(psObj, g_pProjLastAttacker);
 
 		switch (psObj->type)
 		{

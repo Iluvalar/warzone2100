@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2010  Warzone 2100 Project
+	Copyright (C) 2005-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -35,10 +35,10 @@
 	* STILL NEED TO REMOVE SOME MAGIC NUMBERS INTO #DEFINES!!! *
 	************************************************************
 */
-#include "lib/framework/frame.h"
+#include "lib/framework/wzapp.h"
+#include "lib/framework/wzconfig.h"
 #include "lib/framework/frameresource.h"
 #include "lib/framework/input.h"
-#include "lib/framework/tagfile.h"
 #include "lib/framework/math_ext.h"
 
 #include "lib/ivis_opengl/ivisdef.h" //ivis matrix code
@@ -168,9 +168,8 @@
 
 
 /*! A memory chunk of effects */
-typedef struct _EffectChunk EffectChunk;
-
-struct _EffectChunk {
+struct EffectChunk
+{
 	EFFECT effects[EFFECT_CHUNK_SIZE]; //!< Chunk of effects
 	EffectChunk *next; //!< Next element in list
 };
@@ -341,9 +340,9 @@ static EFFECT *Effect_malloc(void)
  * Return an effect into memory pool
  * \param self Effect to be freed
  */
-static void Effect_free(void *self)
+static void Effect_free(EFFECT *instance)
 {
-	EFFECT *instance = (EFFECT *)self;
+	instance->group = EFFECT_FREED;
 
 	/* Remove from activeList and fixup endings necessary */
 	if (instance->prev != NULL) {
@@ -429,13 +428,11 @@ void initEffectsSystem(void)
 
 static void positionEffect(const EFFECT *psEffect)
 {
-	int rx, rz;
-
 	/* Establish world position */
 	Vector3i dv(
-		(psEffect->position.x - player.p.x) - terrainMidX * TILE_UNITS,
+		psEffect->position.x - player.p.x,
 		psEffect->position.y,
-		terrainMidY * TILE_UNITS - (psEffect->position.z - player.p.z)
+		-(psEffect->position.z - player.p.z)
 	);
 
 	/* Push the indentity matrix */
@@ -443,13 +440,6 @@ static void positionEffect(const EFFECT *psEffect)
 
 	/* Move to position */
 	pie_TRANSLATE(dv.x, dv.y, dv.z);
-
-	/* Get the x,z translation components */
-	rx = map_round(player.p.x);
-	rz = map_round(player.p.z);
-
-	/* Move to camera reference */
-	pie_TRANSLATE(rx, 0, -rz);
 }
 
 static void killEffect(EFFECT *e)
@@ -469,7 +459,7 @@ void	effectSetSize(UDWORD size)
 }
 
 void addMultiEffect(const Vector3i *basePos, Vector3i *scatter, EFFECT_GROUP group,
-					   EFFECT_TYPE type, bool specified, iIMDShape *imd, unsigned int number, bool lit, unsigned int size)
+                    EFFECT_TYPE type, bool specified, iIMDShape *imd, unsigned int number, bool lit, unsigned int size, unsigned effectTime)
 {
 	if (number == 0)
 	{
@@ -482,7 +472,7 @@ void addMultiEffect(const Vector3i *basePos, Vector3i *scatter, EFFECT_GROUP gro
 	/* If there's only one, make sure it's in the centre */
 	if (number == 1)
 	{
-		addEffect(basePos,group,type,specified,imd,lit);
+		addEffect(basePos, group, type, specified, imd, lit, effectTime);
 	}
 	else
 	{
@@ -499,7 +489,7 @@ void addMultiEffect(const Vector3i *basePos, Vector3i *scatter, EFFECT_GROUP gro
 			                                                  rand()%(scatter->y*2 + 1),
 			                                                  rand()%(scatter->z*2 + 1)
 			                                                 );
-			addEffect(&scatPos,group,type,specified,imd,lit);
+			addEffect(&scatPos, group, type, specified, imd, lit, effectTime);
 		}
 	}
 }
@@ -513,6 +503,11 @@ void	SetEffectForPlayer(uint8_t player)
 }
 
 void addEffect(const Vector3i *pos, EFFECT_GROUP group, EFFECT_TYPE type, bool specified, iIMDShape *imd, int lit)
+{
+	return addEffect(pos, group, type, specified, imd, lit, graphicsTime);
+}
+
+void addEffect(const Vector3i *pos, EFFECT_GROUP group, EFFECT_TYPE type, bool specified, iIMDShape *imd, int lit, unsigned effectTime)
 {
 	EFFECT *psEffect = NULL;
 
@@ -547,7 +542,7 @@ void addEffect(const Vector3i *pos, EFFECT_GROUP group, EFFECT_TYPE type, bool s
 	SetEffectForPlayer(0);	// reset it
 
 	/* Set when it entered the world */
-	psEffect->birthTime = psEffect->lastFrame = graphicsTime;
+	psEffect->birthTime = psEffect->lastFrame = effectTime;
 
 	if(group == EFFECT_GRAVITON && (type == GRAVITON_TYPE_GIBLET || type == GRAVITON_TYPE_EMITTING_DR))
 	{
@@ -609,8 +604,7 @@ void addEffect(const Vector3i *pos, EFFECT_GROUP group, EFFECT_TYPE type, bool s
 		case EFFECT_FIREWORK:
 			effectSetupFirework(psEffect);
 			break;
-		case EFFECT_STRUCTURE:
-		case EFFECT_DUST_BALL:
+		case EFFECT_FREED:
 			ASSERT( false,"Weirdy group type for an effect" );
 			break;
 	}
@@ -634,14 +628,17 @@ void processEffects(void)
 	{
 		EFFECT *itNext = it->next; // If updateEffect deletes something, we would be screwed...
 
-		/* Run updates, effect may be deleted here */
-		updateEffect(it);
-
-		/* Is it on the grid */
-		if (clipXY(it->position.x, it->position.z))
+		if (it->birthTime <= graphicsTime)  // Don't process, if it doesn't exist yet.
 		{
-			/* Add it to the bucket */
-			bucketAddTypeToList(RENDER_EFFECT, it);
+			/* Run updates, effect may be deleted here */
+			updateEffect(it);
+
+			/* Is it on the grid */
+			if (it->group != EFFECT_FREED && clipXY(it->position.x, it->position.z))
+			{
+				/* Add it to the bucket */
+				bucketAddTypeToList(RENDER_EFFECT, it);
+			}
 		}
 
 		it = itNext;
@@ -677,9 +674,6 @@ static void updateEffect(EFFECT *psEffect)
 		if(!gamePaused()) updatePolySmoke(psEffect);
 		return;
 
-	case EFFECT_STRUCTURE:
-		return;
-
 	case EFFECT_GRAVITON:
 		if(!gamePaused()) updateGraviton(psEffect);
 		return;
@@ -704,7 +698,7 @@ static void updateEffect(EFFECT *psEffect)
 		if(!gamePaused()) updateFirework(psEffect);
 		return;
 
-	case EFFECT_DUST_BALL: // Apparently not a valid effect...
+	case EFFECT_FREED:
 		break;
 	}
 
@@ -984,9 +978,9 @@ static void updateExplosion(EFFECT *psEffect)
 		}
 	}
 	/* Time to update the frame number on the explosion */
-	else if (graphicsTime - psEffect->lastFrame > psEffect->frameDelay)
+	else while (graphicsTime - psEffect->lastFrame > psEffect->frameDelay)
 	{
-		psEffect->lastFrame = graphicsTime;
+		psEffect->lastFrame += psEffect->frameDelay;
 		/* Are we on the last frame? */
 
 		if (++psEffect->frameNumber >= effectGetNumFrames(psEffect))
@@ -1042,10 +1036,10 @@ static void updatePolySmoke(EFFECT *psEffect)
 {
 
 	/* Time to update the frame number on the smoke sprite */
-	if(graphicsTime - psEffect->lastFrame > psEffect->frameDelay)
+	while (graphicsTime - psEffect->lastFrame > psEffect->frameDelay)
 	{
 		/* Store away last frame change time */
-		psEffect->lastFrame = graphicsTime;
+		psEffect->lastFrame += psEffect->frameDelay;
 
 		/* Are we on the last frame? */
 		if(++psEffect->frameNumber >= effectGetNumFrames(psEffect))
@@ -1585,9 +1579,6 @@ void renderEffect(const EFFECT *psEffect)
 		renderBloodEffect(psEffect);
 		return;
 
-	case EFFECT_STRUCTURE:
-		return;
-
 	case EFFECT_DESTRUCTION:
 		/*	There is no display func for a destruction effect -
 			it merely spawn other effects over time */
@@ -1606,7 +1597,7 @@ void renderEffect(const EFFECT *psEffect)
 		renderFirework(psEffect);
 		return;
 
-	case EFFECT_DUST_BALL: // Apparently not a valid effect...
+	case EFFECT_FREED:
 		break;
 	}
 
@@ -1729,6 +1720,7 @@ static void renderExplosionEffect(const EFFECT *psEffect)
 	if(TEST_FACING(psEffect))
 	{
 		/* Always face the viewer! */
+		// TODO This only faces towards the viewer, if the effect is in the middle of the screen... It draws the effect parallel with the screens near/far planes.
 		pie_MatRotY(-player.r.y);
 		pie_MatRotX(-player.r.x);
 	}
@@ -1753,7 +1745,20 @@ static void renderExplosionEffect(const EFFECT *psEffect)
 		pie_MatScale(psEffect->size / 100.f);
 	}
 
-	if(psEffect->type == EXPLOSION_TYPE_PLASMA)
+	bool premultiplied = false;
+	if (psEffect->imd->nconnectors >= 1)
+	{
+		switch (psEffect->imd->connectors[0].y)
+		{
+			case 3: premultiplied = true; break;
+		}
+	}
+
+	if (premultiplied)
+	{
+		pie_Draw3DShape(psEffect->imd, psEffect->frameNumber, 0, brightness, pie_PREMULTIPLIED, 0);
+	}
+	else if (psEffect->type == EXPLOSION_TYPE_PLASMA)
 	{
 		pie_Draw3DShape(psEffect->imd, psEffect->frameNumber, 0, brightness, pie_ADDITIVE, EFFECT_PLASMA_ADDITIVE);
 	}
@@ -1904,8 +1909,6 @@ static void renderSmokeEffect(const EFFECT *psEffect)
 // ----------------------------------------------------------------------------------------
 void	effectSetupFirework(EFFECT *psEffect)
 {
-	UDWORD	camExtra;
-
 	if(psEffect->type == FIREWORK_TYPE_LAUNCHER)
 	{
 	 	psEffect->velocity.x = 200 - rand()%400;
@@ -1913,11 +1916,6 @@ void	effectSetupFirework(EFFECT *psEffect)
 		psEffect->velocity.y = 400 + rand()%200;	//height
 		psEffect->lifeSpan = GAME_TICKS_PER_SEC * 3;
 		psEffect->radius = 80 + rand()%150;
-		camExtra = 0;
-		if(getCampaignNumber()!=1)
-		{
-			camExtra+=rand()%200;
-		}
 		psEffect->size = 300+rand()%300;	//height it goes off
 		psEffect->imd = getImdFromIndex(MI_FIREWORK); // not actually drawn
 	}
@@ -1949,9 +1947,7 @@ void	effectSetupFirework(EFFECT *psEffect)
 			break;
 		}
 	}
-
 	psEffect->frameDelay = (EXPLOSION_FRAME_DELAY*2);
-
 }
 
 void	effectSetupSmoke(EFFECT *psEffect)
@@ -2374,7 +2370,14 @@ void initPerimeterSmoke(iIMDShape *pImd, Vector3i base)
 
 static UDWORD effectGetNumFrames(EFFECT *psEffect)
 {
-	return psEffect->imd->numFrames;
+	if (psEffect->imd)
+	{
+		return psEffect->imd->numFrames;
+	}
+	else
+	{
+		return 0;
+	}
 }
 
 
@@ -2538,134 +2541,102 @@ void effectResetUpdates(void)
 }
 
 
-static const char FXData_tag_definition[] = "tagdefinitions/savegame/effects.def";
-static const char FXData_file_identifier[] = "FXData";
-
 /** This will save out the effects data */
-bool writeFXData(const char* fileName)
+bool writeFXData(const char *fileName)
 {
 	EFFECT *it;
+	int i = 0;
 
-	if (!tagOpenWrite(FXData_tag_definition, fileName))
+	WzConfig ini(fileName);
+	if (ini.status() != QSettings::NoError)
 	{
-		ASSERT(false, "writeFXData: error while opening file (%s)", fileName);
+		debug(LOG_ERROR, "Could not open %s", fileName);
 		return false;
 	}
-
-	tagWriteString(0x01, FXData_file_identifier);
-
-	// Enter effects group and dump all active EFFECTs
-	tagWriteEnter(0x02, activeList.num);
-
-	for (it = activeList.first; it != NULL; it = it->next)
+	for (it = activeList.first; it != NULL; it = it->next, i++)
 	{
-		tagWrite(0x01, it->control);
-		tagWrite(0x02, it->group);
-		tagWrite(0x03, it->type);
-		tagWrite(0x04, it->frameNumber);
-		tagWrite(0x05, it->size);
-		tagWrite(0x06, it->baseScale);
-		tagWrite(0x07, it->specific);
+		ini.beginGroup("effect_" + QString::number(i));
+		ini.setValue("control", it->control);
+		ini.setValue("group", it->group);
+		ini.setValue("type", it->type);
+		ini.setValue("frameNumber", it->frameNumber);
+		ini.setValue("size", it->size);
+		ini.setValue("baseScale", it->baseScale);
+		ini.setValue("specific", it->specific);
+		ini.setVector3f("position", it->position);
+		ini.setVector3f("velocity", it->velocity);
+		ini.setVector3i("rotation", it->rotation);
+		ini.setVector3i("spin", it->spin);
+		ini.setValue("birthTime", it->birthTime);
+		ini.setValue("lastFrame", it->lastFrame);
+		ini.setValue("frameDelay", it->frameDelay);
+		ini.setValue("lifeSpan", it->lifeSpan);
+		ini.setValue("radius", it->radius);
 
-		tagWritefv   (0x08, 3, &it->position.x);
-		tagWritefv   (0x09, 3, &it->velocity.x);
-		tagWrites32v (0x0A, 3, &it->rotation.x);
-		tagWrites32v (0x0B, 3, &it->spin.x);
+		const char *imd_name = resGetNamefromData("IMD", it->imd);
+		if (imd_name && *imd_name)
+		{
+			ini.setValue("imd_name", imd_name);
+		}
 
-		tagWrite(0x0C, it->birthTime);
-		tagWrite(0x0D, it->lastFrame);
-		tagWrite(0x0E, it->frameDelay);
-		tagWrite(0x0F, it->lifeSpan);
-		tagWrite(0x10, it->radius);
-
-		tagWriteString(0x11, resGetNamefromData("IMD", it->imd));
-
-		// Move on to reading the next effect group
-		tagWriteNext();
+		// Move on to reading the next effect
+		ini.endGroup();
 	}
-	// Leave the effects group again...
-	tagWriteLeave(0x02);
-
-	// Close the file
-	tagClose();
 
 	// Everything is just fine!
 	return true;
 }
 
 /** This will read in the effects data */
-bool readFXData(const char* fileName)
+bool readFXData(const char *fileName)
 {
-	unsigned int count, i;
-	char strbuffer[25];
-
-	if (!tagOpenRead(FXData_tag_definition, fileName))
-	{
-		debug(LOG_ERROR, "readFXData: error while opening file (%s)", fileName);
-		return false;
-	}
-
-	// Read & verify the format header identifier
-	tagReadString(0x01, sizeof(strbuffer), strbuffer);
-	if (strncmp(strbuffer, FXData_file_identifier, sizeof(strbuffer)) != 0)
-	{
-		debug(LOG_ERROR, "readFXData: Weird file type found (in file %s)? Has header string: %s", fileName, strbuffer);
-		return false;
-	}
-
 	// Clear out anything that's there already!
 	initEffectsSystem();
 
-	// Enter effects group and load all EFFECTs
-	count = tagReadEnter(0x02);
-	for(i = 0; i < count; ++i)
+	WzConfig ini(fileName);
+	if (ini.status() != QSettings::NoError)
 	{
-		char imd_name[PATH_MAX];
+		debug(LOG_ERROR, "Could not open %s", fileName);
+		return false;
+	}
+	QStringList list = ini.childGroups();
+	for (int i = 0; i < list.size(); ++i)
+	{
+		ini.beginGroup(list[i]);
 		EFFECT *curEffect = Effect_malloc();
 
-		/* Deal with out-of-memory conditions */
-		if (curEffect == NULL) {
-			debug(LOG_ERROR, "Out of memory");
-			return false;
-		}
-
-		curEffect->control      = tagRead(0x01);
-		curEffect->group        = (EFFECT_GROUP)tagRead(0x02);
-		curEffect->type         = (EFFECT_TYPE)tagRead(0x03);
-		curEffect->frameNumber  = tagRead(0x04);
-		curEffect->size         = tagRead(0x05);
-		curEffect->baseScale    = tagRead(0x06);
-		curEffect->specific     = tagRead(0x07);
-
-		tagReadfv   (0x08, 3, &curEffect->position.x);
-		tagReadfv   (0x09, 3, &curEffect->velocity.x);
-		tagReads32v (0x0A, 3, &curEffect->rotation.x);
-		tagReads32v (0x0B, 3, &curEffect->spin.x);
-
-		curEffect->birthTime    = tagRead(0x0C);
-		curEffect->lastFrame    = tagRead(0x0D);
-		curEffect->frameDelay   = tagRead(0x0E);
-		curEffect->lifeSpan     = tagRead(0x0F);
-		curEffect->radius       = tagRead(0x10);
-		tagReadString(0x11, sizeof(imd_name), imd_name);
-
-		if (imd_name[0] != '\0')
+		curEffect->control      = ini.value("control").toInt();
+		curEffect->group        = (EFFECT_GROUP)ini.value("group").toInt();
+		curEffect->type         = (EFFECT_TYPE)ini.value("type").toInt();
+		curEffect->frameNumber  = ini.value("frameNumber").toInt();
+		curEffect->size         = ini.value("size").toInt();
+		curEffect->baseScale    = ini.value("baseScale").toInt();
+		curEffect->specific     = ini.value("specific").toInt();
+		curEffect->position     = ini.vector3f("position");
+		curEffect->velocity     = ini.vector3f("velocity");
+		curEffect->rotation     = ini.vector3i("rotation");
+		curEffect->spin         = ini.vector3i("spin");
+		curEffect->birthTime    = ini.value("birthTime").toInt();
+		curEffect->lastFrame    = ini.value("lastFrame").toInt();
+		curEffect->frameDelay   = ini.value("frameDelay").toInt();
+		curEffect->lifeSpan     = ini.value("lifeSpan").toInt();
+		curEffect->radius       = ini.value("radius").toInt();
+		if (ini.contains("imd_name"))
 		{
-			curEffect->imd = (iIMDShape*)resGetData("IMD", imd_name);
+			QString imd_name = ini.value("imd_name").toString();
+			if (!imd_name.isEmpty())
+			{
+				curEffect->imd = (iIMDShape*)resGetData("IMD", imd_name.toUtf8().constData());
+			}
 		}
 		else
 		{
 			curEffect->imd = NULL;
 		}
 
-		// Move on to reading the next effect group
-		tagReadNext();
+		// Move on to reading the next effect
+		ini.endGroup();
 	}
-	// Leave the effects group again...
-	tagReadLeave(0x02);
-
-	// Close the file
-	tagClose();
 
 	/* Hopefully everything's just fine by now */
 	return true;

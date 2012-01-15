@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 2008  Giel van Schijndel
-	Copyright (C) 2008-2010  Warzone 2100 Project
+	Copyright (C) 2008-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -24,10 +24,7 @@
 #ifndef __INCLUDED_LIB_FRAMEWORK_CURSORS_H__
 #define __INCLUDED_LIB_FRAMEWORK_CURSORS_H__
 
-#include <SDL_mouse.h>
-
-
-typedef enum
+enum CURSOR
 {
 	CURSOR_ARROW,
 	CURSOR_DEST,
@@ -59,16 +56,6 @@ typedef enum
 	CURSOR_SELECT,
 
 	CURSOR_MAX,
-} CURSOR;
-
-enum CURSOR_TYPE
-{
-	CURSOR_16,
-	CURSOR_32,
 };
-
-extern SDL_Cursor* init_system_cursor(CURSOR cur, enum CURSOR_TYPE type);
-extern SDL_Cursor* init_system_cursor16(CURSOR cur);
-extern SDL_Cursor* init_system_cursor32(CURSOR cur);
 
 #endif // __INCLUDED_LIB_FRAMEWORK_CURSORS_H__

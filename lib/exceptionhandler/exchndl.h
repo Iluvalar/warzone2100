@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 2008  Giel van Schijndel
-	Copyright (C) 2008-2010  Warzone 2100 Project
+	Copyright (C) 2008-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -21,7 +21,9 @@
 #ifndef __INCLUDED_LIB_EXCEPTIONHANDLER_EXCHNDL_H__
 #define __INCLUDED_LIB_EXCEPTIONHANDLER_EXCHNDL_H__
 
-extern void ExchndlSetup(void);
+extern void ExchndlSetup(const char *packageVersion);
 extern void ExchndlShutdown(void);
-void ResetRPTDirectory(char *newPath);
+
+void ResetRPTDirectory(wchar_t *newPath);
+
 #endif // __INCLUDED_LIB_EXCEPTIONHANDLER_EXCHNDL_H__

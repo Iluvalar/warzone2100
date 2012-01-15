@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2010  Warzone 2100 Project
+	Copyright (C) 2005-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -27,7 +27,5 @@
 // parse the commandline
 bool ParseCommandLine(int argc, const char** argv);
 bool ParseCommandLineEarly(int argc, const char** argv);
-
-extern BOOL bAllowDebugMode;
 
 #endif // __INCLUDED_SRC_CLPARSE_H__

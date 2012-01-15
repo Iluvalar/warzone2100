@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2010  Warzone 2100 Project
+	Copyright (C) 2005-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -48,17 +48,17 @@
 #define	TYPE_WATER				75
 #define TYPE_LAND				76
 
-typedef enum
+enum AP_TYPE
 {
 AP_RAIN,
 AP_SNOW
-} AP_TYPE;
+};
 
-typedef enum
+enum AP_STATUS
 {
 APS_ACTIVE,
 APS_INACTIVE,
-} AP_STATUS;
+};
 
 static ATPART	asAtmosParts[MAX_ATMOS_PARTICLES];
 static	UDWORD	freeParticle;
@@ -87,27 +87,27 @@ UDWORD	i;
 static void testParticleWrap(ATPART *psPart)
 {
 	/* Gone off left side */
-	if(psPart->position.x < player.p.x)
+	if(psPart->position.x < player.p.x-world_coord(visibleTiles.x)/2)
 	{
-		psPart->position.x += (visibleTiles.x*TILE_UNITS);
+		psPart->position.x += world_coord(visibleTiles.x);
 	}
 
 	/* Gone off right side */
-	else if(psPart->position.x > (player.p.x + (visibleTiles.x*TILE_UNITS)))
+	else if(psPart->position.x > (player.p.x + world_coord(visibleTiles.x)/2))
 	{
-		psPart->position.x -= (visibleTiles.x*TILE_UNITS);
+		psPart->position.x -= world_coord(visibleTiles.x);
 	}
 
 	/* Gone off top */
-	if(psPart->position.z < player.p.z)
+	if(psPart->position.z < player.p.z - world_coord(visibleTiles.y)/2)
 	{
-		psPart->position.z += (visibleTiles.y*TILE_UNITS);
+		psPart->position.z += world_coord(visibleTiles.y);
 	}
 
 	/* Gone off bottom */
-	else if(psPart->position.z > (player.p.z + (visibleTiles.y*TILE_UNITS)))
+	else if(psPart->position.z > (player.p.z + world_coord(visibleTiles.y)/2))
 	{
-		psPart->position.z -= (visibleTiles.y*TILE_UNITS);
+		psPart->position.z -= world_coord(visibleTiles.y);
 	}
 }
 
@@ -282,17 +282,16 @@ void	atmosUpdateSystem( void )
 		/* Temporary stuff - just adds a few particles! */
 		for(i=0; i<numberToAdd; i++)
 		{
-
-			pos.x = player.p.x + ((visibleTiles.x/2)*TILE_UNITS);
-			pos.z = player.p.z + ((visibleTiles.y/2)*TILE_UNITS);
-			pos.x += (((visibleTiles.x/2) - rand()%visibleTiles.x) * TILE_UNITS);
-			pos.z += (((visibleTiles.x/2) - rand()%visibleTiles.x) * TILE_UNITS);
+			pos.x = player.p.x;
+			pos.z = player.p.z;
+			pos.x += world_coord(rand()%visibleTiles.x-visibleTiles.x/2);
+			pos.z += world_coord(rand()%visibleTiles.x-visibleTiles.y/2);
 			pos.y = 1000;
 
 			/* If we've got one on the grid */
 			if(pos.x>0 && pos.z>0 &&
-			   pos.x<(SDWORD)((mapWidth-1)*TILE_UNITS) &&
-			   pos.z<(SDWORD)((mapHeight-1)*TILE_UNITS) )
+			   pos.x<(SDWORD)world_coord(mapWidth-1) &&
+			   pos.z<(SDWORD)world_coord(mapHeight-1) )
 			{
 			   	/* On grid, so which particle shall we add? */
 				switch(weather)
@@ -342,27 +341,20 @@ UDWORD	i;
 void	renderParticle( ATPART *psPart )
 {
 	Vector3i dv;
-	SDWORD x, y, z, rx, rz;
 
-	x = psPart->position.x;
-	y = psPart->position.y;
-	z = psPart->position.z;
 	/* Transform it */
-	dv.x = ((UDWORD)x - player.p.x) - terrainMidX * TILE_UNITS;
-	dv.y = (UDWORD)y;
-	dv.z = terrainMidY * TILE_UNITS - ((UDWORD)z - player.p.z);
-	pie_MatBegin();                                 /* Push the identity matrix */
+	dv.x = psPart->position.x - player.p.x;
+	dv.y = psPart->position.y;
+	dv.z = -(psPart->position.z - player.p.z);
+	pie_MatBegin();					/* Push the current matrix */
 	pie_TRANSLATE(dv.x,dv.y,dv.z);
-	rx = map_round(player.p.x);			/* Get the x,z translation components */
-	rz = map_round(player.p.z);
-	pie_TRANSLATE(rx,0,-rz);                        /* Translate */
 	/* Make it face camera */
 	pie_MatRotY(-player.r.y);
 	pie_MatRotY(-player.r.x);
 	/* Scale it... */
 	pie_MatScale(psPart->size / 100.f);
 	/* Draw it... */
-   	pie_Draw3DShape(psPart->imd, 0, 0, WZCOL_WHITE, 0, 0);
+	pie_Draw3DShape(psPart->imd, 0, 0, WZCOL_WHITE, 0, 0);
 	pie_MatEnd();
 }
 

@@ -1,6 +1,6 @@
 /*
 	This file is part of Warzone 2100.
-	Copyright (C) 2007-2010  Warzone 2100 Project
+	Copyright (C) 2007-2011  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -27,7 +27,11 @@
 #include "lib/framework/string_ext.h"
 #include <string.h>
 
-#include <SDL_endian.h>
+#ifndef WZ_OS_WIN
+#include <arpa/inet.h>
+#else
+#include <winsock2.h>
+#endif
 
 #include "../framework/frame.h"
 #include "netplay.h"
@@ -231,6 +235,13 @@ static void queue(const Q &q, Rotation &v)
 	queue(q, v.roll);
 }
 
+template<class Q>
+static void queue(const Q &q, Vector2i &v)
+{
+	queue(q, v.x);
+	queue(q, v.y);
+}
+
 template<class Q, class T>
 static void queue(const Q &q, std::vector<T> &v)
 {
@@ -373,7 +384,7 @@ void NETinsertMessageFromNet(NETQUEUE queue, NetMessage const *message)
 	receiveQueue(queue)->pushMessage(*message);
 }
 
-BOOL NETisMessageReady(NETQUEUE queue)
+bool NETisMessageReady(NETQUEUE queue)
 {
 	return receiveQueue(queue)->haveMessage();
 }
@@ -443,7 +454,7 @@ void NETbeginDecode(NETQUEUE queue, uint8_t type)
 	assert(type == message.type);
 }
 
-BOOL NETend()
+bool NETend()
 {
 	// If we are encoding just return true
 	if (NETgetPacketDir() == PACKET_ENCODE)
@@ -569,13 +580,6 @@ void NETuint64_t(uint64_t *ip)
 	queueAuto(*ip);
 }
 
-void NETbool(BOOL *bp)
-{
-	uint8_t i = !!*bp;
-	queueAuto(i);
-	*bp = !!i;
-}
-
 void NETbool(bool *bp)
 {
 	uint8_t i = !!*bp;
@@ -647,6 +651,11 @@ void NETPosition(Position *vp)
 }
 
 void NETRotation(Rotation *vp)
+{
+	queueAuto(*vp);
+}
+
+void NETVector2i(Vector2i *vp)
 {
 	queueAuto(*vp);
 }
