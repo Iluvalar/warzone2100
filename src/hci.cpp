@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2011  Warzone 2100 Project
+	Copyright (C) 2005-2012  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -1951,25 +1951,13 @@ INT_RETVAL intRunWidgets(void)
 					}
 					else
 					{
-						//psStructure = buildStructure(psBuilding, structX, structY,
-						//                             selectedPlayer, false);
 						psStructure = &tmp;
 						tmp.id = generateNewObjectId();
 						tmp.pStructureType = (STRUCTURE_STATS *)psPositionStats;
 						tmp.pos.x = structX;
 						tmp.pos.y = structY;
 						tmp.pos.z = map_Height(structX, structY) + world_coord(1)/10;
-						if (!psStructure)
-						{
-							addConsoleMessage(_("Failed to create building"), LEFT_JUSTIFY, SYSTEM_MESSAGE);
-						}
-					}
-					if (psStructure)
-					{
 						const char* msg;
-
-						psStructure->status = SS_BUILT;
-						//buildingComplete(psStructure);
 
 						// In multiplayer games be sure to send a message to the
 						// other players, telling them a new structure has been
@@ -1982,7 +1970,6 @@ INT_RETVAL intRunWidgets(void)
 						          selectedPlayer, psStructure->pStructureType->pName);
 						sendTextMessage(msg, true);
 						Cheated = true;
-						triggerEventStructBuilt(psStructure, NULL);
 					}
 				}
 				else if (psPositionStats->ref >= REF_FEATURE_START && psPositionStats->ref < REF_FEATURE_START + REF_RANGE)
@@ -2604,6 +2591,7 @@ static void intProcessStats(UDWORD id)
 					{
 						if (psObjSelected->type == OBJ_STRUCTURE )
 						{
+							// TODO This call seems to be redundant, since cancelResearch is called from objSetStatsFunc==setResearchStats.
 							cancelResearch((STRUCTURE *)psObjSelected, ModeQueue);
 						}
 					}
@@ -5435,7 +5423,6 @@ static bool setResearchStats(BASE_OBJECT *psObj, BASE_STATS *psStats)
 		else
 		{
 			cancelResearch(psBuilding, ModeQueue);
-			setStatusPendingCancel(*psResFacilty);
 		}
 		//stop the button from flashing once a topic has been chosen
 		stopReticuleButtonFlash(IDRET_RESEARCH);
@@ -6045,7 +6032,7 @@ void intCheckReticuleButtons(void)
 	ReticuleEnabled[RETBUT_FACTORY].Enabled = editMode;
 	ReticuleEnabled[RETBUT_RESEARCH].Enabled = false;
 	ReticuleEnabled[RETBUT_BUILD].Enabled = editMode;
-	ReticuleEnabled[RETBUT_DESIGN].Enabled = true;
+	ReticuleEnabled[RETBUT_DESIGN].Enabled = allowDesign;
 	ReticuleEnabled[RETBUT_INTELMAP].Enabled = true;
 	ReticuleEnabled[RETBUT_COMMAND].Enabled = false;
 
@@ -6124,18 +6111,14 @@ void intCheckReticuleButtons(void)
 
 /*Checks to see if there are any research topics to do and flashes the button -
 only if research facility is free*/
-void intCheckResearchButton(void)
+int intGetResearchState()
 {
-	UWORD index, count;
-	STRUCTURE	*psStruct;
-	bool		resFree = false;
-
-	for (psStruct = interfaceStructList(); psStruct != NULL; psStruct =
-		psStruct->psNext)
+	bool resFree = false;
+	for (STRUCTURE *psStruct = interfaceStructList(); psStruct != NULL; psStruct = psStruct->psNext)
 	{
 		if (psStruct->pStructureType->type == REF_RESEARCH &&
 		    psStruct->status == SS_BUILT &&
-		    getResearchStats((BASE_OBJECT *)psStruct) == NULL)
+		    getResearchStats(psStruct) == NULL)
 		{
 			resFree = true;
 			break;
@@ -6143,20 +6126,43 @@ void intCheckResearchButton(void)
 
 	}
 
+	int count = 0;
 	if (resFree)
 	{
 		//set to value that won't be reached in fillResearchList
-		index = asResearch.size() + 1;
+		int index = asResearch.size() + 1;
 		//calculate the list
-		count = fillResearchList(pList,selectedPlayer, index, MAXRESEARCH);
-		if (count)
+		int preCount = fillResearchList(pList, selectedPlayer, index, MAXRESEARCH);
+		count = preCount;
+		for (int n = 0; n < preCount; ++n)
 		{
-			//set the research reticule button to flash
-			flashReticuleButton(IDRET_RESEARCH);
+			for (int player = 0; player < MAX_PLAYERS; ++player)
+			{
+				if (aiCheckAlliances(player, selectedPlayer) && IsResearchStarted(&asPlayerResList[player][pList[n]]))
+				{
+					--count;  // An ally is already researching this topic, so don't flash the button because of it.
+					break;
+				}
+			}
 		}
 	}
+
+	return count;
 }
 
+void intNotifyResearchButton(int prevState)
+{
+	int newState = intGetResearchState();
+	if (newState > prevState)
+	{
+		// Set the research reticule button to flash.
+		flashReticuleButton(IDRET_RESEARCH);
+	}
+	else if (newState == 0 && prevState > 0)
+	{
+		stopReticuleButtonFlash(IDRET_RESEARCH);
+	}
+}
 
 // see if a reticule button is enabled
 bool intCheckReticuleButEnabled(UDWORD id)

@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2011  Warzone 2100 Project
+	Copyright (C) 2005-2012  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -45,6 +45,8 @@ extern DROID_TEMPLATE	sDefaultDesignTemplate;
 // Template storage
 DROID_TEMPLATE		*apsDroidTemplates[MAX_PLAYERS];
 DROID_TEMPLATE		*apsStaticTemplates;	// for AIs and scripts
+
+bool allowDesign = true;
 
 static const StringToEnum<DROID_TYPE> map_DROID_TYPE[] =
 {
@@ -152,6 +154,7 @@ bool initTemplates()
 			ini.endGroup();
 			continue; // next!
 		}
+		design.enabled = allowDesign;
 		addTemplateToList(&design, &apsDroidTemplates[selectedPlayer]);
 		sendTemplate(selectedPlayer, &design);
 		localTemplates.push_back(design);
@@ -274,6 +277,7 @@ DROID_TEMPLATE::DROID_TEMPLATE(LineView line)
 	, psNext(NULL)
 	, prefab(false)
 	, stored(false)
+	, enabled(true)
 	// Ignored columns: 6 - but used later to decide whether the template is for human players.
 {
 	std::string name = line.s(0);
@@ -675,7 +679,7 @@ void fillTemplateList(std::vector<DROID_TEMPLATE *> &pList, STRUCTURE *psFactory
 	for (std::list<DROID_TEMPLATE>::iterator i = localTemplates.begin(); i != localTemplates.end(); ++i)
 	{
 		psCurr = &*i;
-		//must add Command Droid if currently in production
+		// Must add droids if currently in production.
 		if (!getProduction(psFactory, psCurr).quantity)
 		{
 			//can only have (MAX_CMDDROIDS) in the world at any one time
@@ -686,11 +690,12 @@ void fillTemplateList(std::vector<DROID_TEMPLATE *> &pList, STRUCTURE *psFactory
 					continue;
 				}
 			}
-		}
 
-		if (!validTemplateForFactory(psCurr, psFactory) || !researchedTemplate(psCurr, player))
-		{
-			continue;
+			if (!psCurr->enabled || !validTemplateForFactory(psCurr, psFactory, false)
+			    || !researchedTemplate(psCurr, player))
+			{
+				continue;
+			}
 		}
 
 		//check the factory can cope with this sized body

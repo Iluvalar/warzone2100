@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2011  Warzone 2100 Project
+	Copyright (C) 2005-2012  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -717,7 +717,7 @@ void handleAbandonedStructures()
  * \param weaponSubClass the subclass of the weapon that deals the damage
  * \return < 0 when the dealt damage destroys the structure, > 0 when the structure survives
  */
-int32_t structureDamage(STRUCTURE *psStructure, unsigned damage, WEAPON_CLASS weaponClass, WEAPON_SUBCLASS weaponSubClass, unsigned impactTime)
+int32_t structureDamage(STRUCTURE *psStructure, unsigned damage, WEAPON_CLASS weaponClass, WEAPON_SUBCLASS weaponSubClass, unsigned impactTime, bool isDamagePerSecond)
 {
 	int32_t relativeDamage;
 
@@ -726,7 +726,7 @@ int32_t structureDamage(STRUCTURE *psStructure, unsigned damage, WEAPON_CLASS we
 	debug(LOG_ATTACK, "structure id %d, body %d, armour %d, damage: %d",
 		  psStructure->id, psStructure->body, psStructure->armour[weaponClass], damage);
 
-	relativeDamage = objDamage(psStructure, damage, structureBody(psStructure), weaponClass, weaponSubClass);
+	relativeDamage = objDamage(psStructure, damage, structureBody(psStructure), weaponClass, weaponSubClass, isDamagePerSecond);
 
 	// If the shell did sufficient damage to destroy the structure
 	if (relativeDamage < 0)
@@ -759,6 +759,13 @@ int32_t getStructureDamage(const STRUCTURE *psStructure)
 /// Also can deconstruct (demolish) a building if passed negative buildpoints
 void structureBuild(STRUCTURE *psStruct, DROID *psDroid, int buildPoints, int buildRate)
 {
+	bool checkResearchButton = psStruct->status == SS_BUILT;  // We probably just started demolishing, if this is true.
+	int prevResearchState = 0;
+	if (checkResearchButton)
+	{
+		prevResearchState = intGetResearchState();
+	}
+
 	if (psDroid && !aiCheckAlliances(psStruct->player,psDroid->player))
 	{
 		// Enemy structure
@@ -810,18 +817,11 @@ void structureBuild(STRUCTURE *psStruct, DROID *psDroid, int buildPoints, int bu
 	//check if structure is built
 	if (buildPoints > 0 && psStruct->currentBuildPts >= (SDWORD)psStruct->pStructureType->buildPoints)
 	{
-		psStruct->currentBuildPts = (SWORD)psStruct->pStructureType->buildPoints;
-		psStruct->status = SS_BUILT;
 		buildingComplete(psStruct);
 
 		if (psDroid)
 		{
 			intBuildFinished(psDroid);
-		}
-
-		if (!isInSync() && bMultiMessages && myResponsibility(psStruct->player))
-		{
-			SendBuildFinished(psStruct);
 		}
 
 		//only play the sound if selected player
@@ -875,6 +875,11 @@ void structureBuild(STRUCTURE *psStruct, DROID *psDroid, int buildPoints, int bu
 	if (buildPoints < 0 && psStruct->currentBuildPts == 0)
 	{
 		removeStruct(psStruct, true);
+	}
+
+	if (checkResearchButton)
+	{
+		intNotifyResearchButton(prevResearchState);
 	}
 }
 
@@ -1473,7 +1478,6 @@ STRUCTURE* buildStructureDir(STRUCTURE_STATS *pStructureType, UDWORD x, UDWORD y
 			psBuilding->targetOrigin[i] = ORIGIN_UNKNOWN;
 		}
 
-		psBuilding->inFire = 0;
 		psBuilding->burnStart = 0;
 		psBuilding->burnDamage = 0;
 
@@ -1612,6 +1616,11 @@ STRUCTURE* buildStructureDir(STRUCTURE_STATS *pStructureType, UDWORD x, UDWORD y
 
 		clustNewStruct(psBuilding);
 		asStructLimits[player][max].currentQuantity++;
+
+		if (isLasSat(psBuilding->pStructureType))
+		{
+			psBuilding->asWeaps[0].ammo = 1; // ready to trigger the fire button
+		}
 	}
 	else //its an upgrade
 	{
@@ -1625,6 +1634,8 @@ STRUCTURE* buildStructureDir(STRUCTURE_STATS *pStructureType, UDWORD x, UDWORD y
 		{
 			return NULL;
 		}
+
+		int prevResearchState = intGetResearchState();
 
 		int capacity = 0;  // Dummy initialisation.
 
@@ -1732,6 +1743,7 @@ STRUCTURE* buildStructureDir(STRUCTURE_STATS *pStructureType, UDWORD x, UDWORD y
 				intRefreshScreen();
 			}
 		}
+		intNotifyResearchButton(prevResearchState);
 	}
 	if(pStructureType->type!=REF_WALL && pStructureType->type!=REF_WALLCORNER)
 	{
@@ -2626,6 +2638,15 @@ static void aiUpdateStructure(STRUCTURE *psStructure, bool isMission)
 		}
 	}
 
+	/* Check lassat */
+	if (isLasSat(psStructure->pStructureType)
+	    && gameTime - psStructure->asWeaps[0].lastFired > weaponFirePause(&asWeaponStats[psStructure->asWeaps[0].nStat], psStructure->player)
+	    && psStructure->asWeaps[0].ammo > 0)
+	{
+		triggerEventStructureReady(psStructure);
+		psStructure->asWeaps[0].ammo = 0; // do not fire more than once
+	}
+
 	/* See if there is an enemy to attack */
 	if (psStructure->numWeaps > 0)
 	{
@@ -3110,14 +3131,7 @@ static void aiUpdateStructure(STRUCTURE *psStructure, bool isMission)
 				//check if Research is complete
 				if (pPlayerRes->currentPoints >= pResearch->researchPoints)
 				{
-					if(bMultiMessages)
-					{
-						if (myResponsibility(psStructure->player) && !isInSync())
-						{
-							// This message should have no effect if in synch.
-							SendResearch(psStructure->player, researchIndex, true);
-						}
-					}
+					int prevState = intGetResearchState();
 
 					//store the last topic researched - if its the best
 					if (psResFacility->psBestTopic == NULL)
@@ -3134,8 +3148,6 @@ static void aiUpdateStructure(STRUCTURE *psStructure, bool isMission)
 					psResFacility->psSubject = NULL;
 					intResearchFinished(psStructure);
 					researchResult(researchIndex, psStructure->player, true, psStructure, true);
-					//check if this result has enabled another topic
-					intCheckResearchButton();
 
 					// Update allies research accordingly
 					if (game.type == SKIRMISH)
@@ -3152,6 +3164,8 @@ static void aiUpdateStructure(STRUCTURE *psStructure, bool isMission)
 							}
 						}
 					}
+					//check if this result has enabled another topic
+					intNotifyResearchButton(prevState);
 				}
 			}
 			else
@@ -3463,6 +3477,7 @@ static void aiUpdateStructure(STRUCTURE *psStructure, bool isMission)
 					psDroid->action = DACTION_NONE;
 					psReArmPad->psObj = NULL;
 					auxStructureNonblocking(psStructure);
+					triggerEventDroidIdle(psDroid);
 				}
 			}
 		}
@@ -3664,16 +3679,12 @@ void structureUpdate(STRUCTURE *psBuilding, bool mission)
 	}
 
 	/* Update the fire damage data */
-	if (psBuilding->inFire & IN_FIRE)
+	if (psBuilding->burnStart != 0 && psBuilding->burnStart != gameTime - deltaGameTime)  // -deltaGameTime, since projectiles are updated after structures.
 	{
-		/* Still in a fire, reset the fire flag to see if we get out this turn */
-		psBuilding->inFire = 0;
-	}
-	else
-	{
-		/* The fire flag has not been set so we must be out of the fire */
+		// The burnStart has been set, but is not from the previous tick, so we must be out of the fire.
+		psBuilding->burnDamage = 0;  // Reset burn damage done this tick.
+		// Finished burning.
 		psBuilding->burnStart = 0;
-		psBuilding->burnDamage = 0;
 	}
 
 	//check the resistance level of the structure
@@ -4482,6 +4493,8 @@ bool removeStruct(STRUCTURE *psDel, bool bDestroy)
 
 	ASSERT_OR_RETURN(false, psDel != NULL, "Invalid structure pointer");
 
+	int prevResearchState = intGetResearchState();
+
 	if (bDestroy)
 	{
 		removeStructFromMap(psDel);
@@ -4591,6 +4604,8 @@ bool removeStruct(STRUCTURE *psDel, bool bDestroy)
 
 	delPowerRequest(psDel);
 
+	intNotifyResearchButton(prevResearchState);
+
 	return resourceFound;
 }
 
@@ -4606,12 +4621,6 @@ bool destroyStruct(STRUCTURE *psDel, unsigned impactTime)
 	const unsigned          burnDurationOther   = 10000;
 
 	CHECK_STRUCTURE(psDel);
-
-	if (bMultiMessages && !isInSync())
-	{
-		// Every player should be sending this message at once, and ignoring it later.
-		SendDestroyStructure(psDel);
-	}
 
 	/* Firstly, are we dealing with a wall section */
 	bMinor = psDel->pStructureType->type == REF_WALL || psDel->pStructureType->type == REF_WALLCORNER;
@@ -5406,6 +5415,12 @@ void buildingComplete(STRUCTURE *psBuilding)
 {
 	CHECK_STRUCTURE(psBuilding);
 
+	int prevState = 0;
+	if (psBuilding->pStructureType->type == REF_RESEARCH)
+	{
+		prevState = intGetResearchState();
+	}
+
 	psBuilding->currentBuildPts = (SWORD)psBuilding->pStructureType->buildPoints;
 	psBuilding->status = SS_BUILT;
 
@@ -5441,9 +5456,9 @@ void buildingComplete(STRUCTURE *psBuilding)
 
 			break;
 		case REF_RESEARCH:
-			intCheckResearchButton();
 			//this deals with research facilities that are upgraded whilst mid-research
 			releaseResearch(psBuilding, ModeImmediate);
+			intNotifyResearchButton(prevState);
 			break;
 		case REF_FACTORY:
 		case REF_CYBORG_FACTORY:
@@ -5688,14 +5703,17 @@ void printStructureInfo(STRUCTURE *psStructure)
 
 /*Checks the template type against the factory type - returns false
 if not a good combination!*/
-bool validTemplateForFactory(DROID_TEMPLATE *psTemplate, STRUCTURE *psFactory)
+bool validTemplateForFactory(DROID_TEMPLATE *psTemplate, STRUCTURE *psFactory, bool complain)
 {
+	enum code_part level = complain ? LOG_ERROR : LOG_NEVER;
+
 	//not in multiPlayer! - AB 26/5/99
 	if (!bMultiPlayer)
 	{
 		//ignore Transporter Droids
 		if (psTemplate->droidType == DROID_TRANSPORTER)
 		{
+			debug(level, "Cannot build transporter in campaign.");
 			return false;
 		}
 	}
@@ -5708,6 +5726,7 @@ bool validTemplateForFactory(DROID_TEMPLATE *psTemplate, STRUCTURE *psFactory)
 	{
 		if (psFactory->pStructureType->type != REF_CYBORG_FACTORY)
 		{
+			debug(level, "Cannot build cyborg except in cyborg factory, not in %s.", objInfo(psFactory));
 			return false;
 		}
 	}
@@ -5717,6 +5736,7 @@ bool validTemplateForFactory(DROID_TEMPLATE *psTemplate, STRUCTURE *psFactory)
 	{
 		if (psFactory->pStructureType->type != REF_VTOL_FACTORY)
 		{
+			debug(level, "Cannot build vtol except in vtol factory, not in %s.", objInfo(psFactory));
 			return false;
 		}
 	}
@@ -5724,12 +5744,13 @@ bool validTemplateForFactory(DROID_TEMPLATE *psTemplate, STRUCTURE *psFactory)
 	//check if cyborg factory
 	if (psFactory->pStructureType->type == REF_CYBORG_FACTORY)
 	{
-		//if (psTemplate->droidType != DROID_CYBORG)
 		if (!(psTemplate->droidType == DROID_CYBORG ||
 			psTemplate->droidType == DROID_CYBORG_SUPER ||
 			psTemplate->droidType == DROID_CYBORG_CONSTRUCT ||
 			psTemplate->droidType == DROID_CYBORG_REPAIR))
 		{
+			debug(level, "Can only build cyborg in cyborg factory, not droidType %d in %s.",
+			      psTemplate->droidType, objInfo(psFactory));
 			return false;
 		}
 	}
@@ -5739,6 +5760,7 @@ bool validTemplateForFactory(DROID_TEMPLATE *psTemplate, STRUCTURE *psFactory)
 		if (!psTemplate->asParts[COMP_PROPULSION] ||
 		    ((asPropulsionStats + psTemplate->asParts[COMP_PROPULSION])->propulsionType != PROPULSION_TYPE_LIFT))
 		{
+			debug(level, "Can only build vtol in vtol factory, not in %s.", objInfo(psFactory));
 			return false;
 		}
 	}
@@ -7095,6 +7117,7 @@ STRUCTURE * giftSingleStructure(STRUCTURE *psStructure, UBYTE attackPlayer, bool
 	UWORD               direction;
 
 	CHECK_STRUCTURE(psStructure);
+	visRemoveVisibility(psStructure);
 
 	//this is not the case for EW in multiPlayer mode
 	if (!bMultiPlayer)
@@ -7103,6 +7126,8 @@ STRUCTURE * giftSingleStructure(STRUCTURE *psStructure, UBYTE attackPlayer, bool
 		//in this version of Warzone, the attack Player can NEVER be the selectedPlayer (unless from the script)
 		ASSERT_OR_RETURN(NULL, bFromScript || selectedPlayer != 0 || attackPlayer != selectedPlayer, "EW attack by selectedPlayer on a structure");
 	}
+
+	int prevState = intGetResearchState();
 
 	//don't want the hassle in multiplayer either
 	//and now we do! - AB 13/05/99
@@ -7170,7 +7195,9 @@ STRUCTURE * giftSingleStructure(STRUCTURE *psStructure, UBYTE attackPlayer, bool
 			//since the structure isn't being rebuilt, the visibility code needs to be adjusted
 			//make sure this structure is visible to selectedPlayer
 			psStructure->visible[attackPlayer] = UINT8_MAX;
+			triggerEventObjectTransfer(psStructure, attackPlayer);
 		}
+		intNotifyResearchButton(prevState);
 		return NULL;
 	}
 
@@ -7250,6 +7277,7 @@ STRUCTURE * giftSingleStructure(STRUCTURE *psStructure, UBYTE attackPlayer, bool
 		{
 			psNewStruct->status = SS_BUILT;
 			buildingComplete(psNewStruct);
+			triggerEventStructBuilt(psStructure, NULL);
 		}
 
 		if (!bMultiPlayer)
@@ -7278,6 +7306,7 @@ STRUCTURE * giftSingleStructure(STRUCTURE *psStructure, UBYTE attackPlayer, bool
 		}
 	}
 	powerCalculated = bPowerOn;
+	intNotifyResearchButton(prevState);
 	return psNewStruct;
 }
 

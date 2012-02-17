@@ -31,6 +31,7 @@
 #include <QtScript/QScriptValue>
 #include <QtCore/QStringList>
 
+#include "action.h"
 #include "console.h"
 #include "design.h"
 #include "map.h"
@@ -51,12 +52,18 @@
 #include "frontend.h"
 #include "loop.h"
 #include "scriptextern.h"
+#include "gateway.h"
+
+#define FAKE_REF_LASSAT 999
 
 // hack, this is used from scriptfuncs.cpp -- and we don't want to include any stinkin' wzscript headers here!
 // TODO, move this stuff into a script common subsystem
 extern bool structDoubleCheck(BASE_STATS *psStat,UDWORD xx,UDWORD yy, SDWORD maxBlockingTiles);
 extern Vector2i positions[MAX_PLAYERS];
 extern std::vector<Vector2i> derricks;
+
+#define SCRIPT_ASSERT_PLAYER(_context, _player) \
+	SCRIPT_ASSERT(_context, _player >= 0 && _player < MAX_PLAYERS, "Invalid player index %d", _player);
 
 // ----------------------------------------------------------------------------------------
 // Utility functions -- not called directly from scripts
@@ -90,22 +97,54 @@ QScriptValue convResearch(RESEARCH *psResearch, QScriptEngine *engine, int playe
 	return value;
 }
 
-//;; \subsection{Structure}
+//;; \subsection{Structure\label{objects:structure}}
 //;; Describes a structure (building). It inherits all the properties of the base object (see below).
 //;; In addition, the following properties are defined:
 //;; \begin{description}
 //;; \item[status] The completeness status of the structure. It will be one of BEING_BUILT, BUILT and BEING_DEMOLISHED.
 //;; \item[type] The type will always be STRUCTURE.
-//;; \item[stattype] The stattype defines the type of structure. It will be one of HQ, FACTORY, POWER_GEN, RESOURCE_EXTRACTOR,
-//;; DEFENSE, WALL, RESEARCH_LAB, REPAIR_FACILITY, CYBORG_FACTORY, VTOL_FACTORY, REARM_PAD, SAT_UPLINK, GATE and COMMAND_CONTROL.
+//;; \item[cost] What it would cost to build this structure. (3.2+ only)
+//;; \item[stattype] The stattype defines the type of structure. It will be one of HQ, FACTORY, POWER_GEN, RESOURCE_EXTRACTOR, 
+//;; LASSAT, DEFENSE, WALL, RESEARCH_LAB, REPAIR_FACILITY, CYBORG_FACTORY, VTOL_FACTORY, REARM_PAD, SAT_UPLINK, GATE
+//;; and COMMAND_CONTROL.
 //;; \item[modules] If the stattype is set to one of the factories, POWER_GEN or RESEARCH_LAB, then this property is set to the
 //;; number of module upgrades it has.
+//;; \item[canHitAir] True if the structure has anti-air capabilities. (3.2+ only)
+//;; \item[canHitSurface] True if the structure has anti-ground capabilities. (3.2+ only)
+//;; \item[isSensor] True if the structure has sensor ability. (3.2+ only)
+//;; \item[isCB] True if the structure has counter-battery ability. (3.2+ only)
+//;; \item[isRadarDetector] True if the structure has radar detector ability. (3.2+ only)
+//;; \item[range] Maximum range of its weapons. (3.2+ only)
+//;; \item[hasIndirect] One or more of the structure's weapons are indirect. (3.2+ only)
 //;; \end{description}
 QScriptValue convStructure(STRUCTURE *psStruct, QScriptEngine *engine)
 {
+	bool aa = false;
+	bool ga = false;
+	bool indirect = false;
+	int range = -1;
+	for (int i = 0; i < psStruct->numWeaps; i++)
+	{
+		if (psStruct->asWeaps[i].nStat)
+		{
+			WEAPON_STATS *psWeap = &asWeaponStats[psStruct->asWeaps[i].nStat];
+			aa = aa || psWeap->surfaceToAir & SHOOT_IN_AIR;
+			ga = ga || psWeap->surfaceToAir & SHOOT_ON_GROUND;
+			indirect = indirect || psWeap->movementModel == MM_INDIRECT || psWeap->movementModel == MM_HOMINGINDIRECT;
+			range = MAX((int)psWeap->longRange, range);
+		}
+	}
 	QScriptValue value = convObj(psStruct, engine);
+	value.setProperty("isCB", structCBSensor(psStruct), QScriptValue::ReadOnly);
+	value.setProperty("isSensor", structStandardSensor(psStruct), QScriptValue::ReadOnly);
+	value.setProperty("canHitAir", aa, QScriptValue::ReadOnly);
+	value.setProperty("canHitGround", ga, QScriptValue::ReadOnly);
+	value.setProperty("hasIndirect", indirect, QScriptValue::ReadOnly);
+	value.setProperty("isRadarDetector", objRadarDetector(psStruct), QScriptValue::ReadOnly);
+	value.setProperty("range", range, QScriptValue::ReadOnly);
 	value.setProperty("status", (int)psStruct->status, QScriptValue::ReadOnly);
 	value.setProperty("health", 100 * structureBody(psStruct) / MAX(1, psStruct->body), QScriptValue::ReadOnly);
+	value.setProperty("cost", psStruct->pStructureType->powerToBuild, QScriptValue::ReadOnly);
 	switch (psStruct->pStructureType->type) // don't bleed our source insanities into the scripting world
 	{
 	case REF_WALL:
@@ -116,6 +155,12 @@ QScriptValue convStructure(STRUCTURE *psStruct, QScriptEngine *engine)
 	case REF_BLASTDOOR:
 		value.setProperty("stattype", (int)REF_DEFENSE, QScriptValue::ReadOnly);
 		break;
+	case REF_DEFENSE:
+		if (isLasSat(psStruct->pStructureType))
+		{
+			value.setProperty("stattype", (int)FAKE_REF_LASSAT, QScriptValue::ReadOnly);
+			break;
+		}
 	default:
 		value.setProperty("stattype", (int)psStruct->pStructureType->type, QScriptValue::ReadOnly);
 		break;
@@ -138,15 +183,17 @@ QScriptValue convStructure(STRUCTURE *psStruct, QScriptEngine *engine)
 }
 
 //;; \subsection{Feature}
-//;; Describes a feature (game object not owned by any player). It inherits all the properties of the base object (see below).
+//;; Describes a feature (a \emph{game object} not owned by any player). It inherits all the properties of the base object (see below).
 //;; In addition, the following properties are defined:
 //;; \begin{description}
 //;; \item[type] It will always be FEATURE.
+//;; \item[damageable] Can this feature be damaged?
 //;; \end{description}
 QScriptValue convFeature(FEATURE *psFeature, QScriptEngine *engine)
 {
 	QScriptValue value = convObj(psFeature, engine);
 	value.setProperty("health", 100 * psFeature->psStats->body / MAX(1, psFeature->body), QScriptValue::ReadOnly);
+	value.setProperty("damageable", psFeature->psStats->damageable, QScriptValue::ReadOnly);
 	return value;
 }
 
@@ -167,6 +214,14 @@ QScriptValue convFeature(FEATURE *psFeature, QScriptEngine *engine)
 //;;   \item[DORDER_RETREAT] Order a droid to retreat back to HQ.
 //;;   \item[DORDER_PATROL] Order a droid to patrol.
 //;;   \item[DORDER_DEMOLISH] Order a droid to demolish something.
+//;;   \item[DORDER_EMBARK] Order a droid to embark on a transport.
+//;;   \item[DORDER_DISEMBARK] Order a transport to disembark its units at the given position.
+//;;   \item[DORDER_FIRESUPPORT] Order a droid to fire at whatever the target sensor is targeting. (3.2+ only)
+//;;   \item[DORDER_STOP] Order a droid to stop whatever it is doing. (3.2+ only)
+//;;   \item[DORDER_RTR] Order a droid to return for repairs. (3.2+ only)
+//;;   \item[DORDER_RTB] Order a droid to return to base. (3.2+ only)
+//;;   \item[DORDER_HOLD] Order a droid to hold its position. (3.2+ only)
+//;;   \item[DORDER_REARM] Order a VTOL droid to rearm. If given a target, will go to specified rearm pad. If not, will go to nearest rearm pad. (3.2+ only)
 //;;  \end{description}
 //;; \item[action] The current action of the droid. This is how it intends to carry out its plan. The
 //;; C++ code may change the action frequently as it tries to carry out its order. You never want to set
@@ -183,16 +238,42 @@ QScriptValue convFeature(FEATURE *psFeature, QScriptEngine *engine)
 //;;   \item[DROID_TRANSPORTER] Transporters.
 //;;   \item[DROID_COMMAND] Commanders.
 //;;  \end{description}
-//;; \item[group] The group this droid is member of. This is a numerical ID. If not a member of any group,
+//;; \item[group] The group this droid is member of. This is a numerical ID. If not a member of any group, will be set to \emph{null}.
+//;; \item[armed] The percentage of weapon capability that is fully armed. Will be \emph{null} for droids other than VTOLs.
 //;; \item[experience] Amount of experience this droid has, based on damage it has dealt to enemies.
-//;; this value is not set. Always check if set before use.
+//;; \item[cost] What it would cost to build the droid. (3.2+ only)
+//;; \item[isVTOL] True if the droid is VTOL. (3.2+ only)
+//;; \item[isAA] True if the droid has anti-air capabilities. (3.2+ only)
+//;; \item[isSensor] True if the droid has sensor ability. (3.2+ only)
+//;; \item[isCB] True if the droid has counter-battery ability. (3.2+ only)
+//;; \item[isRadarDetector] True if the droid has radar detector ability. (3.2+ only)
+//;; \item[hasIndirect] One or more of the droid's weapons are indirect. (3.2+ only)
+//;; \item[range] Maximum range of its weapons. (3.2+ only)
 //;; \end{description}
 QScriptValue convDroid(DROID *psDroid, QScriptEngine *engine)
 {
+	bool aa = false;
+	bool ga = false;
+	bool indirect = false;
+	int range = -1;
+	for (int i = 0; i < psDroid->numWeaps; i++)
+	{
+		if (psDroid->asWeaps[i].nStat)
+		{
+			WEAPON_STATS *psWeap = &asWeaponStats[psDroid->asWeaps[i].nStat];
+			aa = aa || psWeap->surfaceToAir & SHOOT_IN_AIR;
+			ga = ga || psWeap->surfaceToAir & SHOOT_ON_GROUND;
+			indirect = indirect || psWeap->movementModel == MM_INDIRECT || psWeap->movementModel == MM_HOMINGINDIRECT;
+			range = MAX((int)psWeap->longRange, range);
+		}
+	}
 	DROID_TYPE type = psDroid->droidType;
 	QScriptValue value = convObj(psDroid, engine);
 	value.setProperty("action", (int)psDroid->action, QScriptValue::ReadOnly);
+	value.setProperty("range", range, QScriptValue::ReadOnly);
 	value.setProperty("order", (int)psDroid->order.type, QScriptValue::ReadOnly);
+	value.setProperty("cost", calcDroidPower(psDroid), QScriptValue::ReadOnly);
+	value.setProperty("hasIndirect", indirect, QScriptValue::ReadOnly);
 	switch (psDroid->droidType) // hide some engine craziness
 	{
 	case DROID_CYBORG_CONSTRUCT:
@@ -205,12 +286,33 @@ QScriptValue convDroid(DROID *psDroid, QScriptEngine *engine)
 	default:
 		break;
 	}
+	value.setProperty("isRadarDetector", objRadarDetector(psDroid), QScriptValue::ReadOnly);
+	value.setProperty("isCB", cbSensorDroid(psDroid), QScriptValue::ReadOnly);
+	value.setProperty("isSensor", standardSensorDroid(psDroid), QScriptValue::ReadOnly);
+	value.setProperty("canHitAir", aa, QScriptValue::ReadOnly);
+	value.setProperty("canHitGround", ga, QScriptValue::ReadOnly);
+	value.setProperty("isVTOL", isVtolDroid(psDroid), QScriptValue::ReadOnly);
 	value.setProperty("droidType", (int)type, QScriptValue::ReadOnly);
 	value.setProperty("experience", (double)psDroid->experience / 65536.0, QScriptValue::ReadOnly);
-	value.setProperty("health", 100 * psDroid->originalBody / MAX(1, psDroid->body), QScriptValue::ReadOnly);
+	value.setProperty("health", 100.0 / (double)psDroid->originalBody * (double)psDroid->body, QScriptValue::ReadOnly);
+	if (isVtolDroid(psDroid))
+	{
+		value.setProperty("armed", 100.0 / (double)MAX(asWeaponStats[psDroid->asWeaps[0].nStat].numRounds, 1)
+		                  * (double)psDroid->asWeaps[0].ammo);
+		if (psDroid->asWeaps[0].ammo > asWeaponStats[psDroid->asWeaps[0].nStat].numRounds)
+			debug(LOG_ERROR, "%s has %d and %d", objInfo(psDroid), psDroid->asWeaps[0].ammo, asWeaponStats[psDroid->asWeaps[0].nStat].numRounds);
+	}
+	else
+	{
+		value.setProperty("armed", QScriptValue::NullValue);
+	}
 	if (psDroid->psGroup)
 	{
 		value.setProperty("group", (int)psDroid->psGroup->id, QScriptValue::ReadOnly);
+	}
+	else
+	{
+		value.setProperty("group", QScriptValue::NullValue);
 	}
 	return value;
 }
@@ -273,7 +375,7 @@ bool loadLabels(const char *filename)
 {
 	if (!PHYSFS_exists(filename))
 	{
-		debug(LOG_SAVE, "No %s found -- use fallback method", filename);
+		debug(LOG_SAVE, "No %s found -- not adding any labels", filename);
 		return false;
 	}
 	WzConfig ini(filename);
@@ -284,6 +386,7 @@ bool loadLabels(const char *filename)
 	}
 	labels.clear();
 	QStringList list = ini.childGroups();
+	debug(LOG_SAVE, "Loading %d labels...", list.size());
 	for (int i = 0; i < list.size(); ++i)
 	{
 		ini.beginGroup(list[i]);
@@ -374,8 +477,21 @@ bool writeLabels(const char *filename)
 //
 // All script functions should be prefixed with "js_" then followed by same name as in script.
 
+//-- \subsection{enumLabels()}
+//-- Returns a string list of labels that exist for this map. (3.2+ only)
+static QScriptValue js_enumLabels(QScriptContext *, QScriptEngine *engine)
+{
+	QStringList matches = labels.keys();
+	QScriptValue result = engine->newArray(matches.size());
+	for (int i = 0; i < matches.size(); i++)
+	{
+		result.setProperty(i, QScriptValue(matches[i]), QScriptValue::ReadOnly);
+	}
+	return result;
+}
+
 //-- \subsection{label(key)}
-//-- Fetch something denoted by a label. Labels are areas, positions or game objects on 
+//-- Fetch something denoted by a label. A label refers to an area, a position or a \emph{game object} on 
 //-- the map defined using the map editor and stored together with the map. The only argument
 //-- is a text label. The function returns an object that has a type variable defining what it
 //-- is (in case this is unclear). This type will be one of DROID, STRUCTURE, FEATURE, AREA
@@ -418,6 +534,53 @@ static QScriptValue js_label(QScriptContext *context, QScriptEngine *engine)
 	return ret;
 }
 
+//-- \subsection{enumBlips(player)}
+//-- Return an array containing all the non-transient radar blips that the given player 
+//-- can see. This includes sensors revealed by radar detectors, as well as ECM jammers.
+//-- It does not include units going out of view.
+static QScriptValue js_enumBlips(QScriptContext *context, QScriptEngine *engine)
+{
+	QList<Position> matches;
+	int player = context->argument(0).toInt32();
+	SCRIPT_ASSERT_PLAYER(context, player);
+	for (BASE_OBJECT *psSensor = apsSensorList[0]; psSensor; psSensor = psSensor->psNextFunc)
+	{
+		if (psSensor->visible[player] > 0 && psSensor->visible[player] < UBYTE_MAX)
+		{
+			matches.push_back(psSensor->pos);
+		}
+	}
+	QScriptValue result = engine->newArray(matches.size());
+	for (int i = 0; i < matches.size(); i++)
+	{
+		Position p = matches.at(i);
+		QScriptValue v = engine->newObject();
+		v.setProperty("x", map_coord(p.x), QScriptValue::ReadOnly);
+		v.setProperty("y", map_coord(p.y), QScriptValue::ReadOnly);
+		result.setProperty(i, v);
+	}
+	return result;
+}
+
+//-- \subsection{enumGateways()}
+//-- Return an array containing all the gateways on the current map. The array contains object with the properties
+//-- x1, y1, x2 and y2.
+static QScriptValue js_enumGateways(QScriptContext *, QScriptEngine *engine)
+{
+	QScriptValue result = engine->newArray(gwNumGateways());
+	int i = 0;
+	for (GATEWAY *psGateway = gwGetGateways(); psGateway; psGateway = psGateway->psNext)
+	{
+		QScriptValue v = engine->newObject();
+		v.setProperty("x1", psGateway->x1, QScriptValue::ReadOnly);
+		v.setProperty("y1", psGateway->y1, QScriptValue::ReadOnly);
+		v.setProperty("x2", psGateway->x2, QScriptValue::ReadOnly);
+		v.setProperty("y2", psGateway->y2, QScriptValue::ReadOnly);
+		result.setProperty(i++, v);
+	}
+	return result;
+}
+
 //-- \subsection{enumGroup(group)}
 //-- Return an array containing all the droid members of a given group.
 static QScriptValue js_enumGroup(QScriptContext *context, QScriptEngine *engine)
@@ -447,6 +610,26 @@ static QScriptValue js_newGroup(QScriptContext *, QScriptEngine *)
 {
 	DROID_GROUP *newGrp = grpCreate();
 	return QScriptValue(newGrp->id);
+}
+
+//-- \subsection{activateStructure(structure, [target[, ability]])}
+//-- Activate a special ability on a structure. Currently only works on the lassat.
+//-- The lassat needs a target.
+static QScriptValue js_activateStructure(QScriptContext *context, QScriptEngine *)
+{
+	QScriptValue structVal = context->argument(0);
+	int id = structVal.property("id").toInt32();
+	int player = structVal.property("player").toInt32();
+	STRUCTURE *psStruct = IdToStruct(id, player);
+	SCRIPT_ASSERT(context, psStruct, "No such structure id %d belonging to player %d", id, player);
+	// ... and then do nothing with psStruct yet
+	QScriptValue objVal = context->argument(1);
+	int oid = objVal.property("id").toInt32();
+	int oplayer = objVal.property("player").toInt32();
+	BASE_OBJECT *psObj = IdToPointer(oid, oplayer);
+	SCRIPT_ASSERT(context, psObj, "No such object id %d belonging to player %d", oid, oplayer);
+	orderStructureObj(player, psObj);
+	return QScriptValue(true);
 }
 
 //-- \subsection{pursueResearch(lab, research)}
@@ -604,6 +787,7 @@ static QScriptValue js_componentAvailable(QScriptContext *context, QScriptEngine
 static QScriptValue js_addDroid(QScriptContext *context, QScriptEngine *engine)
 {
 	int player = context->argument(0).toInt32();
+	SCRIPT_ASSERT_PLAYER(context, player);
 	int x = context->argument(1).toInt32();
 	int y = context->argument(2).toInt32();
 	QString templName = context->argument(3).toString();
@@ -719,7 +903,7 @@ static int get_first_available_component(STRUCTURE *psFactory, const QScriptValu
 			QString compName = list.property(k).toString();
 			int result = getCompFromName(type, compName.toUtf8().constData());
 			if (result >= 0 && apCompLists[player][type][result] == AVAILABLE
-			    && (asBodyStats[result].size <= capacity || type != COMP_BODY))
+			    && (type != COMP_BODY || asBodyStats[result].size <= capacity))
 			{
 				return result; // found one!
 			}
@@ -733,7 +917,7 @@ static int get_first_available_component(STRUCTURE *psFactory, const QScriptValu
 	{
 		int result = getCompFromName(type, list.toString().toUtf8().constData());
 		if (result >= 0 && apCompLists[player][type][result] == AVAILABLE
-		    && (asBodyStats[result].size <= capacity || type != COMP_BODY))
+		    && (type != COMP_BODY || asBodyStats[result].size <= capacity))
 		{
 			return result; // found it!
 		}
@@ -745,15 +929,17 @@ static int get_first_available_component(STRUCTURE *psFactory, const QScriptValu
 	return -1; // no available component found in list
 }
 
-//-- \subsection{buildDroid(factory, name, body, propulsion, reserved, droid type, turrets...)}
+//-- \subsection{buildDroid(factory, name, body, propulsion, reserved, reserved, turrets...)}
 //-- Start factory production of new droid with the given name, body, propulsion and turrets.
-//-- The reserved parameter should be passed an empty string for now. The components can be
+//-- The reserved parameter should be passed \emph{null} for now. The components can be
 //-- passed as ordinary strings, or as a list of strings. If passed as a list, the first available
-//-- component in the list will be used. The droid type must be set to match the type of turret
-//-- passed in.
+//-- component in the list will be used. The second reserved parameter used to be a droid type.
+//-- It is now unused and in 3.2+ should be passed \emph{null}, while in 3.1 it should be the
+//-- droid type to be built.
 // TODO - fix memory leaks
 static QScriptValue js_buildDroid(QScriptContext *context, QScriptEngine *engine)
 {
+	const int firstTurret = 6; // index position of first turret parameter
 	QScriptValue structVal = context->argument(0);
 	int id = structVal.property("id").toInt32();
 	int player = structVal.property("player").toInt32();
@@ -763,9 +949,8 @@ static QScriptValue js_buildDroid(QScriptContext *context, QScriptEngine *engine
 		       || psStruct->pStructureType->type == REF_VTOL_FACTORY), "Structure %s is not a factory", objInfo(psStruct));
 	QString templName = context->argument(1).toString();
 	DROID_TEMPLATE *psTemplate = new DROID_TEMPLATE;
-	DROID_TYPE droidType = (DROID_TYPE)context->argument(5).toInt32();
-	int numTurrets = context->argumentCount() - 6; // anything beyond first six parameters, are turrets
-	COMPONENT_TYPE compType = COMP_NUMCOMPONENTS;
+	int numTurrets = context->argumentCount() - firstTurret; // anything beyond first six parameters, are turrets
+	int result;
 
 	memset(psTemplate->asParts, 0, sizeof(psTemplate->asParts)); // reset to defaults
 	memset(psTemplate->asWeaps, 0, sizeof(psTemplate->asWeaps));
@@ -788,63 +973,79 @@ static QScriptValue js_buildDroid(QScriptContext *context, QScriptEngine *engine
 
 	psTemplate->numWeaps = 0;
 	numTurrets = MIN(numTurrets, asBodyStats[body].weaponSlots); // Restrict max no. turrets
-	for (int i = 0; i < numTurrets; i++)
+	if (asBodyStats[body].droidTypeOverride != DROID_ANY)
 	{
-		context->argument(6 + i).toString();
-		int j;
-		switch (droidType)
+		psTemplate->droidType = asBodyStats[body].droidTypeOverride; // set droidType based on body
+	}
+	// Find first turret component type (assume every component in list is same type)
+	QString compName;
+	if (context->argument(firstTurret).isArray())
+	{
+		compName = context->argument(firstTurret).property(0).toString();
+	}
+	else // must be string
+	{
+		compName = context->argument(firstTurret).toString();
+	}
+	if ((result = getCompFromName(COMP_WEAPON, compName.toUtf8().constData())) >= 0)
+	{
+		for (int i = 0; i < numTurrets; i++) // may be multi-weapon
 		{
-		case DROID_PERSON:
-		case DROID_WEAPON:
-		case DROID_CYBORG:
-		case DROID_TRANSPORTER:
-		case DROID_DEFAULT:
-		case DROID_CYBORG_SUPER:
-			j = get_first_available_component(psStruct, context->argument(6 + i), COMP_WEAPON);
-			if (j < 0)
+			result = get_first_available_component(psStruct, context->argument(firstTurret + i), COMP_WEAPON);
+			if (result < 0)
 			{
 				debug(LOG_SCRIPT, "Wanted to build %s at %s, but no weapon unavailable", 
 				      templName.toUtf8().constData(), objInfo(psStruct));
 				return QScriptValue(false);
 			}
-			psTemplate->asWeaps[i] = j;
+			psTemplate->asWeaps[i] = result;
 			psTemplate->numWeaps++;
-			continue;
-		case DROID_CYBORG_CONSTRUCT:
-		case DROID_CONSTRUCT:
+		}
+	}
+	else
+	{
+		COMPONENT_TYPE compType = COMP_NUMCOMPONENTS;
+
+		if ((result = getCompFromName(COMP_CONSTRUCT, compName.toUtf8().constData())) >= 0)
+		{
 			compType = COMP_CONSTRUCT;
-			break;
-		case DROID_COMMAND:
+		}
+		else if ((result = getCompFromName(COMP_BRAIN, compName.toUtf8().constData())) >= 0)
+		{
 			compType = COMP_BRAIN;
 			psTemplate->numWeaps = 1; // hack, necessary to pass intValidTemplate
-			break;
-		case DROID_REPAIR:
-		case DROID_CYBORG_REPAIR:
-			compType = COMP_REPAIRUNIT;
-			break;
-		case DROID_ECM:
-			compType = COMP_ECM;
-			break;
-		case DROID_SENSOR:
-			compType = COMP_SENSOR;
-			break;
-		case DROID_ANY:
-			break; // wtf
 		}
-		j = get_first_available_component(psStruct, context->argument(6 + i), compType);
-		if (j < 0)
+		else if ((result = getCompFromName(COMP_REPAIRUNIT, compName.toUtf8().constData())) >= 0)
 		{
-			debug(LOG_SCRIPT, "Wanted to build %s at %s, but turret unavailable", 
+			compType = COMP_REPAIRUNIT;
+		}
+		else if ((result = getCompFromName(COMP_ECM, compName.toUtf8().constData())) >= 0)
+		{
+			compType = COMP_ECM;
+		}
+		else if ((result = getCompFromName(COMP_SENSOR, compName.toUtf8().constData())) >= 0)
+		{
+			compType = COMP_SENSOR;
+		}
+		else
+		{
+			debug(LOG_ERROR, "No known component type found for %s", compName.toUtf8().constData());
+			return QScriptValue(false);
+		}
+		result = get_first_available_component(psStruct, context->argument(firstTurret), compType);
+		if (result < 0)
+		{
+			debug(LOG_SCRIPT, "Wanted to build %s at %s, but turret unavailable",
 			      templName.toUtf8().constData(), objInfo(psStruct));
 			return QScriptValue(false);
 		}
-		psTemplate->asParts[compType] = j;
+		psTemplate->asParts[compType] = result;
 	}
-	psTemplate->droidType = droidType; // may be overwritten by the call below
 	bool valid = intValidTemplate(psTemplate, templName.toUtf8().constData(), true);
 	if (valid)
 	{
-		SCRIPT_ASSERT(context, validTemplateForFactory(psTemplate, psStruct), "Invalid template %s for factory %s",
+		SCRIPT_ASSERT(context, validTemplateForFactory(psTemplate, psStruct, true),
+		              "Invalid template %s for factory %s",
 		              psTemplate->aName, psStruct->pStructureType->pName);
 		// Delete similar template from existing list before adding this one
 		for (int j = 0; j < apsTemplateList.size(); j++)
@@ -880,7 +1081,8 @@ static QScriptValue js_buildDroid(QScriptContext *context, QScriptEngine *engine
 //-- \subsection{enumStruct([player[, structure type[, looking player]]])}
 //-- Returns an array of structure objects. If no parameters given, it will
 //-- return all of the structures for the current player. The second parameter
-//-- is the name of the structure type, as defined in "structures.txt". The
+//-- can be either a string with the name of the structure type as defined in
+//-- "structures.txt", or a stattype as defined in \ref{objects:structure}. The
 //-- third parameter can be used to filter by visibility, the default is not
 //-- to filter.
 static QScriptValue js_enumStruct(QScriptContext *context, QScriptEngine *engine)
@@ -888,21 +1090,84 @@ static QScriptValue js_enumStruct(QScriptContext *context, QScriptEngine *engine
 	QList<STRUCTURE *> matches;
 	int player = -1, looking = -1;
 	QString statsName;
+	QScriptValue val;
+	STRUCTURE_TYPE type = NUM_DIFF_BUILDINGS;
 
 	switch (context->argumentCount())
 	{
 	default:
 	case 3: looking = context->argument(2).toInt32(); // fall-through
-	case 2: statsName = context->argument(1).toString(); // fall-through
+	case 2: val = context->argument(1);
+		if (val.isNumber())
+		{
+			type = (STRUCTURE_TYPE)val.toInt32();
+		}
+		else
+		{
+			statsName = val.toString();
+		} // fall-through
+	case 1: player = context->argument(0).toInt32(); break;
+	case 0: player = engine->globalObject().property("me").toInt32();
+	}
+
+	SCRIPT_ASSERT_PLAYER(context, player);
+	SCRIPT_ASSERT(context, looking < MAX_PLAYERS && looking >= -1, "Looking player index out of range: %d", looking);
+	for (STRUCTURE *psStruct = apsStructLists[player]; psStruct; psStruct = psStruct->psNext)
+	{
+		if ((looking == -1 || psStruct->visible[looking])
+		    && (type == NUM_DIFF_BUILDINGS || type == psStruct->pStructureType->type)
+		    && (statsName.isEmpty() || statsName.compare(psStruct->pStructureType->pName) == 0))
+		{
+			matches.push_back(psStruct);
+		}
+	}
+	QScriptValue result = engine->newArray(matches.size());
+	for (int i = 0; i < matches.size(); i++)
+	{
+		STRUCTURE *psStruct = matches.at(i);
+		result.setProperty(i, convStructure(psStruct, engine));
+	}
+	return result;
+}
+
+//-- \subsection{enumStructOffWorld([player[, structure type[, looking player]]])}
+//-- Returns an array of structure objects in your base when on an off-world mission, NULL otherwise.
+//-- If no parameters given, it will return all of the structures for the current player.
+//-- The second parameter can be either a string with the name of the structure type as defined
+//-- in "structures.txt", or a stattype as defined in \ref{objects:structure}.
+//-- The third parameter can be used to filter by visibility, the default is not
+//-- to filter.
+static QScriptValue js_enumStructOffWorld(QScriptContext *context, QScriptEngine *engine)
+{
+	QList<STRUCTURE *> matches;
+	int player = -1, looking = -1;
+	QString statsName;
+	QScriptValue val;
+	STRUCTURE_TYPE type = NUM_DIFF_BUILDINGS;
+
+	switch (context->argumentCount())
+	{
+	default:
+	case 3: looking = context->argument(2).toInt32(); // fall-through
+	case 2: val = context->argument(1);
+		if (val.isNumber())
+		{
+			type = (STRUCTURE_TYPE)val.toInt32();
+		}
+		else
+		{
+			statsName = val.toString();
+		} // fall-through
 	case 1: player = context->argument(0).toInt32(); break;
 	case 0: player = engine->globalObject().property("me").toInt32();
 	}
 
 	SCRIPT_ASSERT(context, player < MAX_PLAYERS && player >= 0, "Target player index out of range: %d", player);
 	SCRIPT_ASSERT(context, looking < MAX_PLAYERS && looking >= -1, "Looking player index out of range: %d", looking);
-	for (STRUCTURE *psStruct = apsStructLists[player]; psStruct; psStruct = psStruct->psNext)
+	for (STRUCTURE *psStruct = mission.apsStructLists[player]; psStruct; psStruct = psStruct->psNext)
 	{
 		if ((looking == -1 || psStruct->visible[looking])
+		    && (type == NUM_DIFF_BUILDINGS || type == psStruct->pStructureType->type)
 		    && (statsName.isEmpty() || statsName.compare(psStruct->pStructureType->pName) == 0))
 		{
 			matches.push_back(psStruct);
@@ -964,7 +1229,7 @@ static QScriptValue js_enumDroid(QScriptContext *context, QScriptEngine *engine)
 	case 0: player = engine->globalObject().property("me").toInt32();
 	}
 
-	SCRIPT_ASSERT(context, player < MAX_PLAYERS && player >= 0, "Target player index out of range: %d", player);
+	SCRIPT_ASSERT_PLAYER(context, player);
 	SCRIPT_ASSERT(context, looking < MAX_PLAYERS && looking >= -1, "Looking player index out of range: %d", looking);
 	for (DROID *psDroid = apsDroidLists[player]; psDroid; psDroid = psDroid->psNext)
 	{
@@ -1025,7 +1290,7 @@ static QScriptValue js_pickStructLocation(QScriptContext *context, QScriptEngine
 
 	SCRIPT_ASSERT(context, psDroid, "No such droid id %d belonging to player %d", id, player);
 	SCRIPT_ASSERT(context, psStat, "No such stat found: %s", statName.toUtf8().constData());
-	SCRIPT_ASSERT(context, player < MAX_PLAYERS && player >= 0, "Invalid player number %d", player);
+	SCRIPT_ASSERT_PLAYER(context, player);
 	SCRIPT_ASSERT(context, startX >= 0 && startX < mapWidth && startY >= 0 && startY < mapHeight, "Bad position (%d, %d)", startX, startY);
 
 	if (context->argumentCount() > 4) // final optional argument
@@ -1173,6 +1438,9 @@ static QScriptValue js_groupAddArea(QScriptContext *context, QScriptEngine *engi
 	DROID_GROUP *psGroup = grpFind(groupId);
 
 	SCRIPT_ASSERT(context, psGroup, "Invalid group index %d", groupId);
+	SCRIPT_ASSERT(context, !psGroup->psList || psGroup->psList->player == player, 
+	              "Group %d belongs to player %d, not player %d", 
+	              groupId, psGroup->psList->player, player);
 	for (DROID *psDroid = apsDroidLists[player]; psGroup && psDroid; psDroid = psDroid->psNext)
 	{
 		if (psDroid->pos.x >= x1 && psDroid->pos.x <= x2 && psDroid->pos.y >= y1 && psDroid->pos.y <= y2
@@ -1194,9 +1462,11 @@ static QScriptValue js_groupAddDroid(QScriptContext *context, QScriptEngine *eng
 	int droidId = droidVal.property("id").toInt32();
 	int droidPlayer = droidVal.property("player").toInt32();
 	DROID *psDroid = IdToDroid(droidId, droidPlayer);
-
 	SCRIPT_ASSERT(context, psGroup, "Invalid group index %d", groupId);
 	SCRIPT_ASSERT(context, psDroid, "Invalid droid index %d", droidId);
+	SCRIPT_ASSERT(context, !psGroup->psList || psGroup->psList->player == psDroid->player, 
+	              "Group %d belongs to player %d, not player %d, cannot add %s", 
+	              groupId, psGroup->psList->player, psDroid->player, objInfo(psDroid));
 	psGroup->add(psDroid);
 	return QScriptValue();
 }
@@ -1238,6 +1508,30 @@ static QScriptValue js_droidCanReach(QScriptContext *context, QScriptEngine *)
 	return QScriptValue(fpathCheck(psDroid->pos, Vector3i(world_coord(x), world_coord(y), 0), psPropStats->propulsionType));
 }
 
+//-- \subsection{orderDroid(droid, order)}
+//-- Give a droid an order to do something.
+static QScriptValue js_orderDroid(QScriptContext *context, QScriptEngine *)
+{
+	QScriptValue droidVal = context->argument(0);
+	int id = droidVal.property("id").toInt32();
+	int player = droidVal.property("player").toInt32();
+	DROID *psDroid = IdToDroid(id, player);
+	SCRIPT_ASSERT(context, psDroid, "Droid id %d not found belonging to player %d", id, player);
+	DROID_ORDER order = (DROID_ORDER)context->argument(1).toInt32();
+	SCRIPT_ASSERT(context, order == DORDER_TEMP_HOLD || order == DORDER_RTR || order == DORDER_STOP
+		      || order == DORDER_RTB || order == DORDER_REARM,
+	              "Invalid order: %s", getDroidOrderName(order));
+	if (order == DORDER_REARM)
+	{
+		moveToRearm(psDroid);
+	}
+	else
+	{
+		orderDroid(psDroid, order, ModeQueue);
+	}
+	return true;
+}
+
 //-- \subsection{orderDroidObj(droid, order, object)}
 //-- Give a droid an order to do something to something.
 static QScriptValue js_orderDroidObj(QScriptContext *context, QScriptEngine *)
@@ -1253,10 +1547,7 @@ static QScriptValue js_orderDroidObj(QScriptContext *context, QScriptEngine *)
 	int oplayer = objVal.property("player").toInt32();
 	BASE_OBJECT *psObj = IdToPointer(oid, oplayer);
 	SCRIPT_ASSERT(context, psObj, "Object id %d not found belonging to player %d", oid, oplayer);
-	SCRIPT_ASSERT(context, order == DORDER_ATTACK || order == DORDER_HELPBUILD ||
-		      order == DORDER_DEMOLISH || order == DORDER_REPAIR ||
-		      order == DORDER_OBSERVE || order == DORDER_EMBARK ||
-		      order == DORDER_FIRESUPPORT || order == DORDER_DROIDREPAIR, "Invalid order");
+	SCRIPT_ASSERT(context, validOrderForObj(order), "Invalid order: %s", getDroidOrderName(order));
 	orderDroidObj(psDroid, order, psObj, ModeQueue);
 	return true;
 }
@@ -1282,7 +1573,7 @@ static QScriptValue js_orderDroidBuild(QScriptContext *context, QScriptEngine *)
 	// Don't allow scripts to order structure builds if players structure limit has been reached.
 	if (!IsPlayerStructureLimitReached(psDroid->player))
 	{
-		orderDroidStatsLocDir(psDroid, order, psStats, world_coord(x), world_coord(y), 0, ModeQueue);
+		orderDroidStatsLocDir(psDroid, order, psStats, world_coord(x) + TILE_UNITS / 2, world_coord(y) + TILE_UNITS / 2, 0, ModeQueue);
 		return QScriptValue(false);
 	}
 	return QScriptValue(true);
@@ -1299,6 +1590,7 @@ static QScriptValue js_orderDroidLoc(QScriptContext *context, QScriptEngine *)
 	int x = context->argument(2).toInt32();
 	int y = context->argument(3).toInt32();
 	DROID_ORDER order = (DROID_ORDER)orderVal.toInt32();
+	SCRIPT_ASSERT(context, validOrderForLoc(order), "Invalid location based order: %s", getDroidOrderName(order));
 	DROID *psDroid = IdToDroid(id, player);
 	SCRIPT_ASSERT(context, psDroid, "Droid id %d not found belonging to player %d", id, player);
 	SCRIPT_ASSERT(context, tileOnMap(x, y), "Outside map bounds (%d, %d)", x, y);
@@ -1375,7 +1667,7 @@ static QScriptValue js_setStructureLimits(QScriptContext *context, QScriptEngine
 	{
 		player = engine->globalObject().property("me").toInt32();
 	}
-	SCRIPT_ASSERT(context, player < MAX_PLAYERS && player >= 0, "Invalid player number");
+	SCRIPT_ASSERT_PLAYER(context, player);
 	SCRIPT_ASSERT(context, limit < LOTS_OF && limit >= 0, "Invalid limit");
 	SCRIPT_ASSERT(context, structInc < numStructureStats && structInc >= 0, "Invalid structure");
 
@@ -1529,6 +1821,7 @@ static QScriptValue js_setPower(QScriptContext *context, QScriptEngine *engine)
 	if (context->argumentCount() > 1)
 	{
 		player = context->argument(1).toInt32();
+		SCRIPT_ASSERT_PLAYER(context, player);
 	}
 	else
 	{
@@ -1549,6 +1842,7 @@ static QScriptValue js_enableStructure(QScriptContext *context, QScriptEngine *e
 	if (context->argumentCount() > 1)
 	{
 		player = context->argument(1).toInt32();
+		SCRIPT_ASSERT_PLAYER(context, player);
 	}
 	else
 	{
@@ -1574,7 +1868,29 @@ static QScriptValue js_setMiniMap(QScriptContext *context, QScriptEngine *engine
 	return QScriptValue();
 }
 
+//-- \subsection{setDesign(bool)} Whether to allow player to design stuff.
+static QScriptValue js_setDesign(QScriptContext *context, QScriptEngine *engine)
+{
+	DROID_TEMPLATE *psCurr;
+	allowDesign = context->argument(0).toBool();
+	// Switch on or off future templates
+	// FIXME: This dual data structure for templates is just plain insane.
+	for (psCurr = apsDroidTemplates[selectedPlayer]; psCurr != NULL; psCurr = psCurr->psNext)
+	{
+		bool researched = researchedTemplate(psCurr, selectedPlayer);
+		psCurr->enabled = (researched || allowDesign);
+	}
+	for (std::list<DROID_TEMPLATE>::iterator i = localTemplates.begin(); i != localTemplates.end(); ++i)
+	{
+		psCurr = &*i;
+		bool researched = researchedTemplate(psCurr, selectedPlayer);
+		psCurr->enabled = (researched || allowDesign);
+	}
+	return QScriptValue();
+}
+
 //-- \subsection{addReticuleButton(button type)} Add reticule button. FIXME: This currently only works in tutorial.
+//-- Valid parameters for this and \emph{removeReticuleButton}: MANUFACTURE, RESEARCH, BUILD, DESIGN, INTELMAP, COMMAND, CANCEL.
 static QScriptValue js_addReticuleButton(QScriptContext *context, QScriptEngine *engine)
 {
 	int button = context->argument(0).toInt32();
@@ -1624,7 +1940,7 @@ static QScriptValue js_enableComponent(QScriptContext *context, QScriptEngine *e
 	QString componentName = context->argument(0).toString();
 	int player = context->argument(1).toInt32();
 
-	SCRIPT_ASSERT(context, player < MAX_PLAYERS && player >= 0, "Invalid player");
+	SCRIPT_ASSERT_PLAYER(context, player);
 	setComponent(componentName, player, FOUND);
 	return QScriptValue();
 }
@@ -1637,7 +1953,7 @@ static QScriptValue js_makeComponentAvailable(QScriptContext *context, QScriptEn
 	QString componentName = context->argument(0).toString();
 	int player = context->argument(1).toInt32();
 
-	SCRIPT_ASSERT(context, player < MAX_PLAYERS && player >= 0, "Invalid player");
+	SCRIPT_ASSERT_PLAYER(context, player);
 	setComponent(componentName, player, AVAILABLE);
 	return QScriptValue();
 }
@@ -1665,6 +1981,7 @@ static QScriptValue js_translate(QScriptContext *context, QScriptEngine *engine)
 static QScriptValue js_playerPower(QScriptContext *context, QScriptEngine *engine)
 {
 	int player = context->argument(0).toInt32();
+	SCRIPT_ASSERT_PLAYER(context, player);
 	return QScriptValue(getPower(player));
 }
 
@@ -1720,6 +2037,7 @@ static QScriptValue js_setDroidExperience(QScriptContext *context, QScriptEngine
 static QScriptValue js_safeDest(QScriptContext *context, QScriptEngine *engine)
 {
 	int player = context->argument(0).toInt32();
+	SCRIPT_ASSERT_PLAYER(context, player);
 	int x = context->argument(1).toInt32();
 	int y = context->argument(2).toInt32();
 	SCRIPT_ASSERT(context, tileOnMap(x, y), "Out of bounds coordinates(%d, %d)", x, y);
@@ -1733,6 +2051,7 @@ static QScriptValue js_addStructure(QScriptContext *context, QScriptEngine *)
 	QString building = context->argument(0).toString();
 	int index = getStructStatFromName(building.toUtf8().constData());
 	int player = context->argument(1).toInt32();
+	SCRIPT_ASSERT_PLAYER(context, player);
 	int x = context->argument(2).toInt32();
 	int y = context->argument(3).toInt32();
 	STRUCTURE_STATS *psStat = &asStructureStats[index];
@@ -1743,6 +2062,38 @@ static QScriptValue js_addStructure(QScriptContext *context, QScriptEngine *)
 		buildingComplete(psStruct);
 	}
 	return QScriptValue(psStruct != NULL);
+}
+
+//-- \subsection{setNoGoArea(x1, y1, x2, y2, player)}
+//-- Creates an area on the map on which nothing can be built. If player is zero,
+//-- then landing lights are placed. If player is -1, then a limbo landing zone
+//-- is created and limbo droids placed.
+// FIXME: missing a way to call initNoGoAreas(); check if we can call this in
+// every level start instead of through scripts
+static QScriptValue js_setNoGoArea(QScriptContext *context, QScriptEngine *)
+{
+	const int x1 = context->argument(0).toInt32();
+	const int y1 = context->argument(1).toInt32();
+	const int x2 = context->argument(2).toInt32();
+	const int y2 = context->argument(3).toInt32();
+	const int player = context->argument(4).toInt32();
+
+	SCRIPT_ASSERT(context, x1 >= 0, "Minimum scroll x value %d is less than zero - ", x1);
+	SCRIPT_ASSERT(context, y1 >= 0, "Minimum scroll y value %d is less than zero - ", y1);
+	SCRIPT_ASSERT(context, x2 <= mapWidth, "Maximum scroll x value %d is greater than mapWidth %d", x2, (int)mapWidth);
+	SCRIPT_ASSERT(context, y2 <= mapHeight, "Maximum scroll y value %d is greater than mapHeight %d", y2, (int)mapHeight);
+	SCRIPT_ASSERT(context, player < MAX_PLAYERS && player >= -1, "Bad player value %d", player);
+	
+	if (player == -1)
+	{
+		setNoGoArea(x1, y1, x2, y2, LIMBO_LANDING);
+		placeLimboDroids();	// this calls the Droids from the Limbo list onto the map
+	}
+	else
+	{
+		setNoGoArea(x1, y1, x2, y2, player);
+	}
+	return QScriptValue();
 }
 
 //-- \subsection{setScrollParams(x1, y1, x2, y2)}
@@ -1798,6 +2149,26 @@ static QScriptValue js_loadLevel(QScriptContext *context, QScriptEngine *)
 	return QScriptValue();
 }
 
+//-- \subsection{chat(target player, message)}
+//-- Send a message to target player. Target may also be \emph{ALL_PLAYERS} or \emph{ALLIES}. (3.2+ only)
+static QScriptValue js_chat(QScriptContext *context, QScriptEngine *)
+{
+	int target = context->argument(0).toInt32();
+	QString message = context->argument(1).toString();
+	if (target == -1) // all
+	{
+		return QScriptValue(sendTextMessage(message.toUtf8().constData(), true));
+	}
+	else if (target == -2) // allies
+	{
+		return QScriptValue(sendTextMessage(QString(". " + message).toUtf8().constData(), false));
+	}
+	else // specific player
+	{
+		return QScriptValue(sendTextMessage(QString(QString::number(target) + " " + message).toUtf8().constData(), false));
+	}
+}
+
 //-- \subsection{hackNetOff()}
 //-- Turn off network transmissions. FIXME - find a better way.
 static QScriptValue js_hackNetOff(QScriptContext *, QScriptEngine *)
@@ -1824,6 +2195,8 @@ bool registerFunctions(QScriptEngine *engine)
 	// Register functions to the script engine here
 	engine->globalObject().setProperty("_", engine->newFunction(js_translate));
 	engine->globalObject().setProperty("label", engine->newFunction(js_label));
+	engine->globalObject().setProperty("enumLabels", engine->newFunction(js_enumLabels));
+	engine->globalObject().setProperty("enumGateways", engine->newFunction(js_enumGateways));
 
 	// horrible hacks follow -- do not rely on these being present!
 	engine->globalObject().setProperty("hackNetOff", engine->newFunction(js_hackNetOff));
@@ -1835,9 +2208,11 @@ bool registerFunctions(QScriptEngine *engine)
 	engine->globalObject().setProperty("console", engine->newFunction(js_console));
 	engine->globalObject().setProperty("structureIdle", engine->newFunction(js_structureIdle));
 	engine->globalObject().setProperty("enumStruct", engine->newFunction(js_enumStruct));
+	engine->globalObject().setProperty("enumStructOffWorld", engine->newFunction(js_enumStructOffWorld));
 	engine->globalObject().setProperty("enumDroid", engine->newFunction(js_enumDroid));
 	engine->globalObject().setProperty("enumGroup", engine->newFunction(js_enumGroup));
 	engine->globalObject().setProperty("enumFeature", engine->newFunction(js_enumFeature));
+	engine->globalObject().setProperty("enumBlips", engine->newFunction(js_enumBlips));
 	engine->globalObject().setProperty("enumResearch", engine->newFunction(js_enumResearch));
 	engine->globalObject().setProperty("getResearch", engine->newFunction(js_getResearch));
 	engine->globalObject().setProperty("pursueResearch", engine->newFunction(js_pursueResearch));
@@ -1854,11 +2229,14 @@ bool registerFunctions(QScriptEngine *engine)
 	engine->globalObject().setProperty("orderDroidStatsLoc", engine->newFunction(js_orderDroidBuild)); // deprecated
 	engine->globalObject().setProperty("orderDroidBuild", engine->newFunction(js_orderDroidBuild));
 	engine->globalObject().setProperty("orderDroidObj", engine->newFunction(js_orderDroidObj));
+	engine->globalObject().setProperty("orderDroid", engine->newFunction(js_orderDroid));
 	engine->globalObject().setProperty("buildDroid", engine->newFunction(js_buildDroid));
 	engine->globalObject().setProperty("addDroid", engine->newFunction(js_addDroid));
 	engine->globalObject().setProperty("componentAvailable", engine->newFunction(js_componentAvailable));
 	engine->globalObject().setProperty("isVTOL", engine->newFunction(js_isVTOL));
 	engine->globalObject().setProperty("safeDest", engine->newFunction(js_safeDest));
+	engine->globalObject().setProperty("activateStructure", engine->newFunction(js_activateStructure));
+	engine->globalObject().setProperty("chat", engine->newFunction(js_chat));
 
 	// Functions that operate on the current player only
 	engine->globalObject().setProperty("centreView", engine->newFunction(js_centreView));
@@ -1874,6 +2252,7 @@ bool registerFunctions(QScriptEngine *engine)
 	engine->globalObject().setProperty("enableResearch", engine->newFunction(js_enableResearch));
 	engine->globalObject().setProperty("setPower", engine->newFunction(js_setPower));
 	engine->globalObject().setProperty("setTutorialMode", engine->newFunction(js_setTutorialMode));
+	engine->globalObject().setProperty("setDesign", engine->newFunction(js_setDesign));
 	engine->globalObject().setProperty("setMiniMap", engine->newFunction(js_setMiniMap));
 	engine->globalObject().setProperty("addReticuleButton", engine->newFunction(js_addReticuleButton));
 	engine->globalObject().setProperty("removeReticuleButton", engine->newFunction(js_removeReticuleButton));
@@ -1886,6 +2265,7 @@ bool registerFunctions(QScriptEngine *engine)
 	engine->globalObject().setProperty("addStructure", engine->newFunction(js_addStructure));
 	engine->globalObject().setProperty("loadLevel", engine->newFunction(js_loadLevel));
 	engine->globalObject().setProperty("setDroidExperience", engine->newFunction(js_setDroidExperience));
+	engine->globalObject().setProperty("setNoGoArea", engine->newFunction(js_setNoGoArea));
 
 	// Set some useful constants
 	engine->globalObject().setProperty("DORDER_ATTACK", DORDER_ATTACK, QScriptValue::ReadOnly | QScriptValue::Undeletable);
@@ -1898,8 +2278,15 @@ bool registerFunctions(QScriptEngine *engine)
 	engine->globalObject().setProperty("DORDER_RETREAT", DORDER_RETREAT, QScriptValue::ReadOnly | QScriptValue::Undeletable);
 	engine->globalObject().setProperty("DORDER_PATROL", DORDER_PATROL, QScriptValue::ReadOnly | QScriptValue::Undeletable);
 	engine->globalObject().setProperty("DORDER_DEMOLISH", DORDER_DEMOLISH, QScriptValue::ReadOnly | QScriptValue::Undeletable);
+	engine->globalObject().setProperty("DORDER_EMBARK", DORDER_EMBARK, QScriptValue::ReadOnly | QScriptValue::Undeletable);
+	engine->globalObject().setProperty("DORDER_DISEMBARK", DORDER_DISEMBARK, QScriptValue::ReadOnly | QScriptValue::Undeletable);
+	engine->globalObject().setProperty("DORDER_FIRESUPPORT", DORDER_FIRESUPPORT, QScriptValue::ReadOnly | QScriptValue::Undeletable);
+	engine->globalObject().setProperty("DORDER_HOLD", DORDER_TEMP_HOLD, QScriptValue::ReadOnly | QScriptValue::Undeletable);
+	engine->globalObject().setProperty("DORDER_RTR", DORDER_RTR, QScriptValue::ReadOnly | QScriptValue::Undeletable);
+	engine->globalObject().setProperty("DORDER_RTB", DORDER_RTB, QScriptValue::ReadOnly | QScriptValue::Undeletable);
+	engine->globalObject().setProperty("DORDER_STOP", DORDER_STOP, QScriptValue::ReadOnly | QScriptValue::Undeletable);
+	engine->globalObject().setProperty("DORDER_REARM", DORDER_REARM, QScriptValue::ReadOnly | QScriptValue::Undeletable);
 	engine->globalObject().setProperty("COMMAND", IDRET_COMMAND, QScriptValue::ReadOnly | QScriptValue::Undeletable);
-	engine->globalObject().setProperty("OPTIONS", IDRET_COMMAND, QScriptValue::ReadOnly | QScriptValue::Undeletable);
 	engine->globalObject().setProperty("BUILD", IDRET_BUILD, QScriptValue::ReadOnly | QScriptValue::Undeletable);
 	engine->globalObject().setProperty("MANUFACTURE", IDRET_MANUFACTURE, QScriptValue::ReadOnly | QScriptValue::Undeletable);
 	engine->globalObject().setProperty("RESEARCH", IDRET_RESEARCH, QScriptValue::ReadOnly | QScriptValue::Undeletable);
@@ -1929,6 +2316,7 @@ bool registerFunctions(QScriptEngine *engine)
 	engine->globalObject().setProperty("POWER_GEN", REF_POWER_GEN, QScriptValue::ReadOnly | QScriptValue::Undeletable);
 	engine->globalObject().setProperty("RESOURCE_EXTRACTOR", REF_RESOURCE_EXTRACTOR, QScriptValue::ReadOnly | QScriptValue::Undeletable);
 	engine->globalObject().setProperty("DEFENSE", REF_DEFENSE, QScriptValue::ReadOnly | QScriptValue::Undeletable);
+	engine->globalObject().setProperty("LASSAT", FAKE_REF_LASSAT, QScriptValue::ReadOnly | QScriptValue::Undeletable);
 	engine->globalObject().setProperty("WALL", REF_WALL, QScriptValue::ReadOnly | QScriptValue::Undeletable);
 	engine->globalObject().setProperty("RESEARCH_LAB", REF_RESEARCH, QScriptValue::ReadOnly | QScriptValue::Undeletable);
 	engine->globalObject().setProperty("REPAIR_FACILITY", REF_REPAIR_FACILITY, QScriptValue::ReadOnly | QScriptValue::Undeletable);
@@ -1947,6 +2335,8 @@ bool registerFunctions(QScriptEngine *engine)
 	engine->globalObject().setProperty("FEATURE", OBJ_FEATURE, QScriptValue::ReadOnly | QScriptValue::Undeletable);
 	engine->globalObject().setProperty("POSITION", POSITION, QScriptValue::ReadOnly | QScriptValue::Undeletable);
 	engine->globalObject().setProperty("AREA", AREA, QScriptValue::ReadOnly | QScriptValue::Undeletable);
+	engine->globalObject().setProperty("ALL_PLAYERS", -1, QScriptValue::ReadOnly | QScriptValue::Undeletable);
+	engine->globalObject().setProperty("ALLIES", -2, QScriptValue::ReadOnly | QScriptValue::Undeletable);
 
 	// Static knowledge about players
 	//== \item[playerData] An array of information about the players in a game. Each item in the array is an object

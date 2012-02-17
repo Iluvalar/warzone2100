@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2011  Warzone 2100 Project
+	Copyright (C) 2005-2012  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -492,7 +492,7 @@ void orderUpdateDroid(DROID *psDroid)
 			{
 				// Don't stray too far from the patrol path - only attack if we're near it
 				// A fun algorithm to detect if we're near the path
-				Vector2i delta = psDroid->order.pos - psDroid->order.pos;
+				Vector2i delta = psDroid->order.pos - psDroid->order.pos2;
 				if (delta == Vector2i(0, 0))
 				{
 					tooFarFromPath = false;
@@ -1445,6 +1445,7 @@ void orderDroidBase(DROID *psDroid, DROID_ORDER_DATA *psOrder)
 		break;
 	case DORDER_PATROL:
 		psDroid->order = *psOrder;
+		psDroid->order.pos2 = removeZ(psDroid->pos);
 		actionDroid(psDroid, DACTION_MOVE, psOrder->pos.x, psOrder->pos.y);
 		break;
 	case DORDER_RECOVER:
@@ -2452,12 +2453,12 @@ DROID_ORDER chooseOrderLoc(DROID *psDroid, UDWORD x,UDWORD y, bool altOrder)
 			order = DORDER_DISEMBARK;
 		}
 	}
-	else if (secondaryGetState(psDroid, DSO_CIRCLE) == DSS_CIRCLE_SET)
+	else if (secondaryGetState(psDroid, DSO_CIRCLE, ModeQueue) == DSS_CIRCLE_SET)  // ModeQueue here means to check whether we pressed the circle button, whether or not it synched yet. The reason for this weirdness is that a circle order makes no sense as a secondary state in the first place (the circle button _should_ have been only in the UI, not in the game state..!), so anything dealing with circle orders will necessarily be weird.
 	{
 		order = DORDER_CIRCLE;
 		secondarySetState(psDroid, DSO_CIRCLE, DSS_NONE);
 	}
-	else if (secondaryGetState(psDroid, DSO_PATROL) == DSS_PATROL_SET)
+	else if (secondaryGetState(psDroid, DSO_PATROL, ModeQueue) == DSS_PATROL_SET)  // ModeQueue here means to check whether we pressed the patrol button, whether or not it synched yet. The reason for this weirdness is that a patrol order makes no sense as a secondary state in the first place (the patrol button _should_ have been only in the UI, not in the game state..!), so anything dealing with patrol orders will necessarily be weird.
 	{
 		order = DORDER_PATROL;
 		secondarySetState(psDroid, DSO_PATROL, DSS_NONE);
@@ -3036,11 +3037,15 @@ bool secondarySupported(DROID *psDroid, SECONDARY_ORDER sec)
 
 
 /** This function returns the droid order's secondary state of the secondary order.*/
-SECONDARY_STATE secondaryGetState(DROID *psDroid, SECONDARY_ORDER sec)
+SECONDARY_STATE secondaryGetState(DROID *psDroid, SECONDARY_ORDER sec, QUEUE_MODE mode)
 {
 	uint32_t state;
 
 	state = psDroid->secondaryOrder;
+	if (mode == ModeQueue)
+	{
+		state = psDroid->secondaryOrderPending;  // The UI wants to know the state, so return what the state will be after orders are synchronised.
+	}
 
 	switch (sec)
 	{
@@ -3201,6 +3206,114 @@ bool secondarySetState(DROID *psDroid, SECONDARY_ORDER sec, SECONDARY_STATE Stat
 	DROID		*psTransport, *psCurr, *psNext;
 	DROID_ORDER     order;
 
+	CurrState = psDroid->secondaryOrder;
+	if (bMultiMessages && mode == ModeQueue)
+	{
+		CurrState = psDroid->secondaryOrderPending;
+	}
+
+	// Figure out what the new secondary state will be (once the order is synchronised.
+	// Why does this have to be so ridiculously complicated?
+	uint32_t secondaryMask = 0;
+	uint32_t secondarySet = 0;
+	switch (sec)
+	{
+		case DSO_ATTACK_RANGE:
+			secondaryMask = DSS_ARANGE_MASK;
+			secondarySet = State;
+			break;
+		case DSO_REPAIR_LEVEL:
+			secondaryMask = DSS_REPLEV_MASK;
+			secondarySet = State;
+			break;
+		case DSO_ATTACK_LEVEL:
+			secondaryMask = DSS_ALEV_MASK;
+			secondarySet = State;
+			break;
+		case DSO_ASSIGN_PRODUCTION:
+			if (psDroid->droidType == DROID_COMMAND)
+			{
+				secondaryMask = DSS_ASSPROD_FACT_MASK;
+				secondarySet = State & DSS_ASSPROD_MASK;
+			}
+			break;
+		case DSO_ASSIGN_CYBORG_PRODUCTION:
+			if (psDroid->droidType == DROID_COMMAND)
+			{
+				secondaryMask = DSS_ASSPROD_CYB_MASK;
+				secondarySet = State & DSS_ASSPROD_MASK;
+			}
+			break;
+		case DSO_ASSIGN_VTOL_PRODUCTION:
+			if (psDroid->droidType == DROID_COMMAND)
+			{
+				secondaryMask = DSS_ASSPROD_VTOL_MASK;
+				secondarySet = State & DSS_ASSPROD_MASK;
+			}
+			break;
+		case DSO_CLEAR_PRODUCTION:
+			if (psDroid->droidType == DROID_COMMAND)
+			{
+				secondaryMask = State & DSS_ASSPROD_MASK;
+			} break;
+		case DSO_RECYCLE:
+			if (State & DSS_RECYCLE_MASK)
+			{
+				secondaryMask = DSS_RTL_MASK | DSS_RECYCLE_MASK | DSS_HALT_MASK;
+				secondarySet = DSS_RECYCLE_SET | DSS_HALT_GUARD;
+			}
+			else
+			{
+				secondaryMask = DSS_RECYCLE_MASK;
+			}
+			break;
+		case DSO_CIRCLE:  // This doesn't even make any sense whatsoever as a secondary order...
+			secondaryMask = DSS_CIRCLE_MASK;
+			secondarySet = (State & DSS_CIRCLE_SET)? DSS_CIRCLE_SET : 0;
+			break;
+		case DSO_PATROL:  // This doesn't even make any sense whatsoever as a secondary order...
+			secondaryMask = DSS_PATROL_MASK;
+			secondarySet = (State & DSS_PATROL_SET)? DSS_PATROL_SET : 0;
+			break;
+		case DSO_HALTTYPE:
+			switch (State & DSS_HALT_MASK)
+			{
+				case DSS_HALT_PURSUE:
+				case DSS_HALT_GUARD:
+				case DSS_HALT_HOLD:
+					secondaryMask = DSS_HALT_MASK;
+					secondarySet = State;
+					break;
+			}
+			break;
+		case DSO_RETURN_TO_LOC:
+			secondaryMask = DSS_RTL_MASK;
+			switch (State & DSS_RTL_MASK)
+			{
+				case DSS_RTL_REPAIR:
+				case DSS_RTL_BASE:
+					secondarySet = State;
+					break;
+				case DSS_RTL_TRANSPORT:
+					psTransport = FindATransporter(psDroid->player);
+					if (psTransport != NULL && !(bMultiPlayer && !cyborgDroid(psDroid)))
+					{
+						secondarySet = State;
+					}
+					break;
+			}
+			if ((CurrState & DSS_HALT_MASK) == DSS_HALT_HOLD)
+			{
+				secondaryMask |= DSS_HALT_MASK;
+				secondarySet |= DSS_HALT_GUARD;
+			}
+			break;
+		case DSO_FIRE_DESIGNATOR:
+			// Do nothing.
+			break;
+	}
+	uint32_t newSecondaryState = (CurrState & ~secondaryMask) | secondarySet;
+
 	if (bMultiMessages && mode == ModeQueue)
 	{
 		if (sec == DSO_REPAIR_LEVEL)
@@ -3209,6 +3322,8 @@ bool secondarySetState(DROID *psDroid, SECONDARY_ORDER sec, SECONDARY_STATE Stat
 		}
 
 		sendDroidSecondary(psDroid,sec,State);
+		psDroid->secondaryOrderPending = newSecondaryState;
+		++psDroid->secondaryOrderPendingCount;
 		return true;  // Wait for our order before changing the droid.
 	}
 
@@ -3222,10 +3337,9 @@ bool secondarySetState(DROID *psDroid, SECONDARY_ORDER sec, SECONDARY_STATE Stat
 		psDroid->psGroup->setSecondary(sec, State);
 	}
 
-	CurrState = psDroid->secondaryOrder;
-
 	retVal = true;
-	switch (sec) {
+	switch (sec)
+	{
 		case DSO_ATTACK_RANGE:
 			CurrState = (CurrState & ~DSS_ARANGE_MASK) | State;
 			break;
@@ -3515,7 +3629,16 @@ bool secondarySetState(DROID *psDroid, SECONDARY_ORDER sec, SECONDARY_STATE Stat
 			break;
 	}
 
+	if (CurrState != newSecondaryState)
+	{
+		debug(LOG_WARNING, "Guessed the new secondary state incorrectly, expected 0x%08X, got 0x%08X, was 0x%08X, sec = %d, state = 0x%08X.", newSecondaryState, CurrState, psDroid->secondaryOrder, sec, State);
+	}
 	psDroid->secondaryOrder = CurrState;
+	psDroid->secondaryOrderPendingCount = std::max(psDroid->secondaryOrderPendingCount - 1, 0);
+	if (psDroid->secondaryOrderPendingCount == 0)
+	{
+		psDroid->secondaryOrderPending = psDroid->secondaryOrder;  // If no orders are pending, make sure UI uses the actual state.
+	}
 
 	return retVal;
 }
@@ -3541,7 +3664,7 @@ bool secondaryGotPrimaryOrder(DROID *psDroid, DROID_ORDER order)
 		//reset 2ndary order
 		oldState = psDroid->secondaryOrder;
 		psDroid->secondaryOrder &= ~ (DSS_RTL_MASK|DSS_RECYCLE_MASK|DSS_PATROL_MASK);
-
+		psDroid->secondaryOrderPending &= ~(DSS_RTL_MASK|DSS_RECYCLE_MASK|DSS_PATROL_MASK);
 
 		if((oldState != psDroid->secondaryOrder) &&
 		   (psDroid->player == selectedPlayer))
@@ -3973,37 +4096,8 @@ void orderStructureObj(UDWORD player, BASE_OBJECT *psObj)
 	{
 		if (lasSatStructSelected(psStruct))
 		{
-			// Lassats have just one weapon
-			unsigned int firePause = weaponFirePause(&asWeaponStats[psStruct->asWeaps[0].nStat], (UBYTE)player);
-			unsigned int damLevel = PERCENT(psStruct->body, structureBody(psStruct));
-
-			if (damLevel < HEAVY_DAMAGE_LEVEL)
-			{
-				firePause += firePause;
-			}
-
-			if (isHumanPlayer(player)
-				&& (gameTime - psStruct->asWeaps[0].lastFired <= firePause) )
-			{
-				/* Too soon to fire again */
-				break;
-			}
-
 			// send the weapon fire
-			if(bMultiMessages)
-			{
-				sendLasSat(player,psStruct,psObj);
-			}
-			else
-			{
-				//ok to fire - so fire away
-				proj_SendProjectile(&psStruct->asWeaps[0], NULL, player, psObj->pos, psObj, true, 0);
-				//set up last fires time
-				psStruct->asWeaps[0].lastFired =  gameTime;
-
-				//play 5 second countdown message
-				audio_QueueTrackPos(ID_SOUND_LAS_SAT_COUNTDOWN, psObj->pos.x, psObj->pos.y, psObj->pos.z);
-			}
+			sendLasSat(player, psStruct, psObj);
 
 			break;
 		}

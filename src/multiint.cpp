@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2011  Warzone 2100 Project
+	Copyright (C) 2005-2012  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -95,6 +95,7 @@
 
 #include "init.h"
 #include "levels.h"
+#include "wrappers.h"
 
 #define MAP_PREVIEW_DISPLAY_TIME 2500	// number of milliseconds to show map in preview
 
@@ -250,6 +251,7 @@ int getNextAIAssignment(const char *name)
 			if (match == 0)
 			{
 				aidata[ai].assigned++;
+				debug(LOG_SAVE, "wzscript assigned to player %d", i);
 				return i;	// found right player
 			}
 			match--;		// find next of this type
@@ -272,6 +274,7 @@ void loadMultiScripts()
 	// Load extra script for challenges
 	if (challengeActive)
 	{
+		debug(LOG_SAVE, "Loading challenge scripts");
 		WzConfig challenge(sRequestResult);
 		challenge.beginGroup("scripts");
 		if (challenge.contains("extra"))
@@ -291,6 +294,7 @@ void loadMultiScripts()
 	resLoadFile("SMSG", "multiplay.txt");
 	if (defaultRules)
 	{
+		debug(LOG_SAVE, "Loading default rules");
 		loadGlobalScript("multiplay/skirmish/rules.js");
 	}
 
@@ -323,18 +327,21 @@ void loadMultiScripts()
 						continue; // no AI
 					}
 					loadPlayerScript(val, i, NetPlay.players[i].difficulty);
+					NetPlay.players[i].ai = AI_CUSTOM;
 					continue;
 				}
 				challenge.endGroup();
 			}
 			if (aidata[NetPlay.players[i].ai].slo[0] != '\0')
 			{
+				debug(LOG_SAVE, "Loading wzscript AI for player %d", i);
 				resLoadFile("SCRIPT", aidata[NetPlay.players[i].ai].slo);
 				resLoadFile("SCRIPTVAL", aidata[NetPlay.players[i].ai].vlo);
 			}
 			// autogames are to be implemented differently for qtscript, do not start for human players yet
 			if (!NetPlay.players[i].allocated && aidata[NetPlay.players[i].ai].js[0] != '\0')
 			{
+				debug(LOG_SAVE, "Loading javascript AI for player %d", i);
 				loadPlayerScript(QString("multiplay/skirmish/") + aidata[NetPlay.players[i].ai].js, i, NetPlay.players[i].difficulty);
 			}
 		}
@@ -343,6 +350,7 @@ void loadMultiScripts()
 	// Load scavengers
 	if (game.scavengers && myResponsibility(scavengerPlayer()))
 	{
+		debug(LOG_SAVE, "Loading scavenger AI for player %d", scavengerPlayer());
 		loadPlayerScript("multiplay/script/scavfact.js", scavengerPlayer(), DIFFICULTY_EASY);
 	}
 
@@ -739,7 +747,7 @@ void runConnectionScreen(void)
 			bMultiMessages = false;
 			break;
 		case CON_TYPESID_START+0: // Lobby button
-			if ((LobbyError != ERROR_KICKED) && (LobbyError != ERROR_CHEAT))
+			if (LobbyError != ERROR_CHEAT)
 			{
 				setLobbyError(ERROR_NOERROR);
 			}
@@ -928,18 +936,30 @@ static void addGames(void)
 				}
 				else
 				{
-					if (NetPlay.games[i].limits)
+					std::string flags;
+					if (NetPlay.games[i].privateGame)
 					{
-						ssprintf(tooltipbuffer[i], _("Hosted by %s, Game Status: %s%s%s%s!"), NetPlay.games[i].hostname,
-								 NetPlay.games[i].privateGame ? _("[Password required]") : "",
-								 NetPlay.games[i].limits & NO_TANKS ? _("[No Tanks]") : "",
-								 NetPlay.games[i].limits & NO_BORGS ? _(" [No Cyborgs]") : "",
-								 NetPlay.games[i].limits & NO_VTOLS ? _(" [No VTOLs]") : ""
-								);
+						flags += " "; flags += _("[Password required]");
+					}
+					if (NetPlay.games[i].limits & NO_TANKS)
+					{
+						flags += " "; flags += _("[No Tanks]");
+					}
+					if (NetPlay.games[i].limits & NO_BORGS)
+					{
+						flags += " "; flags += _("[No Cyborgs]");
+					}
+					if (NetPlay.games[i].limits & NO_VTOLS)
+					{
+						flags += " "; flags += _("[No VTOLs]");
+					}
+					if (flags.empty())
+					{
+						ssprintf(tooltipbuffer[i], _("Hosted by %s"), NetPlay.games[i].hostname);
 					}
 					else
 					{
-						ssprintf(tooltipbuffer[i], "Hosted by %s", NetPlay.games[i].hostname);
+						ssprintf(tooltipbuffer[i], _("Hosted by %s —%s"), NetPlay.games[i].hostname, flags.c_str());
 					}
 					sButInit.pTip = tooltipbuffer[i];
 				}
@@ -1239,11 +1259,11 @@ static void hidePasswordForm(void)
 {
 	EnablePasswordPrompt = false;
 
-	widgHide(psWScreen, FRONTEND_PASSWORDFORM);
-	widgHide(psWScreen, CON_PASSWORD_LABEL);
-	widgHide(psWScreen, CON_PASSWORD);
-	widgHide(psWScreen, CON_PASSWORDYES);
-	widgHide(psWScreen, CON_PASSWORDNO);
+	if (widgGetFromID(psWScreen, FRONTEND_PASSWORDFORM)) widgHide(psWScreen, FRONTEND_PASSWORDFORM);
+	if (widgGetFromID(psWScreen, CON_PASSWORD_LABEL)) widgHide(psWScreen, CON_PASSWORD_LABEL);
+	if (widgGetFromID(psWScreen, CON_PASSWORD)) widgHide(psWScreen, CON_PASSWORD);
+	if (widgGetFromID(psWScreen, CON_PASSWORDYES))widgHide(psWScreen, CON_PASSWORDYES);
+	if (widgGetFromID(psWScreen, CON_PASSWORDNO)) 	widgHide(psWScreen, CON_PASSWORDNO);
 
 	widgReveal(psWScreen, FRONTEND_SIDETEXT);
 	widgReveal(psWScreen, FRONTEND_BOTFORM);
@@ -2081,7 +2101,25 @@ bool recvPositionRequest(NETQUEUE queue)
 	return changePosition(player, position);
 }
 
-#define ANYENTRY 0xFF		// used to allow any team slot to be used.
+// If so, return that team; if not, return -1; if there are no players, return team MAX_PLAYERS.
+int allPlayersOnSameTeam(int except)
+{
+	int minTeam = MAX_PLAYERS, maxTeam = 0;
+	for (int i = 0; i < game.maxPlayers; ++i)
+	{
+		if (i != except && (NetPlay.players[i].allocated || NetPlay.players[i].ai >= 0))
+		{
+			minTeam = std::min(minTeam, NetPlay.players[i].team);
+			maxTeam = std::max(maxTeam, NetPlay.players[i].team);
+		}
+	}
+	if (minTeam == MAX_PLAYERS || minTeam == maxTeam)
+	{
+		return minTeam;  // Players all on same team.
+	}
+	return -1;  // Players not all on same team.
+}
+
 /*
  * Opens a menu for a player to choose a team
  * 'player' is a player id of the player who will get a new team assigned
@@ -2089,8 +2127,7 @@ bool recvPositionRequest(NETQUEUE queue)
 static void addTeamChooser(UDWORD player)
 {
 	UDWORD i;
-	int disallow = ANYENTRY;
-	SDWORD inSlot[MAX_PLAYERS] = {0};
+	int disallow = allPlayersOnSameTeam(player);
 
 	debug(LOG_NET, "Opened team chooser for %d, current team: %d", player, NetPlay.players[player].team);
 
@@ -2098,20 +2135,6 @@ static void addTeamChooser(UDWORD player)
 
 	// add form.
 	addBlueForm(MULTIOP_PLAYERS, MULTIOP_TEAMCHOOSER_FORM, "", 7, playerBoxHeight(player), MULTIOP_ROW_WIDTH, MULTIOP_TEAMSHEIGHT);
-
-	// tally up the team counts
-	for (i=0; i< game.maxPlayers ; i++)
-	{
-		if (i != player)
-		{
-			inSlot[NetPlay.players[i].team]++;
-			if (inSlot[NetPlay.players[i].team] >= game.maxPlayers - 1)
-			{
-				// Make sure all players can't be on same team.
-				disallow = NetPlay.players[i].team;
-			}
-		}
-	}
 
 	int teamW = iV_GetImageWidth(FrontImages, IMAGE_TEAM0);
 	int teamH = iV_GetImageHeight(FrontImages, IMAGE_TEAM0);
@@ -2152,6 +2175,8 @@ static void closeTeamChooser(void)
 
 static void drawReadyButton(UDWORD player)
 {
+	int disallow = allPlayersOnSameTeam(-1);
+
 	// delete 'ready' botton form
 	widgDelete(psWScreen, MULTIOP_READY_FORM_ID + player);
 
@@ -2173,18 +2198,19 @@ static void drawReadyButton(UDWORD player)
 		return;	// closed or open
 	}
 
-	// draw 'ready' button
-	if (NetPlay.players[player].ready)
+	if (disallow != -1)
 	{
-		addMultiBut(psWScreen, MULTIOP_READY_FORM_ID + player, MULTIOP_READY_START + player, 3, 8, MULTIOP_READY_WIDTH, MULTIOP_READY_HEIGHT,
-		            _("Waiting for other players"), IMAGE_CHECK_ON, IMAGE_CHECK_ON, IMAGE_CHECK_ON_HI);
-	}
-	else
-	{
-		addMultiBut(psWScreen, MULTIOP_READY_FORM_ID + player, MULTIOP_READY_START + player, 3, 8, MULTIOP_READY_WIDTH, MULTIOP_READY_HEIGHT,
-		            _("Click when ready"), IMAGE_CHECK_OFF, IMAGE_CHECK_OFF, IMAGE_CHECK_OFF_HI);
+		return;
 	}
 
+	bool isMe = player == selectedPlayer;
+	bool isReady = NetPlay.players[player].ready;
+	char const *const toolTips[2][2] = {{_("Waiting for player"), _("Player is ready")}, {_("Click when ready"), _("Waiting for other players")}};
+	unsigned images[2][2] = {{IMAGE_CHECK_OFF, IMAGE_CHECK_ON}, {IMAGE_CHECK_OFF_HI, IMAGE_CHECK_ON_HI}};
+
+	// draw 'ready' button
+	addMultiBut(psWScreen, MULTIOP_READY_FORM_ID + player, MULTIOP_READY_START + player, 3, 8, MULTIOP_READY_WIDTH, MULTIOP_READY_HEIGHT,
+	            toolTips[isMe][isReady], images[0][isReady], images[0][isReady], images[isMe][isReady]);
 	addText(MULTIOP_READY_START+MAX_PLAYERS+player, 0,10,
 	        _("READY?"), MULTIOP_READY_FORM_ID + player);
 }
@@ -2487,7 +2513,7 @@ static void addConsoleBox(void)
 	setDefaultConsoleJust(LEFT_JUSTIFY);
 	setConsoleSizePos(MULTIOP_CONSOLEBOXX + 4 + D_W, MULTIOP_CONSOLEBOXY + 14 + D_H, MULTIOP_CONSOLEBOXW - 4);
 	setConsolePermanence(true, true);
-	setConsoleLineInfo(4);											// use x lines on chat window
+	setConsoleLineInfo(3);											// use x lines on chat window
 
 	addConsoleMessage(_("Connecting to the lobby server..."), DEFAULT_JUSTIFY, SYSTEM_MESSAGE);
 	displayConsoleMessages();
@@ -2572,14 +2598,8 @@ static void stopJoining(void)
 				NetPlay.isHost = false;
 			}
 
-			if(NetPlay.bComms)	// not even connected.
-			{
-				changeTitleMode(GAMEFIND);
-			}
-			else
-			{
-				changeTitleMode(MULTI);
-			}
+			changeTitleMode(MULTI);
+
 			selectedPlayer = 0;
 			realSelectedPlayer = 0;
 			return;
@@ -2894,6 +2914,7 @@ static void processMultiopWidgets(UDWORD id)
 		break;
 
 	case CON_CANCEL:
+		pie_LoadBackDrop(SCREEN_RANDOMBDROP);
 		if (!challengeActive)
 		{
 			NETGameLocked(false);		// reset status on a cancel
@@ -2902,7 +2923,6 @@ static void processMultiopWidgets(UDWORD id)
 		else
 		{
 			NETclose();
-			pie_LoadBackDrop(SCREEN_RANDOMBDROP);
 			bHosted = false;
 			ingame.localJoiningInProgress = false;
 			changeTitleMode(SINGLE);
@@ -3090,7 +3110,7 @@ void startMultiplayerGame(void)
 	bMultiPlayer = true;
 	bMultiMessages = true;
 	NETsetPlayerConnectionStatus(CONNECTIONSTATUS_NORMAL, NET_ALL_PLAYERS);  // reset disconnect conditions
-
+	initLoadingScreen(true);
 	if (NetPlay.isHost)
 	{
 		// This sets the limits to whatever the defaults are for the limiter screen
@@ -3626,6 +3646,7 @@ bool startMultiOptions(bool bReenter)
 						if (strcasecmp(difficultyList[j], value.toAscii().constData()) == 0)
 						{
 							game.skDiff[i] = difficultyValue[j];
+							NetPlay.players[i].difficulty = j;
 						}
 					}
 				}
@@ -3747,7 +3768,8 @@ void displayRemoteGame(WIDGET *psWidget, UDWORD xOffset, UDWORD yOffset, PIELIGH
 
 	//draw game name, chop when we get a too long name
 	sstrcpy(name, NetPlay.games[gameID].name);
-	while (iV_GetTextWidth(name) > (psWidget->width-110) )
+	// box size in pixels
+	while (iV_GetTextWidth(name) > (GAMES_MAPNAME_START - GAMES_GAMENAME_START- 4) )
 	{
 		name[strlen(name)-1]='\0';
 	}
@@ -3755,7 +3777,8 @@ void displayRemoteGame(WIDGET *psWidget, UDWORD xOffset, UDWORD yOffset, PIELIGH
 
 	// draw map name, chop when we get a too long name
 	sstrcpy(name, NetPlay.games[gameID].mapname);
-	while (iV_GetTextWidth(name) > (psWidget->width-110) )
+	// box size in pixels
+	while (iV_GetTextWidth(name) > (GAMES_PLAYERS_START - GAMES_MAPNAME_START - 4) )
 	{
 		name[strlen(name)-1]='\0';
 	}
@@ -3763,11 +3786,33 @@ void displayRemoteGame(WIDGET *psWidget, UDWORD xOffset, UDWORD yOffset, PIELIGH
 
 	iV_SetFont(font_small);
 	// draw mod name (if any)
-	strlen(NetPlay.games[gameID].modlist) ? sprintf(name, _("Mods: %s"), NetPlay.games[gameID].modlist) : sstrcpy(name, _("Mods: None!"));
+	if (strlen(NetPlay.games[gameID].modlist))
+	{
+		// FIXME: we really don't have enough space to list all mods
+		char tmp[300];
+		sprintf(tmp, _("Mods: %s"), NetPlay.games[gameID].modlist);
+		tmp[StringSize] = '\0';
+		sstrcpy(name, tmp);
+
+	}
+	else
+	{
+		sstrcpy(name, _("Mods: None!"));
+	}
+	// box size in pixels
+	while (iV_GetTextWidth(name) > (GAMES_PLAYERS_START - GAMES_MAPNAME_START - 8) )
+	{
+		name[strlen(name)-1]='\0';
+	}
 	iV_DrawText(name, x + GAMES_MODNAME_START, y + 24 );
 
 	// draw version string
 	sprintf(name, _("Version: %s"), NetPlay.games[gameID].versionstring);
+	// box size in pixels
+	while (iV_GetTextWidth(name) > (GAMES_MAPNAME_START - 6 - GAMES_GAMENAME_START - 4) )
+	{
+		name[strlen(name)-1]='\0';
+	}
 	iV_DrawText(name, x + GAMES_GAMENAME_START + 6, y + 24 );
 
 	// crappy hack to only draw this once for the header.  TODO fix GUI

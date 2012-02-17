@@ -224,18 +224,18 @@ function checkEndConditions()
 // /////////////////////////////////////////////////////////////////
 // WARNING MESSAGES
 // Base Under Attack
-function eventStructureAttacked(hitStruct, attackerObj)
+function eventAttacked(victimObj, attackerObj)
 {
 	if (gameTime > lastHitTime + 10)
 	{
 		lastHitTime = gameTime;
-		if (hitStruct)
+		if (victimObj.type == STRUCTURE)
 		{
-			playSound("pcv337.ogg", hitStruct.x, hitStruct.y, hitStruct.z);	// show position if still alive
+			playSound("pcv337.ogg", victimObj.x, victimObj.y, victimObj.z);	// show position if still alive
 		}
 		else
 		{
-			playSound("pcv337.ogg");
+			playSound("pcv399.ogg", victimObj.x, victimObj.y, victimObj.z);
 		}
 	}
 }
@@ -244,7 +244,8 @@ function eventStructureBuilt(struct)
 {
 	if (struct.player == selectedPlayer && struct.type == STRUCTURE && struct.stattype == HQ)
 	{
-		setMiniMap(true); // hide minimap if HQ is destroyed
+		setMiniMap(true); // show minimap
+		setDesign(true); // permit designs
 	}
 }
 
@@ -253,5 +254,6 @@ function eventDestroyed(victim)
 	if (victim.player == selectedPlayer && victim.type == STRUCTURE && victim.stattype == HQ)
 	{
 		setMiniMap(false); // hide minimap if HQ is destroyed
+		//setDesign(false); // and disallow design
 	}
 }

@@ -1,10 +1,8 @@
-AM_CPPFLAGS = -DYY_NO_INPUT $(SDL_CFLAGS) $(PHYSFS_CFLAGS) $(PNG_CFLAGS) $(OGGVORBIS_CFLAGS) $(OPENAL_CFLAGS) $(OPENGLC_CFLAGS) $(OPENGL_CFLAGS) $(WZ_CPPFLAGS) $(GLEW_CFLAGS)
+AM_CPPFLAGS = -DYY_NO_INPUT $(SDL_CFLAGS) $(PHYSFS_CFLAGS) $(PNG_CFLAGS) $(VORBISFILE_CFLAGS) $(VORBIS_CFLAGS) $(OPENAL_CFLAGS) $(OPENGLC_CFLAGS) $(OPENGL_CFLAGS) $(WZ_CPPFLAGS) $(GLEW_CFLAGS)
 AM_CFLAGS = $(WZ_CFLAGS)
 AM_CXXFLAGS = $(WZ_CXXFLAGS) $(QT4_CFLAGS)
 AM_LFLAGS = $(FLEX_FLAGS)
 AM_YFLAGS = -d
-
-version.o: autorevision.h
 
 .PHONY: autorevision.h
 
@@ -110,7 +108,6 @@ noinst_HEADERS = \
 	oprint.h \
 	orderdef.h \
 	order.h \
-	parsetest.h \
 	pointtree.h \
 	positiondef.h \
 	power.h \
@@ -227,7 +224,6 @@ warzone2100_SOURCES = \
 	objmem.cpp \
 	oprint.cpp \
 	order.cpp \
-	parsetest.cpp \
 	pointtree.cpp \
 	power.cpp \
 	projectile.cpp \
@@ -284,7 +280,7 @@ if BACKEND_SDL
 warzone2100_LIBS += $(top_builddir)/lib/sdl/libsdl.a
 endif
 
-warzone2100_LDADD = $(warzone2100_LIBS) $(LTLIBINTL) $(SDL_LIBS) $(PHYSFS_LIBS) $(PNG_LIBS) $(OGGVORBIS_LIBS) \
+warzone2100_LDADD = $(warzone2100_LIBS) $(LTLIBINTL) $(SDL_LIBS) $(PHYSFS_LIBS) $(PNG_LIBS) $(VORBISFILE_LIBS) $(VORBIS_LIBS) \
 	$(THEORA_LIBS) $(OPENAL_LIBS) $(OPENGLC_LIBS) $(OPENGL_LIBS) $(QT4_LIBS) $(GLEW_LIBS) \
 	$(X_LIBS) $(X_EXTRA_LIBS) $(LDFLAGS)
 

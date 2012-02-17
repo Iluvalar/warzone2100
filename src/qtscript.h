@@ -32,6 +32,7 @@ enum SCRIPT_TRIGGER_TYPE
 	TRIGGER_START_LEVEL,
 	TRIGGER_LAUNCH_TRANSPORTER,
 	TRIGGER_REINFORCEMENTS_ARRIVED,
+	TRIGGER_VIDEO_QUIT,
 	TRIGGER_MISSION_TIMEOUT
 };
 
@@ -78,5 +79,8 @@ bool triggerEventResearched(RESEARCH *psResearch, STRUCTURE *psStruct, int playe
 bool triggerEventStructBuilt(STRUCTURE *psStruct, DROID *psDroid);
 bool triggerEventDroidIdle(DROID *psDroid);
 bool triggerEventDestroyed(BASE_OBJECT *psVictim);
+bool triggerEventStructureReady(STRUCTURE *psStruct);
+bool triggerEventSeen(BASE_OBJECT *psViewer, BASE_OBJECT *psSeen);
+bool triggerEventObjectTransfer(BASE_OBJECT *psObj, int from);
 
 #endif

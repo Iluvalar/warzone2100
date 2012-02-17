@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2011  Warzone 2100 Project
+	Copyright (C) 2005-2012  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -175,7 +175,7 @@ SDWORD mouseTileX, mouseTileY;
 Vector2i mousePos(0, 0);
 
 /// Do we want the radar to be rendered
-bool	radarOnScreen=false;
+bool radarOnScreen = true;
 bool	radarPermitted = true;
 
 /// Show unit/building gun/sensor range
@@ -432,13 +432,15 @@ static PIELIGHT structureBrightness(STRUCTURE *psStructure)
 /// Display the multiplayer chat box
 static void displayMultiChat(void)
 {
+	iV_SetFont(font_regular);
+
 	UDWORD	pixelLength;
 	UDWORD	pixelHeight;
 
 	pixelLength = iV_GetTextWidth(sTextToSend);
 	pixelHeight = iV_GetTextLineSize();
 
-	if((gameTime2 % 500) < 250)
+	if((realTime % 500) < 250)
 	{
 		// implement blinking cursor in multiplayer chat
 		pie_BoxFill(RET_X + pixelLength + 3, 474 + E_H - (pixelHeight/4), RET_X + pixelLength + 10, 473 + E_H, WZCOL_CURSOR);
@@ -733,10 +735,7 @@ void draw3DScene( void )
 	{
 		/* Ensure that any text messages are displayed at bottom of screen */
 		pie_SetFogStatus(false);
-		if (getWidgetsStatus())
-		{
-			displayConsoleMessages();
-		}
+		displayConsoleMessages();
 	}
 
 	pie_SetDepthBufferStatus(DEPTH_CMP_ALWAYS_WRT_OFF);
@@ -761,6 +760,7 @@ void draw3DScene( void )
 	}
 	if (showSAMPLES)		//Displays the number of sound samples we currently have
 	{
+		iV_SetFont(font_regular);
 		unsigned int width, height;
 		const char *Qbuf, *Lbuf, *Abuf;
 
@@ -776,6 +776,7 @@ void draw3DScene( void )
 	}
 	if (showFPS)
 	{
+		iV_SetFont(font_regular);
 		unsigned int width, height;
 		const char* fps;
 		sasprintf((char**)&fps, "FPS: %d", frameRate());
@@ -786,6 +787,7 @@ void draw3DScene( void )
 	}
 	if (showORDERS)
 	{
+		iV_SetFont(font_regular);
 		unsigned int height;
 		height = iV_GetTextHeight(DROIDDOING);
 		iV_DrawText(DROIDDOING, 0, pie_GetVideoBufferHeight()- height);
@@ -795,18 +797,19 @@ void draw3DScene( void )
 
 	if (getWidgetsStatus() && !gamePaused())
 	{
-#ifdef DEBUG
 		char buildInfo[255];
 		if (showLevelName)
 		{
-			iV_DrawText( getLevelName(), RET_X + 134, 420 + E_H );
+			iV_SetFont(font_small);
+			iV_SetTextColour(WZCOL_TEXT_MEDIUM);
+			iV_DrawText( getLevelName(), RET_X + 134, 410 + E_H );
 		}
-		getAsciiTime(buildInfo,gameTime);
-		iV_DrawText( buildInfo, RET_X + 134, 434 + E_H );
-#endif
+		getAsciiTime(buildInfo, gameTime);
+		iV_DrawText( buildInfo, RET_X + 134, 422 + E_H );
+
 		if (getDebugMappingStatus() && !demoGetStatus())
 		{
-			iV_DrawText( "DEBUG ", RET_X + 134, 448 + E_H );
+			iV_DrawText( "DEBUG ", RET_X + 134, 436 + E_H );
 		}
 	}
 
@@ -1279,19 +1282,27 @@ void	renderProjectile(PROJECTILE *psCurr)
 		bool premultiplied = false;
 		bool additive = psStats->weaponSubClass == WSC_ROCKET || psStats->weaponSubClass == WSC_MISSILE || psStats->weaponSubClass == WSC_SLOWROCKET || psStats->weaponSubClass == WSC_SLOWMISSILE;
 
-		if (pIMD->nconnectors >= 2)
+		if (pIMD->flags & iV_IMD_ROLL_TO_CAMERA)
 		{
-			switch (pIMD->connectors[0].x)
-			{
-				case 1: rollToCamera = true; break;
-				case 2: rollToCamera = true; pitchToCamera = true; break;
-			}
-			switch (pIMD->connectors[0].y)
-			{
-				case 1: additive = false; break;
-				case 2: additive = true; break;
-				case 3: additive = false; premultiplied = true; break;
-			}
+			rollToCamera = true;
+		}
+		if (pIMD->flags & iV_IMD_PITCH_TO_CAMERA)
+		{
+			rollToCamera = true;
+			pitchToCamera = true;
+		}
+		if (pIMD->flags & iV_IMD_NO_ADDITIVE)
+		{
+			additive = false;
+		}
+		if (pIMD->flags & iV_IMD_ADDITIVE)
+		{
+			additive = true;
+		}
+		if (pIMD->flags & iV_IMD_PREMULTIPLIED)
+		{
+			additive = false;
+			premultiplied = true;
 		}
 
 		/* Get bullet's x coord */
@@ -1323,8 +1334,8 @@ void	renderProjectile(PROJECTILE *psCurr)
 		if (pitchToCamera || rollToCamera)
 		{
 			// Centre on projectile (relevant for twin projectiles).
-			pie_TRANSLATE(pIMD->connectors[1].x, pIMD->connectors[1].y, pIMD->connectors[1].z);
-			camera -= Vector3i(pIMD->connectors[1].x, pIMD->connectors[1].y, pIMD->connectors[1].z);
+			pie_TRANSLATE(pIMD->connectors[0].x, pIMD->connectors[0].y, pIMD->connectors[0].z);
+			camera -= Vector3i(pIMD->connectors[0].x, pIMD->connectors[0].y, pIMD->connectors[0].z);
 		}
 
 		if (pitchToCamera)
@@ -1344,8 +1355,8 @@ void	renderProjectile(PROJECTILE *psCurr)
 		if (pitchToCamera || rollToCamera)
 		{
 			// Undo centre on projectile (relevant for twin projectiles).
-			pie_TRANSLATE(-pIMD->connectors[1].x, -pIMD->connectors[1].y, -pIMD->connectors[1].z);
-			camera -= Vector3i(-pIMD->connectors[1].x, -pIMD->connectors[1].y, -pIMD->connectors[1].z);
+			pie_TRANSLATE(-pIMD->connectors[0].x, -pIMD->connectors[0].y, -pIMD->connectors[0].z);
+			camera -= Vector3i(-pIMD->connectors[0].x, -pIMD->connectors[0].y, -pIMD->connectors[0].z);
 		}
 
 		if (premultiplied)
@@ -4312,7 +4323,6 @@ static	void	doConstructionLines( void )
 			}
 		}
 	}
-	pie_SetDepthBufferStatus(DEPTH_CMP_LEQ_WRT_ON);
 }
 
 /// Draw the construction or demolish lines for one droid

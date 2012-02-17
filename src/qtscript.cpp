@@ -93,8 +93,12 @@ static bool callFunction(QScriptEngine *engine, const QString &function, const Q
 	QScriptValue value = engine->globalObject().property(function);
 	if (!value.isValid() || !value.isFunction())
 	{
-		return false;	// not necessarily an error, may just be a trigger that is not defined (ie not needed)
+		// not necessarily an error, may just be a trigger that is not defined (ie not needed)
+		// or it could be a typo in the function name or ...
+		debug(LOG_WARNING, "function (%s) not defined?", function.toUtf8().constData());
+		return false;
 	}
+
 	QScriptValue result = value.call(QScriptValue(), args);
 	if (engine->hasUncaughtException())
 	{
@@ -115,7 +119,7 @@ static bool callFunction(QScriptEngine *engine, const QString &function, const Q
 //-- Set a function to run repeated at some given time interval. The function to run 
 //-- is the first parameter, and it \underline{must be quoted}, otherwise the function will
 //-- be inlined. The second parameter is the interval, in milliseconds. A third, optional
-//-- parameter can be a game object to pass to the timer function. If the game object
+//-- parameter can be a \emph{game object} to pass to the timer function. If the \emph{game object}
 //-- dies, the timer stops running. The minimum number of milliseconds is 100, but such
 //-- fast timers are strongly discouraged as they may deteriorate the game performance.
 //--
@@ -177,8 +181,10 @@ static QScriptValue js_removeTimer(QScriptContext *context, QScriptEngine *engin
 //-- \underline{must be quoted}, otherwise the function will be inlined.
 //-- The second parameter is the delay in milliseconds, if it is omitted or 0,
 //-- the function will be run at a later frame.  A third optional
-//-- parameter can be a game object to pass to the queued function. If the game object
+//-- parameter can be a \emph{game object} to pass to the queued function. If the \emph{game object}
 //-- dies before the queued call runs, nothing happens.
+// TODO, check if an identical call is already queued up - and in this case, 
+// do not add anything.
 static QScriptValue js_queue(QScriptContext *context, QScriptEngine *engine)
 {
 	SCRIPT_ASSERT(context, context->argument(0).isString(), "Queued functions must be quoted");
@@ -370,16 +376,6 @@ bool loadPlayerScript(QString path, int player, int difficulty)
 	QScriptSyntaxCheckResult syntax = QScriptEngine::checkSyntax(source);
 	ASSERT_OR_RETURN(false, syntax.state() == QScriptSyntaxCheckResult::Valid, "Syntax error in %s line %d: %s", 
 	                 path.toAscii().constData(), syntax.errorLineNumber(), syntax.errorMessage().toAscii().constData());
-	// Remember internal, reserved names
-	QScriptValueIterator it(engine->globalObject());
-	while (it.hasNext())
-	{
-		it.next();
-		internalNamespace.insert(it.name(), 1);
-	}
-	QScriptValue result = engine->evaluate(source, path);
-	ASSERT_OR_RETURN(false, !engine->hasUncaughtException(), "Uncaught exception at line %d, file %s: %s", 
-	                 engine->uncaughtExceptionLineNumber(), path.toAscii().constData(), result.toString().toAscii().constData());
 	// Special functions
 	engine->globalObject().setProperty("setTimer", engine->newFunction(js_setTimer));
 	engine->globalObject().setProperty("queue", engine->newFunction(js_queue));
@@ -390,8 +386,6 @@ bool loadPlayerScript(QString path, int player, int difficulty)
 	// Special global variables
 	//== \item[version] Current version of the game. Do not make too many assumption about this value.
 	engine->globalObject().setProperty("version", PACKAGE_VERSION, QScriptValue::ReadOnly | QScriptValue::Undeletable);
-	//== \item[me] The player the script is currently running as.
-	engine->globalObject().setProperty("me", player, QScriptValue::ReadOnly | QScriptValue::Undeletable);
 	//== \item[selectedPlayer] The player ontrolled by the client on which the script runs.
 	engine->globalObject().setProperty("selectedPlayer", selectedPlayer, QScriptValue::ReadOnly | QScriptValue::Undeletable);
 	//== \item[gameTime] The current game time. Updated before every invokation of a script.
@@ -419,9 +413,24 @@ bool loadPlayerScript(QString path, int player, int difficulty)
 	// Regular functions
 	registerFunctions(engine);
 
+	// Remember internal, reserved names
+	QScriptValueIterator it(engine->globalObject());
+	while (it.hasNext())
+	{
+		it.next();
+		internalNamespace.insert(it.name(), 1);
+	}
+	// We need to always save the 'me' special variable.
+	//== \item[me] The player the script is currently running as.
+	engine->globalObject().setProperty("me", player, QScriptValue::ReadOnly | QScriptValue::Undeletable);
+	QScriptValue result = engine->evaluate(source, path);
+	ASSERT_OR_RETURN(false, !engine->hasUncaughtException(), "Uncaught exception at line %d, file %s: %s", 
+	                 engine->uncaughtExceptionLineNumber(), path.toAscii().constData(), result.toString().toAscii().constData());
+
 	// Register script
 	scripts.push_back(engine);
 
+	debug(LOG_SAVE, "Created script engine %d for player %d from %s", scripts.size() - 1, player, path.toUtf8().constData());
 	return true;
 }
 
@@ -502,22 +511,28 @@ bool loadScriptStates(const char *filename)
 			node.frameTime = ini.value("frame").toInt();
 			debug(LOG_SAVE, "Registering trigger %d for player %d", i, node.player);
 			node.engine = findEngineForPlayer(node.player);
-			node.function = ini.value("function").toString();
-			node.baseobj = ini.value("baseobj", -1).toInt();
-			node.type = (timerType)ini.value("type", TIMER_REPEAT).toInt();
-			timers.push_back(node);
+			if (node.engine)
+			{
+				node.function = ini.value("function").toString();
+				node.baseobj = ini.value("baseobj", -1).toInt();
+				node.type = (timerType)ini.value("type", TIMER_REPEAT).toInt();
+				timers.push_back(node);
+			}
 			ini.endGroup();
 		}
 		else if (list[i].startsWith("globals_"))
 		{
 			ini.beginGroup(list[i]);
 			int player = ini.value("me").toInt();
-			QScriptEngine *engine = findEngineForPlayer(player);
 			QStringList keys = ini.childKeys();
 			debug(LOG_SAVE, "Loading script globals for player %d -- found %d values", player, keys.size());
-			for (int j = 0; j < keys.size(); ++j)
+			QScriptEngine *engine = findEngineForPlayer(player);
+			if (engine)
 			{
-				engine->globalObject().setProperty(keys.at(j), engine->toScriptValue(ini.value(keys.at(j))));
+				for (int j = 0; j < keys.size(); ++j)
+				{
+					engine->globalObject().setProperty(keys.at(j), engine->toScriptValue(ini.value(keys.at(j))));
+				}
 			}
 			ini.endGroup();
 		}
@@ -540,6 +555,8 @@ bool loadScriptStates(const char *filename)
 //__ An event that is run when the transporter has arrived with reinforcements in a mission.
 //__ \subsection{eventMissionTimeout()}
 //__ An event that is run when the mission timer has run out.
+//__ \subsection{eventVideoDone()}
+//__ An event that is run when a video show stopped playing.
 bool triggerEvent(SCRIPT_TRIGGER_TYPE trigger)
 {
 	for (int i = 0; i < scripts.size(); ++i)
@@ -562,6 +579,9 @@ bool triggerEvent(SCRIPT_TRIGGER_TYPE trigger)
 			break;
 		case TRIGGER_MISSION_TIMEOUT:
 			callFunction(engine, "eventMissionTimeout", QScriptValueList());
+			break;
+		case TRIGGER_VIDEO_QUIT:
+			callFunction(engine, "eventVideoDone", QScriptValueList());
 			break;
 		}
 	}
@@ -587,7 +607,8 @@ bool triggerEventDroidIdle(DROID *psDroid)
 
 //__ \subsection{eventDroidBuilt(droid[, structure])}
 //__ An event that is run every time a droid is built. The structure parameter is set
-//__ if the droid was produced in a factory.
+//__ if the droid was produced in a factory. It is not triggered for droid theft or
+//__ gift (check \emph{eventObjectTransfer} for that).
 bool triggerEventDroidBuilt(DROID *psDroid, STRUCTURE *psFactory)
 {
 	for (int i = 0; i < scripts.size(); ++i)
@@ -608,9 +629,10 @@ bool triggerEventDroidBuilt(DROID *psDroid, STRUCTURE *psFactory)
 	return true;
 }
 
-//__ \subsection{eventDroidBuilt(structure[, droid])}
+//__ \subsection{eventStructureBuilt(structure[, droid])}
 //__ An event that is run every time a structure is produced. The droid parameter is set
-//__ if the structure was built by a droid.
+//__ if the structure was built by a droid. It is not triggered for building theft
+//__ (check \emph{eventObjectTransfer} for that).
 bool triggerEventStructBuilt(STRUCTURE *psStruct, DROID *psDroid)
 {
 	for (int i = 0; i < scripts.size(); ++i)
@@ -626,6 +648,26 @@ bool triggerEventStructBuilt(STRUCTURE *psStruct, DROID *psDroid)
 				args += convDroid(psDroid, engine);
 			}
 			callFunction(engine, "eventStructureBuilt", args);
+		}
+	}
+	return true;
+}
+
+//__ \subsection{eventStructureReady(structure)}
+//__ An event that is run every time a structure is ready to perform some
+//__ special ability. It will only fire once, so if the time is not right,
+//__ register your own timer to keep checking.
+bool triggerEventStructureReady(STRUCTURE *psStruct)
+{
+	for (int i = 0; i < scripts.size(); ++i)
+	{
+		QScriptEngine *engine = scripts.at(i);
+		int player = engine->globalObject().property("me").toInt32();
+		if (player == psStruct->player)
+		{
+			QScriptValueList args;
+			args += convStructure(psStruct, engine);
+			callFunction(engine, "eventStructureReady", args);
 		}
 	}
 	return true;
@@ -696,6 +738,51 @@ bool triggerEventDestroyed(BASE_OBJECT *psVictim)
 			QScriptValueList args;
 			args += convMax(psVictim, engine);
 			callFunction(engine, "eventDestroyed", args);
+		}
+	}
+	return true;
+}
+
+//__ \subsection{eventObjectSeen(viewer, seen)}
+//__ An event that is run whenever an object goes from not seen to seen.
+//__ First parameter is \emph{game object} doing the seeing, the next the game
+//__ object being seen.
+bool triggerEventSeen(BASE_OBJECT *psViewer, BASE_OBJECT *psSeen)
+{
+	for (int i = 0; i < scripts.size() && psSeen && psViewer; ++i)
+	{
+		QScriptEngine *engine = scripts.at(i);
+		int me = engine->globalObject().property("me").toInt32();
+		if (me == psViewer->player)
+		{
+			QScriptEngine *engine = scripts.at(i);
+			QScriptValueList args;
+			args += convMax(psViewer, engine);
+			args += convMax(psSeen, engine);
+			callFunction(engine, "eventObjectSeen", args);
+		}
+	}
+	return true;
+}
+
+//__ \subsection{eventObjectTransfer(object, from)}
+//__ An event that is run whenever an object is transferred between players,
+//__ for example due to a Nexus Link weapon. The event is called after the
+//__ object has been transferred, so the target player is in object.player.
+//__ The event is called for both players.
+bool triggerEventObjectTransfer(BASE_OBJECT *psObj, int from)
+{
+	for (int i = 0; i < scripts.size() && psObj; ++i)
+	{
+		QScriptEngine *engine = scripts.at(i);
+		int me = engine->globalObject().property("me").toInt32();
+		if (me == psObj->player || me == from)
+		{
+			QScriptEngine *engine = scripts.at(i);
+			QScriptValueList args;
+			args += convMax(psObj, engine);
+			args += QScriptValue(from);
+			callFunction(engine, "eventObjectTransfer", args);
 		}
 	}
 	return true;

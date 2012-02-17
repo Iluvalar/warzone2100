@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2011  Warzone 2100 Project
+	Copyright (C) 2005-2012  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -3758,7 +3758,7 @@ void intProcessDesign(UDWORD id)
 			sCurrDesign.asParts[COMP_PROPULSION] = ((PROPULSION_STATS *)apsComponentList[id - IDDES_COMPSTART]) - asPropulsionStats;
 
 			/* Set the new stats on the display */
-			intSetPropulsionStats((PROPULSION_STATS *)apsComponentList[id - IDDES_COMPSTART]);
+			intSetPropulsionForm((PROPULSION_STATS *)apsComponentList[id - IDDES_COMPSTART]);
 
 			// Check that the weapon (if any) is valid for this propulsion
 			if (!intCheckValidWeaponForProp())
@@ -4365,7 +4365,7 @@ static void intDisplayStatForm(WIDGET *psWidget, UDWORD xOffset, UDWORD yOffset,
 	/* inc rotation if highlighted */
 	if ( Form->state & WCLICK_HILITE )
 	{
-		iRY += realTimeAdjustedIncrement(BUTTONOBJ_ROTSPEED);
+		iRY += realTimeAdjustedAverage(BUTTONOBJ_ROTSPEED);
 		iRY %= 360;
 	}
 
@@ -4401,7 +4401,7 @@ static void intDisplayViewForm(WIDGET *psWidget, UDWORD xOffset, UDWORD yOffset,
 		Rotation.z = 0;
 
 		/* inc rotation */
-		iRY += realTimeAdjustedIncrement(BUTTONOBJ_ROTSPEED);
+		iRY += realTimeAdjustedAverage(BUTTONOBJ_ROTSPEED);
 		iRY %= 360;
 
 		//fixed depth scale the pie

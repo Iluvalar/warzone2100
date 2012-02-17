@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2011  Warzone 2100 Project
+	Copyright (C) 2005-2012  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -723,11 +723,6 @@ void researchResult(UDWORD researchIndex, UBYTE player, bool bDisplay, STRUCTURE
 
 	ASSERT_OR_RETURN( , researchIndex < asResearch.size(), "Invalid research index %u", researchIndex);
 
-	if (!isInSync())
-	{
-		sendResearchStatus(NULL, researchIndex, player, false);
-	}
-
 	MakeResearchCompleted(&asPlayerResList[player][researchIndex]);
 
 	//check for structures to be made available
@@ -1338,7 +1333,7 @@ void cancelResearch(STRUCTURE *psBuilding, QUEUE_MODE mode)
 		if (mode == ModeQueue)
 		{
 			// Tell others that we want to stop researching something.
-			sendResearchStatus(NULL, topicInc, psBuilding->player, false);
+			sendResearchStatus(psBuilding, topicInc, psBuilding->player, false);
 			// Immediately tell the UI that we can research this now. (But don't change the game state.)
 			MakeResearchCancelledPending(pPlayerRes);
 			setStatusPendingCancel(*psResFac);
@@ -1819,8 +1814,6 @@ the research list next time the Research Facilty is selected */
 bool enableResearch(RESEARCH *psResearch, UDWORD player)
 {
 	UDWORD				inc;
-	STRUCTURE			*psStruct;
-	bool				resFree = false;
 
 	inc = psResearch->index;
 	if (inc > asResearch.size())
@@ -1829,25 +1822,15 @@ bool enableResearch(RESEARCH *psResearch, UDWORD player)
 		return false;
 	}
 
+	int prevState = intGetResearchState();
+
 	//found, so set the flag
 	MakeResearchPossible(&asPlayerResList[player][inc]);
 
-	if(player == selectedPlayer)
+	if (player == selectedPlayer)
 	{
 		//set the research reticule button to flash if research facility is free
-		for (psStruct = apsStructLists[selectedPlayer]; psStruct != NULL; psStruct=psStruct->psNext)
-		{
-			if (psStruct->pStructureType->type == REF_RESEARCH && psStruct->status == SS_BUILT &&
-				((RESEARCH_FACILITY *)psStruct->pFunctionality)->psSubject == NULL)
-			{
-				resFree = true;
-				break;
-			}
-		}
-		if (resFree)
-		{
-			flashReticuleButton(IDRET_RESEARCH);
-		}
+		intNotifyResearchButton(prevState);
 	}
 
 	return true;

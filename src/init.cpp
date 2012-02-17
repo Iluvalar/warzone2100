@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2011  Warzone 2100 Project
+	Copyright (C) 2005-2012  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -521,7 +521,6 @@ bool systemInitialise(void)
 	iV_TextInit();
 
 	iV_Reset();								// Reset the IV library.
-	initLoadingScreen(true);
 
 	readAIs();
 
@@ -542,7 +541,6 @@ void systemShutdown(void)
 	}
 
 	shutdownEffectsSystem();
-	closeLoadingScreen();
 	keyClearMappings();
 
 	// free up all the load functions (all the data should already have been freed)
@@ -1096,7 +1094,6 @@ bool stageThreeInitialise(void)
 	}
 
 	preProcessVisibility();
-	closeLoadingScreen();			// reset the loading screen.
 
 	// Load any stored templates; these need to be available ASAP
 	initTemplates();
@@ -1149,11 +1146,6 @@ bool stageThreeInitialise(void)
 				}
 			}
 		}
-	}
-
-	if (bMultiPlayer)
-	{
-		loadMultiScripts();
 	}
 
 	// ffs JS   (and its a global!)
@@ -1271,8 +1263,12 @@ static void	initMiscVars(void)
 
 	radarOnScreen = true;
 	radarPermitted = true;
+	allowDesign = true;
 	enableConsoleDisplay(true);
 
 	setSelectedGroup(UBYTE_MAX);
-	processDebugMappings(false);
+	for (unsigned n = 0; n < MAX_PLAYERS; ++n)
+	{
+		processDebugMappings(n, false);
+	}
 }

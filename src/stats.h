@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2011  Warzone 2100 Project
+	Copyright (C) 2005-2012  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -152,7 +152,7 @@ extern bool loadWeaponStats(const char *pWeaponData, UDWORD bufferSize);
 //extern bool loadArmourStats(void);
 
 /*Load the body stats from the file exported from Access*/
-extern bool loadBodyStats(const char *pBodyData, UDWORD bufferSize);
+extern bool loadBodyStats(const char *pFileName);
 
 /*Load the brain stats from the file exported from Access*/
 extern bool loadBrainStats(const char *pBrainData, UDWORD bufferSize);

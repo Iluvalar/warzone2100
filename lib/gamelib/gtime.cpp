@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2011  Warzone 2100 Project
+	Copyright (C) 2005-2012  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -106,9 +106,9 @@ void gameTimeInit(void)
 
 	stopCount = 0;
 
-	chosenLatency = GAME_TICKS_PER_UPDATE;
-	discreteChosenLatency = GAME_TICKS_PER_UPDATE;
-	wantedLatency = GAME_TICKS_PER_UPDATE;
+	chosenLatency = GAME_TICKS_PER_UPDATE*2;
+	discreteChosenLatency = GAME_TICKS_PER_UPDATE*2;
+	wantedLatency = GAME_TICKS_PER_UPDATE*2;
 	for (player = 0; player != MAX_PLAYERS; ++player)
 	{
 		wantedLatencies[player] = 0;
@@ -345,8 +345,8 @@ static void updateLatency()
 			maxWantedLatency = MAX(maxWantedLatency, wantedLatencies[player]);  // Maximum, since the host experiences lower latency than everyone else.
 		}
 	}
-	// Adjust the agreed latency. (Can maximum decrease by 15ms or increase by 30ms per update.
-	chosenLatency = chosenLatency + clip(maxWantedLatency - chosenLatency, -15, 30);
+	// Adjust the agreed latency. (Can maximum decrease by 5ms or increase by 30ms per update.
+	chosenLatency = chosenLatency + clip(maxWantedLatency - chosenLatency, -5, 60);
 	// Round the chosen latency to an integer number of updates, up to 10.
 	discreteChosenLatency = clip((chosenLatency + GAME_TICKS_PER_UPDATE/2)/GAME_TICKS_PER_UPDATE*GAME_TICKS_PER_UPDATE, GAME_TICKS_PER_UPDATE, GAME_TICKS_PER_UPDATE*GAME_UPDATES_PER_SEC);
 	if (prevDiscreteChosenLatency != discreteChosenLatency)
@@ -372,7 +372,7 @@ void sendPlayerGameTime()
 
 	for (player = 0; player < game.maxPlayers; ++player)
 	{
-		if (!myResponsibility(player) && whosResponsible(player) != realSelectedPlayer)
+		if (!myResponsibility(player))
 		{
 			continue;
 		}
@@ -451,9 +451,4 @@ void setPlayerGameTime(unsigned player, uint32_t time)
 	{
 		gameQueueTime[player] = time;
 	}
-}
-
-bool isInSync(void)
-{
-	return !crcError;
 }

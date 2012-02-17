@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2011  Warzone 2100 Project
+	Copyright (C) 2005-2012  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -143,22 +143,6 @@ extern void	getTimeComponents(UDWORD time, UDWORD *hours, UDWORD *minutes, UDWOR
 extern float graphicsTimeFraction;  ///< Private performance calculation. Do not use.
 extern float realTimeFraction;  ///< Private performance calculation. Do not use.
 
-/// Returns the value times deltaGameTime, converted to seconds. The return value is rounded down.
-static inline int32_t gameTimeAdjustedIncrement(int value)
-{
-	return value * (int)deltaGameTime / GAME_TICKS_PER_SEC;
-}
-/// Returns the value times deltaGraphicsTime, converted to seconds.
-static inline float graphicsTimeAdjustedIncrement(float value)
-{
-	return value * graphicsTimeFraction;
-}
-/// Returns the value times deltaGraphicsTime, converted to seconds.
-static inline float realTimeAdjustedIncrement(float value)
-{
-	return value * realTimeFraction;
-}
-
 /// Returns numerator/denominator * (newTime - oldTime). Rounds up or down such that the average return value is right, if oldTime is always the previous newTime.
 static inline WZ_DECL_CONST int quantiseFraction(int numerator, int denominator, int newTime, int oldTime)
 {
@@ -173,6 +157,29 @@ static inline WZ_DECL_CONST Vector3i quantiseFraction(Vector3i numerator, int de
 	                quantiseFraction(numerator.y, denominator, newTime, oldTime),
 	                quantiseFraction(numerator.z, denominator, newTime, oldTime));
 }
+
+/// Returns the value times deltaGameTime, converted to seconds. The return value is rounded down.
+static inline int32_t gameTimeAdjustedIncrement(int value)
+{
+	return value * (int)deltaGameTime / GAME_TICKS_PER_SEC;
+}
+/// Returns the value times deltaGraphicsTime, converted to seconds.
+static inline float graphicsTimeAdjustedIncrement(float value)
+{
+	return value * graphicsTimeFraction;
+}
+
+/// Returns the value times deltaGraphicsTime, converted to seconds, as a float.
+static inline float realTimeAdjustedIncrement(float value)
+{
+	return value * realTimeFraction;
+}
+/// Returns the value times deltaRealTime, converted to seconds. The return value is rounded up or down to the nearest integer, such that it is exactly right on average.
+static inline int32_t realTimeAdjustedAverage(int value)
+{
+	return quantiseFraction(value, GAME_TICKS_PER_SEC, realTime + deltaRealTime, realTime);
+}
+
 /// Returns the value times deltaGameTime, converted to seconds. The return value is rounded up or down, such that it is exactly right on average.
 static inline int32_t gameTimeAdjustedAverage(int value)
 {
@@ -193,7 +200,5 @@ void sendPlayerGameTime(void);                            ///< Sends a GAME_GAME
 void recvPlayerGameTime(NETQUEUE queue);                  ///< Processes a GAME_GAME_TIME message.
 bool checkPlayerGameTime(unsigned player);                ///< Checks that we are not waiting for a GAME_GAME_TIME message from this player. (player can be NET_ALL_PLAYERS.)
 void setPlayerGameTime(unsigned player, uint32_t time);   ///< Sets the player's time.
-
-bool isInSync(void);                                      ///< Returns true unless there was a CRC mismatch between the last GAME_GAME_TIME messages.
 
 #endif

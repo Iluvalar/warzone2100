@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2011  Warzone 2100 Project
+	Copyright (C) 2005-2012  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -36,7 +36,6 @@
 #include "hci.h"
 #include "projectile.h"
 #include "display3d.h"
-#include "lighting.h"
 #include "game.h"
 #include "texture.h"
 #include "advvis.h"
@@ -1626,50 +1625,6 @@ bool readVisibilityData(const char* fileName)
 
 	/* Hopefully everything's just fine by now */
 	return true;
-}
-
-static void astarTest(const char *name, int x1, int y1, int x2, int y2)
-{
-	int		i;
-	MOVE_CONTROL	route;
-	int		x = world_coord(x1);
-	int		y = world_coord(y1);
-	int		endx = world_coord(x2);
-	int		endy = world_coord(y2);
-	clock_t		stop;
-	clock_t		start = clock();
-	bool		retval;
-
-	scriptInit();
-	retval = levLoadData(name, NULL, GTYPE_SCENARIO_START);
-	ASSERT(retval, "Could not load %s", name);
-	route.asPath = NULL;
-	for (i = 0; i < 100; i++)
-	{
-		route.numPoints = 0;
-		free(route.asPath);
-		route.asPath = NULL;
-	}
-	stop = clock();
-	fprintf(stdout, "\t\tA* timing %s: %.02f (%d nodes)\n", name,
-	        (double)(stop - start) / (double)CLOCKS_PER_SEC, route.numPoints);
-	start = clock();
-	fpathTest(x, y, endx, endy);
-	stop = clock();
-	fprintf(stdout, "\t\tfPath timing %s: %.02f (%d nodes)\n", name,
-	        (double)(stop - start) / (double)CLOCKS_PER_SEC, route.numPoints);
-	retval = levReleaseAll();
-	assert(retval);
-}
-
-void mapTest()
-{
-	fprintf(stdout, "\tMap self-test...\n");
-
-	astarTest("Sk-BeggarsKanyon-T1", 16, 5, 119, 182);
-	astarTest("Sk-MizaMaze-T3", 5, 5, 108, 112);
-
-	fprintf(stdout, "\tMap self-test: PASSED\n");
 }
 
 // Convert a direction into an offset.

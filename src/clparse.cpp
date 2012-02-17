@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2011  Warzone 2100 Project
+	Copyright (C) 2005-2012  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -226,7 +226,6 @@ typedef enum
 	CLI_NOSHADOWS,
 	CLI_SOUND,
 	CLI_NOSOUND,
-	CLI_SELFTEST,
 	CLI_CONNECTTOIP,
 	CLI_HOSTLAUNCH,
 	CLI_NOASSERT,
@@ -260,7 +259,6 @@ static const struct poptOption* getOptionsTable(void)
 		{ "noshadows",  '\0', POPT_ARG_NONE,   NULL, CLI_NOSHADOWS,  N_("Disable shadows"),                   NULL },
 		{ "sound",      '\0', POPT_ARG_NONE,   NULL, CLI_SOUND,      N_("Enable sound"),                      NULL },
 		{ "nosound",    '\0', POPT_ARG_NONE,   NULL, CLI_NOSOUND,    N_("Disable sound"),                     NULL },
-		{ "selftest",   '\0', POPT_ARG_NONE,   NULL, CLI_SELFTEST,   N_("Activate self-test"),                NULL },
 		{ "join",       '\0', POPT_ARG_STRING, NULL, CLI_CONNECTTOIP,N_("connect directly to IP/hostname"),   N_("host") },
 		{ "host",       '\0', POPT_ARG_NONE,   NULL, CLI_HOSTLAUNCH, N_("go directly to host screen"),        NULL },
 		{ "texturecompression", '\0', POPT_ARG_NONE, NULL, CLI_TEXTURECOMPRESSION, N_("Enable texture compression"), NULL },
@@ -588,10 +586,6 @@ bool ParseCommandLine(int argc, const char** argv)
 
 			case CLI_NOSOUND:
 				war_setSoundEnabled(false);
-				break;
-
-			case CLI_SELFTEST:
-				selfTest = true;
 				break;
 
 			case CLI_TEXTURECOMPRESSION:

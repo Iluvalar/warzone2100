@@ -17,7 +17,6 @@
 				438B0C26137732A5008184FC /* Ogg - Fetch source */,
 				438B0C1E13773258008184FC /* Png - Fetch source */,
 				438B0C32137733B4008184FC /* PhysFS - Fetch source */,
-				4366712213D1F83200FE85BA /* QuesoGLC - Fetch source */,
 				438B0C2B1377336E008184FC /* Vorbis - Fetch source */,
 				438B0C3A137733F8008184FC /* Theora - Fetch source */,
 				438B0C101377317F008184FC /* Gettext - Fetch source */,
@@ -420,6 +419,7 @@
 		4366729613D2122700FE85BA /* QuesoGLC.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4366718213D1FD5600FE85BA /* QuesoGLC.framework */; };
 		4371B60F11D93FD1005A67AB /* pngpriv.h in Headers */ = {isa = PBXBuildFile; fileRef = 4371B60D11D93FD0005A67AB /* pngpriv.h */; };
 		437487CF14AE41C100ABC9C7 /* template.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4343651C149EA04800527137 /* template.cpp */; };
+		437DABE714C3345B00DB5F94 /* swapinterval.mm in Sources */ = {isa = PBXBuildFile; fileRef = 437DABE614C3345B00DB5F94 /* swapinterval.mm */; };
 		438BDDF31129DC9A00998660 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 438BDDD71129DC9A00998660 /* InfoPlist.strings */; };
 		43A6285B13A6C4A400C6B786 /* geometry.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 43A6285913A6C4A400C6B786 /* geometry.cpp */; };
 		43A8417811028EDD00733CCB /* pointtree.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 43A8417611028EDD00733CCB /* pointtree.cpp */; };
@@ -647,7 +647,6 @@
 		43F30913136BAEE900AFD307 /* QtNetwork.framework in Copy frameworks */ = {isa = PBXBuildFile; fileRef = 4333612011A07FB900380F5E /* QtNetwork.framework */; };
 		647D9C571039289A006D37CF /* challenge.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 647D9C551039289A006D37CF /* challenge.cpp */; };
 		9742E5730DF9975E000A5D41 /* lexer_input.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9742E5710DF9975E000A5D41 /* lexer_input.cpp */; };
-		9742E5770DF9979C000A5D41 /* parsetest.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9742E5750DF9979C000A5D41 /* parsetest.cpp */; };
 		974964240F5ABBBB00A38899 /* hashtable.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 974964220F5ABBBB00A38899 /* hashtable.cpp */; };
 		9749642C0F5ABBE100A38899 /* stdio_ext.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 974964280F5ABBE100A38899 /* stdio_ext.cpp */; };
 		974964330F5ABC3F00A38899 /* eventsave.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9749642F0F5ABC3F00A38899 /* eventsave.cpp */; };
@@ -710,33 +709,12 @@
 			remoteGlobalIDString = 02356D820BD3BB4100E9A019;
 			remoteInfo = Zlib;
 		};
-		0246A2FE0BD3CCF0004D1C70 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 02356D660BD3BB2600E9A019 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 02356D820BD3BB4100E9A019;
-			remoteInfo = Zlib;
-		};
 		0246A3000BD3CCF2004D1C70 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 02356D660BD3BB2600E9A019 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = 02356DC10BD3BBFC00E9A019;
 			remoteInfo = Png;
-		};
-		0246A3020BD3CCF3004D1C70 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 02356D660BD3BB2600E9A019 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 02356E080BD3BCFE00E9A019;
-			remoteInfo = Ogg;
-		};
-		0246A3040BD3CCF6004D1C70 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 02356D660BD3BB2600E9A019 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 02DDA7ED0BD3C03F0049AB60;
-			remoteInfo = Vorbis;
 		};
 		0246A3060BD3CCF9004D1C70 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -766,7 +744,7 @@
 			remoteGlobalIDString = 4318434A1363942200BA2BC5;
 			remoteInfo = MiniUPnPc;
 		};
-		43502D82134764BF00A02A1F /* PBXContainerItemProxy */ = {
+		4347025A14D9CDFB008D1957 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 02356D660BD3BB2600E9A019 /* Project object */;
 			proxyType = 1;
@@ -877,13 +855,6 @@
 			proxyType = 1;
 			remoteGlobalIDString = 43CCDCF614BA474E00B21363;
 			remoteInfo = fribidi;
-		};
-		43CCDEA014BA5E3400B21363 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 02356D660BD3BB2600E9A019 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 43CCDCF614BA474E00B21363;
-			remoteInfo = Fribidi;
 		};
 		43CEAE25141D71D10001637B /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -1584,6 +1555,7 @@
 		436D24DE149642EB00BF74E3 /* SDLMain.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = SDLMain.h; path = ../3rdparty/SDL/mac/SDLMain.h; sourceTree = SOURCE_ROOT; };
 		436D24DF149642EB00BF74E3 /* SDLMain.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = SDLMain.m; path = ../3rdparty/SDL/mac/SDLMain.m; sourceTree = SOURCE_ROOT; };
 		4371B60D11D93FD0005A67AB /* pngpriv.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = pngpriv.h; path = external/libpng/pngpriv.h; sourceTree = SOURCE_ROOT; };
+		437DABE614C3345B00DB5F94 /* swapinterval.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = swapinterval.mm; path = ../lib/sdl/swapinterval.mm; sourceTree = SOURCE_ROOT; };
 		437FB24913CE5CA900E7EF5B /* swapinterval.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = swapinterval.cpp; path = ../lib/qtgame/swapinterval.cpp; sourceTree = SOURCE_ROOT; };
 		437FB24A13CE5CA900E7EF5B /* swapinterval.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = swapinterval.h; path = ../lib/qtgame/swapinterval.h; sourceTree = SOURCE_ROOT; };
 		437FB24B13CE5CA900E7EF5B /* swapinterval.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = swapinterval.mm; path = ../lib/qtgame/swapinterval.mm; sourceTree = SOURCE_ROOT; };
@@ -1827,8 +1799,6 @@
 		647D9C561039289A006D37CF /* challenge.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = challenge.h; path = ../src/challenge.h; sourceTree = SOURCE_ROOT; };
 		9742E5710DF9975E000A5D41 /* lexer_input.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = lexer_input.cpp; path = ../lib/framework/lexer_input.cpp; sourceTree = SOURCE_ROOT; };
 		9742E5720DF9975E000A5D41 /* lexer_input.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = lexer_input.h; path = ../lib/framework/lexer_input.h; sourceTree = SOURCE_ROOT; };
-		9742E5750DF9979C000A5D41 /* parsetest.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = parsetest.cpp; path = ../src/parsetest.cpp; sourceTree = SOURCE_ROOT; };
-		9742E5760DF9979C000A5D41 /* parsetest.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = parsetest.h; path = ../src/parsetest.h; sourceTree = SOURCE_ROOT; };
 		9749641E0F5ABB9E00A38899 /* stringdef.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = stringdef.h; path = ../src/stringdef.h; sourceTree = SOURCE_ROOT; };
 		974964220F5ABBBB00A38899 /* hashtable.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = hashtable.cpp; path = ../lib/gamelib/hashtable.cpp; sourceTree = SOURCE_ROOT; };
 		974964230F5ABBBB00A38899 /* hashtable.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = hashtable.h; path = ../lib/gamelib/hashtable.h; sourceTree = SOURCE_ROOT; };
@@ -2122,8 +2092,6 @@
 				974964290F5ABBE100A38899 /* stdio_ext.h */,
 				9749642A0F5ABBE100A38899 /* string_ext.h */,
 				9749642B0F5ABBE100A38899 /* vector.h */,
-				9742E5750DF9979C000A5D41 /* parsetest.cpp */,
-				9742E5760DF9979C000A5D41 /* parsetest.h */,
 				9742E5710DF9975E000A5D41 /* lexer_input.cpp */,
 				9742E5720DF9975E000A5D41 /* lexer_input.h */,
 				02AAD13F0D9ED28C00248B0F /* file.h */,
@@ -2996,6 +2964,7 @@
 		436D248214963CC900BF74E3 /* SDL */ = {
 			isa = PBXGroup;
 			children = (
+				437DABE614C3345B00DB5F94 /* swapinterval.mm */,
 				4301EC49149A3DE90054BABB /* cursors_sdl.cpp */,
 				4301EC4A149A3DE90054BABB /* cursors_sdl.h */,
 				4301EC4B149A3DE90054BABB /* wz2100icon.h */,
@@ -3575,13 +3544,9 @@
 			);
 			dependencies = (
 				4318438A1363954200BA2BC5 /* PBXTargetDependency */,
-				43502D83134764BF00A02A1F /* PBXTargetDependency */,
-				0246A2FF0BD3CCF0004D1C70 /* PBXTargetDependency */,
-				43CCDEA114BA5E3400B21363 /* PBXTargetDependency */,
-				0246A3030BD3CCF3004D1C70 /* PBXTargetDependency */,
+				4347025B14D9CDFB008D1957 /* PBXTargetDependency */,
 				0246A3010BD3CCF2004D1C70 /* PBXTargetDependency */,
 				0246A3070BD3CCF9004D1C70 /* PBXTargetDependency */,
-				0246A3050BD3CCF6004D1C70 /* PBXTargetDependency */,
 				022B313F0BD56915002E64E3 /* PBXTargetDependency */,
 				97AEAC550E8C261600A10721 /* PBXTargetDependency */,
 				43FA571310FF8EE90074E914 /* PBXTargetDependency */,
@@ -3987,7 +3952,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "# Config\nexport PATH=$PATH:/sw/bin:/opt/local/bin\ndestdata=\"build/${CONFIGURATION}/Warzone.app/Contents/Resources/\"\ndatadir=\"../data\"\n\nif ! rsync -vcrlpt --del ${datadir} \"${destdata}\"; then\n    exit ${?}\nfi\n\nexit 0";
+			shellScript = "# Config\nexport PATH=$PATH:/sw/bin:/opt/local/bin\ndestdata=\"${CONFIGURATION_BUILD_DIR}/Warzone.app/Contents/Resources/\"\ndatadir=\"../data\"\n\nif ! rsync -vcrlpt --del ${datadir} \"${destdata}\"; then\n    exit ${?}\nfi\n\nexit 0";
 		};
 		43025CD1111FB66E006C49B1 /* i18n */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -4001,7 +3966,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "# Config\nexport PATH=$PATH:/sw/bin:/opt/local/bin\npodir=\"../po\"\ndisfile=\"configs/LangDis\"\naresdir=\"build/${CONFIGURATION}/Warzone.app/Contents/Resources/\"\nbresdir=\"locale/\"\nmessdir=\"LC_MESSAGES/\"\nmonme=\"warzone2100.mo\"\npolist=`ls -1 ${podir} | sed -n 's:\\.po$:&:p' | sed -e 's:\\.po::'`\ndislist=`cat ${disfile} | sed -n 's:^<::p'`\n\n# 1st san check\necho \"Checking for msgfmt...\"\nif [ -f build/notrans.dis ]; then\n    rm build/notrans.dis\n    echo \"warning: Gettext support has been disabled for this build because we could not find a binary.\" >&2\n    exit 0\nelif ! type -aP msgfmt; then\n    echo \"error: Fatal inability to properly translate messages.\" >&2\n    exit 1\nfi\n\n# Get the path\nmsgfmtpth=`type -P msgfmt`\n\n# 2nd san check\necho \"Checking for sanity...\"\nif ! $msgfmtpth --version; then\n    echo \"error: Fatal failure of san check.\" >&2\n    exit 1\nfi\n\n# Disable selected langs\nfor dislang in ${dislist}; do\n    echo \"Cleaning up for ${dislang} ...\"\n    rm -rfv \"${aresdir}${dislang}.lproj\"\ndone\n\n# Make .mo\nfor lang in ${polist}; do\n    if [ -d \"${aresdir}${lang}.lproj\" ]; then\n        echo \"Setting up for ${lang} ...\"\n        mkdir -p \"${aresdir}${bresdir}${lang}/${messdir}\"\n        $msgfmtpth -v -o \"${aresdir}${bresdir}${lang}/${messdir}${monme}\" \"${podir}/${lang}.po\"\n    fi\ndone\n\nexit 0";
+			shellScript = "# Config\nexport PATH=$PATH:/sw/bin:/opt/local/bin\npodir=\"../po\"\ndisfile=\"configs/LangDis\"\naresdir=\"${CONFIGURATION_BUILD_DIR}/Warzone.app/Contents/Resources/\"\nbresdir=\"locale/\"\nmessdir=\"LC_MESSAGES/\"\nmonme=\"warzone2100.mo\"\npolist=`ls -1 ${podir} | sed -n 's:\\.po$:&:p' | sed -e 's:\\.po::'`\ndislist=`cat ${disfile} | sed -n 's:^<::p'`\n\n# 1st san check\necho \"Checking for msgfmt...\"\nif [ -f build/notrans.dis ]; then\n    rm build/notrans.dis\n    echo \"warning: Gettext support has been disabled for this build because we could not find a binary.\" >&2\n    exit 0\nelif ! type -aP msgfmt; then\n    echo \"error: Fatal inability to properly translate messages.\" >&2\n    exit 1\nfi\n\n# Get the path\nmsgfmtpth=`type -P msgfmt`\n\n# 2nd san check\necho \"Checking for sanity...\"\nif ! $msgfmtpth --version; then\n    echo \"error: Fatal failure of san check.\" >&2\n    exit 1\nfi\n\n# Disable selected langs\nfor dislang in ${dislist}; do\n    echo \"Cleaning up for ${dislang} ...\"\n    rm -rfv \"${aresdir}${dislang}.lproj\"\ndone\n\n# Make .mo\nfor lang in ${polist}; do\n    if [ -d \"${aresdir}${lang}.lproj\" ]; then\n        echo \"Setting up for ${lang} ...\"\n        mkdir -p \"${aresdir}${bresdir}${lang}/${messdir}\"\n        $msgfmtpth -v -o \"${aresdir}${bresdir}${lang}/${messdir}${monme}\" \"${podir}/${lang}.po\"\n    fi\ndone\n\nexit 0";
 		};
 		4311544C14BA01F900332251 /* Docs */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -4015,7 +3980,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "DirectorY=\"WarzoneHelp-287be0d\"\nOutDir=\"WarzoneHelp\"\nFileName=\"WarzoneHelp-287be0d.tgz\"\nBuiltDLP=\"http://downloads.sourceforge.net/project/warzone2100/build-tools/mac/WarzoneHelp-287be0d.tgz\"\nMD5Sum=\"909bc7f5de29a7bb579c6a77b5a4bb9b\"\n\nconfigs/FetchPrebuilt.sh \"${DirectorY}\" \"${OutDir}\" \"${FileName}\" \"${BuiltDLP}\" \"${MD5Sum}\"\nexit ${?}\n";
+			shellScript = ". configs/fetchscripts/SetupPrebuiltComponents-Docs.sh";
 		};
 		43119DCC1353B08F004C54BB /* Generate headers */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -4043,7 +4008,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "DirectorY=\"QT_\"\nOutDir=\"QT\"\nFileName=\"QT.tar.gz\"\nBuiltDLP=\"http://downloads.sourceforge.net/project/warzone2100/build-tools/mac/QT.tar.gz\"\nMD5Sum=\"8bd5dd347b391ab4a29105f144c64b4d\"\n\nconfigs/FetchPrebuilt.sh \"${DirectorY}\" \"${OutDir}\" \"${FileName}\" \"${BuiltDLP}\" \"${MD5Sum}\"\nexit ${?}\n\n# tar -czf QT.tar.gz --exclude '.DS_Store' QT_";
+			shellScript = ". configs/fetchscripts/SetupPrebuiltComponents-QT.sh";
 		};
 		433360B311A079F700380F5E /* Moc */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -4057,7 +4022,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/bash;
-			shellScript = "export PATH=/sw/lib/qt4-mac/bin:/sw/lib/qt4-x11/bin:/opt/local/bin:${PATH}\nif [ \"${BACKEND}\" = \"BACKEND_QT\" ]; then\n    echo \"Checking for moc...\"\n    if ! type -aP moc; then\n        echo \"error: Fatal inability to properly moc the code. (Insure you have installed Qt or risk more mocing.)\" >&2\n        open ./README.BUILD.txt\n        exit 1\n    elif [[ `moc -v 2>&1 | sed -e 's:.*Qt \\(4\\.6\\)\\..)$:\\1:'` < \"4.6\" ]]; then\n        echo \"error: Moc is not properly installed\" >&2\n        exit 1\n    fi\nmoc -v\nelse\n    echo \"Moc is currently only needed when using the Qt backend.\"\nfi\nexit 0\n";
+			shellScript = "export PATH=/sw/lib/qt4-mac/bin:/sw/lib/qt4-x11/bin:/opt/local/bin:${PATH}\nif [ \"${BACKEND}\" = \"BACKEND_QT\" ]; then\n    echo \"Checking for moc...\"\n    if ! type -aP moc; then\n        echo \"error: Fatal inability to properly moc the code. (Insure you have installed Qt or risk more mocing.)\" >&2\n        open ./README.BUILD.txt\n        exit 1\n    elif [[ `moc -v 2>&1 | sed -e 's:.*Qt \\(4\\.6\\)\\..)$:\\1:'` < \"4.6\" ]]; then\n        echo \"error: Moc is not properly installed\" >&2\n        exit 1\n    fi\nmoc -v\nelse\n    echo \"note: Moc is currently only needed when using the Qt backend.\"\nfi\nexit 0\n";
 		};
 		4345290E1130F84E002AD731 /* msgfmt */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -4071,21 +4036,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "DirectorY=\"gettext-0.17.mpkg_\"\nOutDir=\"gettext-0.17.mpkg\"\nFileName=\"gettext-0.17.mpkg.tar.gz\"\nBuiltDLP=\"http://downloads.sourceforge.net/project/warzone2100/build-tools/mac/gettext-0.17.mpkg.tar.gz\"\nMD5Sum=\"ba7984918fe0b36e2e7c786693e005f2\"\n\n# Checks\nexport PATH=$PATH:/sw/bin:/opt/local/bin\nif type -aP msgfmt; then\n    echo \"msgfmt exists, skipping\"\n    exit 0\nelif [ -x \"/opt/local/bin/port\" ]; then\n  echo \"warning: Please run the following command in the terminal: 'sudo port install gettext'.\" >&2\n  open -b com.apple.Terminal\n  exit 1\nelif [ -d \"${SRCROOT}/external/${OutDir}\" ]; then\n    touch build/notrans.dis\n    echo \"warning: Gettext support has been disabled because we could not find a binary.\" >&2\n    exit 0\nelif [ ! `sw_vers -productVersion | sed -e 's:^...\\(.\\)..$:\\1:'` -ge \"6\" ]; then\n    touch build/notrans.dis\n    echo \"warning: Gettext support has been disabled because we could not find a binary.\" >&2\n    exit 0\nfi\n\nconfigs/FetchPrebuilt.sh \"${DirectorY}\" \"${OutDir}\" \"${FileName}\" \"${BuiltDLP}\" \"${MD5Sum}\"\nFetchExitStatus=$?\n\n# Install\nif [ ! \"${FetchExitStatus}\" = \"0\" ]; then\n    exit \"${FetchExitStatus}\"\nelif [ -d \"${SRCROOT}/external/${OutDir}\" ]; then\n    echo \" Please install the gettext package before continuing.\" >&2\n    open \"${SRCROOT}/external/${OutDir}\"\n    exit 1\nfi";
-		};
-		4366712213D1F83200FE85BA /* QuesoGLC - Fetch source */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-			);
-			name = "QuesoGLC - Fetch source";
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "DirectorY=\"quesoglc-0.7-r921\"\nOutDir=\"quesoglc\"\nFileName=\"quesoglc-0.7-r921.tar.gz\"\nSourceDLP=\"http://downloads.sourceforge.net/project/warzone2100/build-tools/mac/quesoglc-0.7-r921.tar.gz\"\nMD5Sum=\"ee73eebd23292dfb17365ff19eb15a0e\"\n\nconfigs/FetchSource.sh \"${DirectorY}\" \"${OutDir}\" \"${FileName}\" \"${SourceDLP}\" \"${MD5Sum}\"\nexit ${?}\n\n# tar -czf quesoglc-0.7-r921.tgz --exclude '.svn' --exclude '.DS_Store' quesoglc-0.7-r921\n";
+			shellScript = ". configs/fetchscripts/SetupPrebuiltComponents-msgfmt.sh";
 		};
 		436D24A4149641D200BF74E3 /* SDL */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -4099,7 +4050,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "DirectorY=\"SDL_\"\nOutDir=\"SDL\"\nFileName=\"SDL.tar.gz\"\nBuiltDLP=\"http://downloads.sourceforge.net/project/warzone2100/build-tools/mac/SDL.tar.gz\"\nMD5Sum=\"200bf42ff5118a57b26114248cc6b9fe\"\n\nconfigs/FetchPrebuilt.sh \"${DirectorY}\" \"${OutDir}\" \"${FileName}\" \"${BuiltDLP}\" \"${MD5Sum}\"\nexit ${?}\n";
+			shellScript = ". configs/fetchscripts/SetupPrebuiltComponents-SDL.sh";
 		};
 		438B0C101377317F008184FC /* Gettext - Fetch source */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -4113,7 +4064,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "DirectorY=\"gettext-0.18.1\"\nOutDir=\"gettext\"\nFileName=\"gettext-0.18.1.tar.gz\"\nSourceDLP=\"http://ftp.gnu.org/pub/gnu/gettext/gettext-0.18.1.tar.gz\"\nMD5Sum=\"2ae04f960d5fa03774636ddef19ebdbf\"\n\nconfigs/FetchSource.sh \"${DirectorY}\" \"${OutDir}\" \"${FileName}\" \"${SourceDLP}\" \"${MD5Sum}\"\nexit ${?}";
+			shellScript = ". configs/fetchscripts/Gettext-FetchSource.sh";
 		};
 		438B0C14137731C3008184FC /* GLExtensionWrangler - Fetch source */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -4127,7 +4078,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "DirectorY=\"glew-1.7.0\"\nOutDir=\"glew\"\nFileName=\"glew-1.7.0.tgz\"\nSourceDLP=\"http://downloads.sourceforge.net/project/glew/glew/1.7.0/glew-1.7.0.tgz\"\nMD5Sum=\"fb7a8bb79187ac98a90b57f0f27a3e84\"\n\nconfigs/FetchSource.sh \"${DirectorY}\" \"${OutDir}\" \"${FileName}\" \"${SourceDLP}\" \"${MD5Sum}\"\nexit ${?}\n";
+			shellScript = ". configs/fetchscripts/GLExtensionWrangler-FetchSource.sh";
 		};
 		438B0C191377320A008184FC /* Zlib - Fetch source */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -4141,7 +4092,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "DirectorY=\"zlib-1.2.5\"\nOutDir=\"zlib\"\nFileName=\"zlib-1.2.5.tar.gz\"\nSourceDLP=\"http://zlib.net/zlib-1.2.5.tar.gz\"\nMD5Sum=\"c735eab2d659a96e5a594c9e8541ad63\"\n\nconfigs/FetchSource.sh \"${DirectorY}\" \"${OutDir}\" \"${FileName}\" \"${SourceDLP}\" \"${MD5Sum}\"\nexit ${?}\n";
+			shellScript = ". configs/fetchscripts/Zlib-FetchSource.sh";
 		};
 		438B0C1E13773258008184FC /* Png - Fetch source */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -4155,7 +4106,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "DirectorY=\"libpng-1.5.7\"\nOutDir=\"libpng\"\nFileName=\"libpng-1.5.7.tar.gz\"\nSourceDLP=\"http://downloads.sourceforge.net/project/libpng/libpng15/1.5.7/libpng-1.5.7.tar.gz\"\nMD5Sum=\"944b56a84b65d94054cc73d7ff965de8\"\n\nconfigs/FetchSource.sh \"${DirectorY}\" \"${OutDir}\" \"${FileName}\" \"${SourceDLP}\" \"${MD5Sum}\"\nexit ${?}\n";
+			shellScript = ". configs/fetchscripts/Png-FetchSource.sh";
 		};
 		438B0C26137732A5008184FC /* Ogg - Fetch source */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -4169,7 +4120,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "OutDir=\"libogg\"\nDirectorY=\"${OutDir}-1.3.0\"\nFileName=\"${DirectorY}.tar.gz\"\nSourceDLP=\"http://downloads.xiph.org/releases/ogg/${FileName}\"\nMD5Sum=\"0a7eb40b86ac050db3a789ab65fe21c2\"\n\nconfigs/FetchSource.sh \"${DirectorY}\" \"${OutDir}\" \"${FileName}\" \"${SourceDLP}\" \"${MD5Sum}\"\nexit ${?}\n";
+			shellScript = ". configs/fetchscripts/Ogg-FetchSource.sh";
 		};
 		438B0C2B1377336E008184FC /* Vorbis - Fetch source */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -4183,7 +4134,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "DirectorY=\"libvorbis-1.3.2\"\nOutDir=\"libvorbis\"\nFileName=\"libvorbis-1.3.2.tar.gz\"\nSourceDLP=\"http://downloads.xiph.org/releases/vorbis/libvorbis-1.3.2.tar.gz\"\nMD5Sum=\"c870b9bd5858a0ecb5275c14486d9554\"\n\nconfigs/FetchSource.sh \"${DirectorY}\" \"${OutDir}\" \"${FileName}\" \"${SourceDLP}\" \"${MD5Sum}\"\nexit ${?}";
+			shellScript = ". configs/fetchscripts/Vorbis-FetchSource.sh";
 		};
 		438B0C32137733B4008184FC /* PhysFS - Fetch source */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -4197,7 +4148,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "DirectorY=\"physfs-2.0.2\"\nOutDir=\"physfs\"\nFileName=\"physfs-2.0.2.tar.gz\"\nSourceDLP=\"http://icculus.org/physfs/downloads/physfs-2.0.2.tar.gz\"\nMD5Sum=\"4e8927c3d30279b03e2592106eb9184a\"\n\nconfigs/FetchSource.sh \"${DirectorY}\" \"${OutDir}\" \"${FileName}\" \"${SourceDLP}\" \"${MD5Sum}\"\nexit ${?}\n";
+			shellScript = ". configs/fetchscripts/PhysFS-FetchSource.sh";
 		};
 		438B0C3A137733F8008184FC /* Theora - Fetch source */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -4211,7 +4162,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "DirectorY=\"libtheora-1.1.1\"\nOutDir=\"libtheora\"\nFileName=\"libtheora-1.1.1.tar.gz\"\nSourceDLP=\"http://downloads.xiph.org/releases/theora/libtheora-1.1.1.tar.gz\"\nMD5Sum=\"bb4dc37f0dc97db98333e7160bfbb52b\"\n\nconfigs/FetchSource.sh \"${DirectorY}\" \"${OutDir}\" \"${FileName}\" \"${SourceDLP}\" \"${MD5Sum}\"\nexit ${?}";
+			shellScript = ". configs/fetchscripts/Theora-FetchSource.sh";
 		};
 		43B8FF2D127CD57D006F5A13 /* Fonts */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -4225,7 +4176,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "DirectorY=\"fonts_\"\nOutDir=\"fonts\"\nFileName=\"fonts.tar.gz\"\nBuiltDLP=\"http://downloads.sourceforge.net/project/warzone2100/build-tools/mac/fonts.tar.gz\"\nMD5Sum=\"1b8805b36f6f1ba71026d6b5ece1ed52\"\n\nconfigs/FetchPrebuilt.sh \"${DirectorY}\" \"${OutDir}\" \"${FileName}\" \"${BuiltDLP}\" \"${MD5Sum}\"\nexit ${?}\n\n# tar -czf fonts.tar.gz --exclude '.DS_Store' fonts_";
+			shellScript = ". configs/fetchscripts/SetupPrebuiltComponents-Fonts.sh";
 		};
 		43CCDDE514BA559200B21363 /* Fribidi - Fetch source */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -4239,7 +4190,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "DirectorY=\"fribidi-0.10.9\"\nOutDir=\"fribidi\"\nFileName=\"fribidi-0.10.9.tar.gz\"\nSourceDLP=\"http://fribidi.org/download/fribidi-0.10.9.tar.gz\"\nMD5Sum=\"647aee89079b056269ff0918dc1c6d28\"\n\nconfigs/FetchSource.sh \"${DirectorY}\" \"${OutDir}\" \"${FileName}\" \"${SourceDLP}\" \"${MD5Sum}\"\nexit ${?}\n";
+			shellScript = ". configs/fetchscripts/Fribidi-FetchSource.sh";
 		};
 		43CEADC3141D6E810001637B /* fontconfig */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -4253,7 +4204,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "DirectorY=\"usr\"\nOutDir=\"usr-fontconfig\"\nFileName=\"fontconfig-2.8.0-darwin9-bin3.tar.gz\"\nBuiltDLP=\"http://r.research.att.com/libs/fontconfig-2.8.0-darwin9-bin3.tar.gz\"\nMD5Sum=\"5d53bd02deb019ac972481afef05562c\"\n\nconfigs/FetchPrebuilt.sh \"${DirectorY}\" \"${OutDir}\" \"${FileName}\" \"${BuiltDLP}\" \"${MD5Sum}\"\nexit ${?}\n";
+			shellScript = ". configs/fetchscripts/SetupPrebuiltComponents-fontconfig.sh";
 		};
 		43CEADC6141D6EEE0001637B /* freetype */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -4267,7 +4218,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "DirectorY=\"usr\"\nOutDir=\"usr-freetype\"\nFileName=\"freetype-2.4.4-darwin9-bin4.tar.gz\"\nBuiltDLP=\"http://r.research.att.com/libs/freetype-2.4.4-darwin9-bin4.tar.gz\"\nMD5Sum=\"1c782dbe8176d987666cdc0e73194862\"\n\nconfigs/FetchPrebuilt.sh \"${DirectorY}\" \"${OutDir}\" \"${FileName}\" \"${BuiltDLP}\" \"${MD5Sum}\"\nexit ${?}\n";
+			shellScript = ". configs/fetchscripts/SetupPrebuiltComponents-freetype.sh";
 		};
 		43D180761336B6BF001906EB /* Run autorevision */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -4281,7 +4232,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "# Config\nexport PATH=$PATH:/sw/bin:/opt/local/bin\nsauto=\"src/autorevision.h\"\ntauto=\"${OBJROOT}/autorev/autorevision.h\"\nfunction hfilter {\n\trm -f \"${OBJROOT}/autorevision.h\"\n\tsed -e 's:refs/heads/:branch/:' -e 's:refs/remotes/:remote/:' -e 's:branch/master:Master:' -e 's:\tv:\t:' -e 's:v/::' \"${tauto}\" | sed -e 's:_beta: Beta :' -e 's:_rc: RC :' > \"${OBJROOT}/autorevision.h\"\n}\nfunction bauto {\n\tif ! ./build_tools/autorevision.sh \"${tauto}\"; then\n\t\techo \"error: Could not run Autorevision\"\n\t\texit 1\n\tfi\n}\n\ncd ..\n\nif [[ ! -d \".git\" ]] && [[ ! -d \".hg\" ]] && [[ -f \"${sauto}\" ]]; then\n\t# Do not run if we will not get useful information\n\techo \"Not a repo.\"\n\thfilter\n\texit 0\nelif [ -d \"${OBJROOT}/autorev/\" ]; then\n\t# Only update src/autorevision.h if something has changed\n\tbauto\n\tmdck1=`md5 -q \"${sauto}\"`\n\tmdck2=`md5 -q \"${tauto}\"`\n\tif [ \"${mdck1}\" = \"${mdck2}\" ]; then\n\t\texit 0\n\tfi\nelse\n\tmkdir \"${OBJROOT}/autorev/\"\n\tbauto\nfi\n\ncp -a \"${tauto}\" \"${sauto}\"\nhfilter\nexit 0\n";
+			shellScript = "# Config\nexport PATH=$PATH:/sw/bin:/opt/local/bin\nsauto=\"src/autorevision.h\"\ntauto=\"${OBJROOT}/autorev/autorevision.h\"\nfunction hfilter {\n\trm -f \"${OBJROOT}/autorevision.h\"\n\tsed -e 's:refs/heads/:branch/:' -e 's:refs/remotes/:remote/:' -e 's:branch/master:Master:' -e 's:\tv:\t:' -e 's:v/::' \"${sauto}\" | sed -e 's:_beta: Beta :' -e 's:_rc: RC :' > \"${OBJROOT}/autorevision.h\"\n}\nfunction bauto {\n\tif ! ./build_tools/autorevision.sh \"${tauto}\"; then\n\t\techo \"error: Could not run Autorevision\"\n\t\texit 1\n\tfi\n}\n\ncd ..\n\nif [[ ! -d \".git\" ]] && [[ ! -d \".hg\" ]] && [[ -f \"${sauto}\" ]]; then\n\t# Do not run if we will not get useful information\n\techo \"Not a repo.\"\n\thfilter\n\texit 0\nelif [ -d \"${OBJROOT}/autorev/\" ]; then\n\t# Only update src/autorevision.h if something has changed\n\tbauto\n\tmdck1=`md5 -q \"${sauto}\"`\n\tmdck2=`md5 -q \"${tauto}\"`\n\tif [ \"${mdck1}\" = \"${mdck2}\" ]; then\n\t\texit 0\n\tfi\nelse\n\tmkdir \"${OBJROOT}/autorev/\"\n\tbauto\nfi\n\ncp -a \"${tauto}\" \"${sauto}\"\nhfilter\nexit 0\n";
 		};
 		43D4669013FBF5AC00E5C499 /* Patch */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -4518,7 +4469,6 @@
 				02AAD1440D9ED28C00248B0F /* i18n.cpp in Sources */,
 				02BBB2090DA874F6002D438B /* exceptionhandler.cpp in Sources */,
 				9742E5730DF9975E000A5D41 /* lexer_input.cpp in Sources */,
-				9742E5770DF9979C000A5D41 /* parsetest.cpp in Sources */,
 				22E244D70E65361800EC2B3E /* baseobject.cpp in Sources */,
 				024480240C5E4BEE00E1A641 /* utf.cpp in Sources */,
 				976AE8280EA0B59A00F2473F /* timer.cpp in Sources */,
@@ -4550,6 +4500,7 @@
 				435D3B6A149AC4A000E24F69 /* cursors_sdl.cpp in Sources */,
 				437487CF14AE41C100ABC9C7 /* template.cpp in Sources */,
 				43CCE06514BA636900B21363 /* netjoin_stub.cpp in Sources */,
+				437DABE714C3345B00DB5F94 /* swapinterval.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -4783,25 +4734,10 @@
 			target = 02356D820BD3BB4100E9A019 /* Zlib */;
 			targetProxy = 02356E010BD3BCBF00E9A019 /* PBXContainerItemProxy */;
 		};
-		0246A2FF0BD3CCF0004D1C70 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 02356D820BD3BB4100E9A019 /* Zlib */;
-			targetProxy = 0246A2FE0BD3CCF0004D1C70 /* PBXContainerItemProxy */;
-		};
 		0246A3010BD3CCF2004D1C70 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 02356DC10BD3BBFC00E9A019 /* Png */;
 			targetProxy = 0246A3000BD3CCF2004D1C70 /* PBXContainerItemProxy */;
-		};
-		0246A3030BD3CCF3004D1C70 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 02356E080BD3BCFE00E9A019 /* Ogg */;
-			targetProxy = 0246A3020BD3CCF3004D1C70 /* PBXContainerItemProxy */;
-		};
-		0246A3050BD3CCF6004D1C70 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 02DDA7ED0BD3C03F0049AB60 /* Vorbis */;
-			targetProxy = 0246A3040BD3CCF6004D1C70 /* PBXContainerItemProxy */;
 		};
 		0246A3070BD3CCF9004D1C70 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -4823,10 +4759,10 @@
 			target = 4318434A1363942200BA2BC5 /* MiniUPnPc */;
 			targetProxy = 431843891363954200BA2BC5 /* PBXContainerItemProxy */;
 		};
-		43502D83134764BF00A02A1F /* PBXTargetDependency */ = {
+		4347025B14D9CDFB008D1957 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 43502D511347640700A02A1F /* GLExtensionWrangler */;
-			targetProxy = 43502D82134764BF00A02A1F /* PBXContainerItemProxy */;
+			targetProxy = 4347025A14D9CDFB008D1957 /* PBXContainerItemProxy */;
 		};
 		4366718913D1FD6100FE85BA /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -4902,11 +4838,6 @@
 			isa = PBXTargetDependency;
 			target = 43CCDCF614BA474E00B21363 /* Fribidi */;
 			targetProxy = 43CCDDBC14BA53E700B21363 /* PBXContainerItemProxy */;
-		};
-		43CCDEA114BA5E3400B21363 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 43CCDCF614BA474E00B21363 /* Fribidi */;
-			targetProxy = 43CCDEA014BA5E3400B21363 /* PBXContainerItemProxy */;
 		};
 		43CEAE26141D71D10001637B /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;

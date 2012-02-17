@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2011  Warzone 2100 Project
+	Copyright (C) 2005-2012  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -61,6 +61,11 @@
 char masterserver_name[255] = {'\0'};
 static unsigned int masterserver_port = 0, gameserver_port = 0;
 
+#define WZ_SERVER_DISCONNECT 0
+#define WZ_SERVER_CONNECT    1
+#define WZ_SERVER_LAUNCH     2
+#define WZ_SERVER_UPDATE     3
+
 #define NET_TIMEOUT_DELAY	2500		// we wait this amount of time for socket activity
 #define NET_READ_TIMEOUT	0
 /*
@@ -82,7 +87,7 @@ static void NETallowJoining(void);
 static void recvDebugSync(NETQUEUE queue);
 static bool onBanList(const char *ip);
 static void addToBanList(const char *ip, const char *name);
-
+static void NETfixPlayerCount(void);
 /*
  * Network globals, these are part of the new network API
  */
@@ -160,7 +165,7 @@ unsigned NET_PlayerConnectionStatus[CONNECTIONSTATUS_NORMAL][MAX_PLAYERS];
 **/
 static char const *versionString = version_getVersionString();
 static int NETCODE_VERSION_MAJOR = 6;
-static int NETCODE_VERSION_MINOR = 2;
+static int NETCODE_VERSION_MINOR = 4;
 
 bool NETisCorrectVersion(uint32_t game_version_major, uint32_t game_version_minor)
 {
@@ -360,7 +365,8 @@ static signed int NET_CreatePlayer(const char* name)
 {
 	signed int index;
 
-	for (index = 0; index < MAX_CONNECTED_PLAYERS; index++)
+	// only look for spots up to the max players allowed on the map
+	for (index = 0; index < gamestruct.desc.dwMaxPlayers; index++)
 	{
 		if (NetPlay.players[index].allocated == false && NetPlay.players[index].ai == AI_OPEN)
 		{
@@ -396,7 +402,7 @@ static void NET_DestroyPlayer(unsigned int index)
 		{
 			// Update player count in the lobby by disconnecting
 			// and reconnecting
-			NETregisterServer(2);
+			NETregisterServer(WZ_SERVER_UPDATE);
 		}
 	}
 	NET_InitPlayer(index, false);  // reinitialize
@@ -864,11 +870,6 @@ static bool NETrecvGAMESTRUCT(GAMESTRUCT* ourgamestruct)
 	ourgamestruct->future4 = ntohl(*(uint32_t*)buffer);
 	buffer += sizeof(uint32_t);
 
-	// cat the modstring (if there is one) to the version string to display it for the end-user
-	if (ourgamestruct->modlist[0] != '\0')
-	{
-		ssprintf(ourgamestruct->versionstring, "%s, Mods:%s", ourgamestruct->versionstring, ourgamestruct->modlist);
-	}
 	debug(LOG_NET, "received GAMESTRUCT");
 
 	return true;
@@ -1654,6 +1655,7 @@ bool NETrecvNet(NETQUEUE *queue, uint8_t *type)
 
 	if (NetPlay.isHost)
 	{
+		NETfixPlayerCount();
 		NETallowJoining();
 	}
 
@@ -1696,7 +1698,7 @@ bool NETrecvNet(NETQUEUE *queue, uint8_t *type)
 			{
 				// Send message type specifically for dropped / disconnects
 				NETplayerDropped(current);
-				NetPlay.players[current].kick = true;           // they are going to get kicked.
+				connected_bsocket[current] = NULL;		// clear their socket
 			}
 		}
 	}
@@ -1994,7 +1996,7 @@ static void NETregisterServer(int state)
 		switch(state)
 		{
 			// Update player counts
-			case 2:
+			case WZ_SERVER_UPDATE:
 			{
 				if (!NETsendGAMESTRUCT(rs_socket, &gamestruct))
 				{
@@ -2005,7 +2007,7 @@ static void NETregisterServer(int state)
 			break;
 
 			// Register a game with the lobby
-			case 1:
+			case WZ_SERVER_CONNECT:
 			{
 				uint32_t gameId = 0;
 				SocketAddress *const hosts = resolveHost(masterserver_name, masterserver_port);
@@ -2080,12 +2082,12 @@ static void NETregisterServer(int state)
 				}
 
 				// Preserves another register
-				registered=state;
+				registered = state;
 			}
 			break;
 
 			// Unregister the game (close the socket)
-			case 0:
+			case WZ_SERVER_DISCONNECT:
 			{
 				if (rs_socket != NULL)
 				{
@@ -2096,29 +2098,51 @@ static void NETregisterServer(int state)
 				}
 
 				// Preserves another unregister
-				registered=state;
+				registered = state;
 			}
 			break;
 		}
 	}
 }
 
+// ////////////////////////////////////////////////////////////////////////
+//  Check player "slots" & update player count if needed.
+void NETfixPlayerCount(void)
+{
+	int playercount = 0;
 
+	for (int index = 0; index < gamestruct.desc.dwMaxPlayers; index++)
+	{
+		if ((NetPlay.players[index].allocated == false && NetPlay.players[index].ai != AI_OPEN) || NetPlay.players[index].allocated)
+		{
+			playercount++;
+		}
+	}
+
+	if (allow_joining && NetPlay.isHost && NetPlay.playercount != playercount)
+	{
+		debug(LOG_NET,"Updating player count from %d to %d", (int)NetPlay.playercount, playercount);
+		gamestruct.desc.dwCurrentPlayers = NetPlay.playercount = playercount;
+		NETregisterServer(WZ_SERVER_UPDATE);
+	}
+
+}
 // ////////////////////////////////////////////////////////////////////////
 // Host a game with a given name and player name. & 4 user game flags
 static void NETallowJoining(void)
 {
 	unsigned int i;
-	char buffer[sizeof(int32_t) * 2];
+	char buffer[10] = {'\0'};
 	char* p_buffer;
 	int32_t result;
 	bool connectFailed = true;
 	int32_t major, minor;
+	ssize_t recv_result = 0;
 
 	if (allow_joining == false) return;
 	ASSERT(NetPlay.isHost, "Cannot receive joins if not host!");
 
-	NETregisterServer(1);
+	NETregisterServer(WZ_SERVER_CONNECT);
 
 	// This is here since we need to get the status, before we can show the info.
 	// FIXME: find better location to stick this?
@@ -2163,62 +2187,71 @@ static void NETallowJoining(void)
 		SocketSet_AddSocket(tmp_socket_set, tmp_socket[i]);
 
 		p_buffer = buffer;
+		// We check for socket activity (connection), and then we check if we got data, since it is possible to have a connection
+		// and have no data waiting.
 		if (checkSockets(tmp_socket_set, NET_TIMEOUT_DELAY) > 0
 		    && socketReadReady(tmp_socket[i])
-		    && readNoInt(tmp_socket[i], p_buffer, 5) != SOCKET_ERROR)
+		    && (recv_result = readNoInt(tmp_socket[i], p_buffer, 8))
+			&& recv_result != SOCKET_ERROR)
 		{
-			// A 2.3.7 client sends a "list" command first,
-			// we just close the socket so he sees a "Connection Error".
+			// A 2.3.7 client sends a "list" command first, just drop the connection.
 			if (strcmp(buffer, "list") == 0)
 			{
-				debug(LOG_ERROR, "An old client tried to connect, closing the socket.");
+				debug(LOG_INFO, "An old client tried to connect, closing the socket.");
+				connectFailed = true;
 			}
 			else
 			{
 				// New clients send NETCODE_VERSION_MAJOR and NETCODE_VERSION_MINOR
 				// Check these numbers with our own.
 
-				// Read another 3 bytes into the buffer
-				p_buffer += 5;
+				memcpy(&major, p_buffer, sizeof(int32_t));
+				major = ntohl(major);
+				p_buffer += sizeof(int32_t);
+				memcpy(&minor, p_buffer, sizeof(int32_t));
+				minor = ntohl(minor);
 
-				if (readNoInt(tmp_socket[i], p_buffer, 3) != SOCKET_ERROR)
+				if (NETisCorrectVersion(major, minor))
 				{
-					p_buffer = buffer;
-					memcpy(&major, p_buffer, sizeof(int32_t));
-					major = ntohl(major);
-					p_buffer += sizeof(uint32_t);
-					memcpy(&minor, p_buffer, sizeof(int32_t));
-					minor = ntohl(minor);
+					result = htonl(ERROR_NOERROR);
+					memcpy(&buffer, &result, sizeof(result));
+					writeAll(tmp_socket[i], &buffer, sizeof(result));
+					socketBeginCompression(tmp_socket[i]);
 
-					if (NETisCorrectVersion(major, minor))
-					{
-						result = htonl(ERROR_NOERROR);
-						memcpy(&buffer, &result, sizeof(result));
-						writeAll(tmp_socket[i], &buffer, sizeof(result));
-						socketBeginCompression(tmp_socket[i]);
-
-						// Connection is successful.
-						connectFailed = false;
-					}
-					else
-					{
-						// Commented out as each masterserver check creates an error.
-						debug(LOG_ERROR, "Received an invalid version \"%d.%d\".", major, minor);
-						result = htonl(ERROR_WRONGVERSION);
-						memcpy(&buffer, &result, sizeof(result));
-						writeAll(tmp_socket[i], &buffer, sizeof(result));
-					}
+					// Connection is successful.
+					connectFailed = false;
 				}
 				else
 				{
-					debug(LOG_NET, "Socket error while reading clients version.");
+					// Commented out as each masterserver check creates an error.
+					debug(LOG_ERROR, "Received an invalid version \"%d.%d\".", major, minor);
+					result = htonl(ERROR_WRONGVERSION);
+					memcpy(&buffer, &result, sizeof(result));
+					writeAll(tmp_socket[i], &buffer, sizeof(result));
+				}
+				if ((int)NetPlay.playercount == gamestruct.desc.dwMaxPlayers)
+				{
+					// early player count test, in case they happen to get in before updates.
+					// Tell the player that we are full.
+					uint8_t rejected = ERROR_FULL;
+					NETbeginEncode(NETnetTmpQueue(i), NET_REJECTED);
+						NETuint8_t(&rejected);
+					NETend();
+					NETflush();
+					connectFailed = true;
 				}
 			}
+		}
+		else
+		{
+			debug(LOG_NET, "Failed to process joining, socket not ready or no data, recv_result is :%d", (int)recv_result);
+			connectFailed = true;
 		}
 
 		// Remove a failed connection.
 		if (connectFailed)
 		{
+			debug(LOG_NET, "freeing temp socket %p (%d)", tmp_socket[i], __LINE__);
 			SocketSet_DelSocket(tmp_socket_set, tmp_socket[i]);
 			socketClose(tmp_socket[i]);
 			tmp_socket[i] = NULL;
@@ -2398,7 +2431,7 @@ static void NETallowJoining(void)
 					NETfixDuplicatePlayerNames();
 
 					// Send the updated GAMESTRUCT to the masterserver
-					NETregisterServer(2);
+					NETregisterServer(WZ_SERVER_UPDATE);
 
 
 					// reset flags for new players
@@ -2520,7 +2553,7 @@ bool NEThostGame(const char* SessionName, const char* PlayerName,
 
 	allow_joining = true;
 
-	NETregisterServer(0);
+	NETregisterServer(WZ_SERVER_DISCONNECT);
 
 	debug(LOG_NET, "Hosting a server. We are player %d.", selectedPlayer);
 
@@ -2535,7 +2568,7 @@ bool NEThaltJoining(void)
 
 	allow_joining = false;
 	// disconnect from the master server
-	NETregisterServer(0);
+	NETregisterServer(WZ_SERVER_DISCONNECT);
 	return true;
 }
 
@@ -2648,6 +2681,9 @@ bool NETfindGame(void)
 		{
 			debug(LOG_NET, "only %u game(s) received", (unsigned int)gamecount);
 			// If we fail, success depends on the amount of games that we've read already
+			SocketSet_DelSocket(socket_set, tcp_socket);		// mark it invalid
+			socketClose(tcp_socket);
+			tcp_socket = NULL;
 			return gamecount;
 		}
 
@@ -2666,6 +2702,9 @@ bool NETfindGame(void)
 		addConsoleMessage(_("Failed to get a lobby response!"), DEFAULT_JUSTIFY, NOTIFY_MESSAGE);
 		return true;		// while there was a problem, this isn't fatal for the function
 	}
+	SocketSet_DelSocket(socket_set, tcp_socket);		// mark it invalid (we are done with it)
+	socketClose(tcp_socket);
+	tcp_socket = NULL;
 	addConsoleMessage(NetPlay.MOTD, DEFAULT_JUSTIFY, SYSTEM_MESSAGE);
 	return true;
 }
@@ -3436,21 +3475,16 @@ const char *messageTypeToString(unsigned messageType_)
 		case GAME_LASSAT:                   return "GAME_LASSAT";
 		case GAME_GAME_TIME:                return "GAME_GAME_TIME";
 		case GAME_PLAYER_LEFT:              return "GAME_PLAYER_LEFT";
-		// The following messages (not including GAME_MAX_TYPE) are currently redundant, and should probably at some point not be
-		// sent, except (some of them) when using cheats in debug mode.
-		case GAME_DROID:                    return "GAME_DROID";
-		case GAME_BUILDFINISHED:            return "GAME_BUILDFINISHED";
-		case GAME_FEATURES:                 return "GAME_FEATURES";
-		case GAME_DROIDDEST:                return "GAME_DROIDDEST";
-		case GAME_STRUCTDEST:               return "GAME_STRUCTDEST";
-		case GAME_FEATUREDEST:              return "GAME_FEATUREDEST";
-		case GAME_RESEARCH:                 return "GAME_RESEARCH";
-		case GAME_CHECK_DROID:              return "GAME_CHECK_DROID";
-		case GAME_CHECK_STRUCT:             return "GAME_CHECK_STRUCT";
-		case GAME_CHECK_POWER:              return "GAME_CHECK_POWER";
-		case GAME_DEMOLISH:                 return "GAME_DEMOLISH";
-		case GAME_DROIDEMBARK:              return "GAME_DROIDEMBARK";
 		case GAME_DROIDDISEMBARK:           return "GAME_DROIDDISEMBARK";
+		// The following messages are used for debug mode.
+		case GAME_DEBUG_MODE:               return "GAME_DEBUG_MODE";
+		case GAME_DEBUG_ADD_DROID:          return "GAME_DEBUG_ADD_DROID";
+		case GAME_DEBUG_ADD_STRUCTURE:      return "GAME_DEBUG_ADD_STRUCTURE";
+		case GAME_DEBUG_ADD_FEATURE:        return "GAME_DEBUG_ADD_FEATURE";
+		case GAME_DEBUG_REMOVE_DROID:       return "GAME_DEBUG_REMOVE_DROID";
+		case GAME_DEBUG_REMOVE_STRUCTURE:   return "GAME_DEBUG_REMOVE_STRUCTURE";
+		case GAME_DEBUG_REMOVE_FEATURE:     return "GAME_DEBUG_REMOVE_FEATURE";
+		case GAME_DEBUG_FINISH_RESEARCH:    return "GAME_DEBUG_FINISH_RESEARCH";
 		// End of redundant messages.
 		case GAME_MAX_TYPE:                 return "GAME_MAX_TYPE";
 	}

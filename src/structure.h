@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2011  Warzone 2100 Project
+	Copyright (C) 2005-2012  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -112,7 +112,7 @@ extern bool	structureStatsShutDown(void);
 
 int requestOpenGate(STRUCTURE *psStructure);
 
-int32_t structureDamage(STRUCTURE *psStructure, unsigned damage, WEAPON_CLASS weaponClass, WEAPON_SUBCLASS weaponSubClass, unsigned impactTime);
+int32_t structureDamage(STRUCTURE *psStructure, unsigned damage, WEAPON_CLASS weaponClass, WEAPON_SUBCLASS weaponSubClass, unsigned impactTime, bool isDamagePerSecond);
 extern void structureBuild(STRUCTURE *psStructure, DROID *psDroid, int buildPoints, int buildRate = 1);
 extern void structureDemolish(STRUCTURE *psStructure, DROID *psDroid, int buildPoints);
 extern bool structureRepair(STRUCTURE *psStruct, DROID *psDroid, int buildPoints);
@@ -258,7 +258,7 @@ extern void printStructureInfo(STRUCTURE *psStructure);
 
 /*Checks the template type against the factory type - returns false
 if not a good combination!*/
-extern bool validTemplateForFactory(DROID_TEMPLATE *psTemplate, STRUCTURE *psFactory);
+extern bool validTemplateForFactory(DROID_TEMPLATE *psTemplate, STRUCTURE *psFactory, bool complain);
 
 /*calculates the damage caused to the resistance levels of structures*/
 //extern bool electronicDamage(STRUCTURE *psStructure, UDWORD damage, UBYTE attackPlayer);

@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2011  Warzone 2100 Project
+	Copyright (C) 2005-2012  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -96,19 +96,19 @@ void pie_ScreenFlip(int clearMode)
 
 	screenDoDumpToDiskIfRequired();
 	wzScreenFlip();
-	if (!(clearMode & CLEAR_OFF_AND_NO_BUFFER_DOWNLOAD))
+	if (clearMode & CLEAR_OFF_AND_NO_BUFFER_DOWNLOAD)
 	{
-		glDepthMask(GL_TRUE);
-		clearFlags = GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT;
-		if (clearMode & CLEAR_SHADOW)
-		{
-			clearFlags |= GL_STENCIL_BUFFER_BIT;
-		}
+		return;
 	}
-	if (clearFlags)
+
+	glDepthMask(GL_TRUE);
+	clearFlags = GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT;
+	if (clearMode & CLEAR_SHADOW)
 	{
-		glClear(clearFlags);
+		clearFlags |= GL_STENCIL_BUFFER_BIT;
 	}
+	glClear(clearFlags);
+
 	if (screen_GetBackDrop())
 	{
 		screen_Upload(NULL, screen_getMapPreview());

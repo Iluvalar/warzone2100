@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2011  Warzone 2100 Project
+	Copyright (C) 2005-2012  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -96,7 +96,6 @@ struct BASE_OBJECT : public SIMPLE_OBJECT
 	UBYTE               cluster;                    ///< Which cluster the object is a member of
 	UBYTE               visible[MAX_PLAYERS];       ///< Whether object is visible to specific player
 	UBYTE               seenThisTick[MAX_PLAYERS];  ///< Whether object has been seen this tick by the specific player.
-	UBYTE               inFire;                     ///< true if the object is in a fire
 	UWORD               numWatchedTiles;            ///< Number of watched tiles, zero for features
 	UDWORD              lastEmission;               ///< When did it last puff out smoke?
 	WEAPON_SUBCLASS     lastHitWeapon;              ///< The weapon that last hit it

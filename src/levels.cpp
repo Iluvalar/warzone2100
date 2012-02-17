@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2011  Warzone 2100 Project
+	Copyright (C) 2005-2012  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -38,7 +38,6 @@
 #include "mission.h"
 #include "levelint.h"
 #include "game.h"
-#include "lighting.h"
 #include "lib/ivis_opengl/piestate.h"
 #include "data.h"
 #include "lib/ivis_opengl/ivi.h"
@@ -48,6 +47,7 @@
 #include "lib/framework/lexer_input.h"
 #include "effects.h"
 #include "main.h"
+#include "multiint.h"
 
 extern int lev_get_lineno(void);
 extern char* lev_get_text(void);
@@ -957,11 +957,15 @@ bool levLoadData(const char* name, char *pSaveName, GAME_TYPE saveType)
 		}
 	}
 
+	if (bMultiPlayer)
+	{
+		loadMultiScripts();
+	}
 	if (pSaveName != NULL && saveType == GTYPE_SAVE_MIDMISSION)
 	{
 		//load script stuff
 		// load the event system state here for a save game
-		debug(LOG_NEVER, "Loading script system state");
+		debug(LOG_SAVE, "Loading script system state");
 		if (!loadScriptState(pSaveName))
 		{
 			return false;
@@ -1002,40 +1006,4 @@ bool levLoadData(const char* name, char *pSaveName, GAME_TYPE saveType)
 
 
 	return true;
-}
-
-static void levTestLoad(const char* level)
-{
-	static char savegameName[80];
-	bool retval;
-
-	retval = levLoadData(level, NULL, GTYPE_SCENARIO_START);
-	ASSERT(retval, "levLoadData failed selftest");
-	ASSERT(checkResearchStats(), "checkResearchStats failed selftest");
-	ASSERT(checkStructureStats(), "checkStructureStats failed selftest");
-	fprintf(stdout, "\t\tLoaded: %s\n", level);
-	strcpy(savegameName, "selftest/");
-	PHYSFS_mkdir(savegameName);
-	strcat(savegameName, level);
-	strcat(savegameName, ".gam");
-	retval = saveGame(savegameName, GTYPE_SAVE_START);
-	ASSERT(retval, "saveGame failed selftest");
-	strcpy(savegameName, "selftest/");	// we need to recreate string, because saveGame clobbered it
-	strcat(savegameName, level);
-	strcat(savegameName, ".gam");
-	retval = levReleaseAll();
-	assert(retval == true);
-	fprintf(stdout, "\t\tSaved: %s\n", savegameName);
-}
-
-void levTest(void)
-{
-	fprintf(stdout, "\tLevels self-test...\n");
-	levTestLoad("CAM_1A");
-	levTestLoad("CAM_2A");
-	levTestLoad("CAM_3A");
-	levTestLoad("FASTPLAY");
-	//levTestLoad("TUTORIAL3");
-	levTestLoad("Sk-BeggarsKanyon-T1");
-	fprintf(stdout, "\tLevels self-test: PASSED\n");
 }

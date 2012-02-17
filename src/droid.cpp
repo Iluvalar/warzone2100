@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2011  Warzone 2100 Project
+	Copyright (C) 2005-2012  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -153,7 +153,7 @@ bool droidInit(void)
  *
  * NOTE: This function will damage but _never_ destroy transports when in single player (campaign) mode
  */
-int32_t droidDamage(DROID *psDroid, unsigned damage, WEAPON_CLASS weaponClass, WEAPON_SUBCLASS weaponSubClass, unsigned impactTime)
+int32_t droidDamage(DROID *psDroid, unsigned damage, WEAPON_CLASS weaponClass, WEAPON_SUBCLASS weaponSubClass, unsigned impactTime, bool isDamagePerSecond)
 {
 	int32_t relativeDamage;
 
@@ -165,7 +165,7 @@ int32_t droidDamage(DROID *psDroid, unsigned damage, WEAPON_CLASS weaponClass, W
 		damage *= 3;
 	}
 
-	relativeDamage = objDamage((BASE_OBJECT *)psDroid, damage, psDroid->originalBody, weaponClass, weaponSubClass);
+	relativeDamage = objDamage(psDroid, damage, psDroid->originalBody, weaponClass, weaponSubClass, isDamagePerSecond);
 
 	if (relativeDamage > 0)
 	{
@@ -286,10 +286,11 @@ DROID::DROID(uint32_t id, unsigned player)
 	, psGroup(NULL)
 	, psGrpNext(NULL)
 	, secondaryOrder(DSS_ARANGE_DEFAULT | DSS_REPLEV_NEVER | DSS_ALEV_ALWAYS | DSS_HALT_GUARD)
+	, secondaryOrderPending(DSS_ARANGE_DEFAULT | DSS_REPLEV_NEVER | DSS_ALEV_ALWAYS | DSS_HALT_GUARD)
+	, secondaryOrderPendingCount(0)
 	, action(DACTION_NONE)
 	, actionPos(0, 0)
 	, psCurAnim(NULL)
-	, gameCheckDroid(NULL)
 {
 	order.type = DORDER_NONE;
 	order.pos = Vector2i(0, 0);
@@ -343,8 +344,6 @@ DROID::~DROID()
 	clustRemoveObject((BASE_OBJECT *)psDroid);
 
 	free(sMove.asPath);
-
-	delete gameCheckDroid;
 }
 
 
@@ -410,15 +409,6 @@ void	removeDroidBase(DROID *psDel)
 	}
 
 	syncDebugDroid(psDel, '#');
-
-	//ajl, inform others of destruction.
-	// Everyone else should be doing this at the same time, assuming it's in synch (so everyone sends a GAME_DROIDDEST message at once)...
-	if (!isInSync() && bMultiMessages
-	 && !(psDel->player != selectedPlayer && psDel->order.type == DORDER_RECYCLE))
-	{
-		ASSERT_OR_RETURN( , droidOnMap(psDel), "Asking other players to destroy droid driving off the map");
-		SendDestroyDroid(psDel);
-	}
 
 	/* remove animation if present */
 	if (psDel->psCurAnim != NULL)
@@ -736,7 +726,6 @@ void droidUpdate(DROID *psDroid)
 	Vector3i        dv;
 	UDWORD          percentDamage, emissionInterval;
 	BASE_OBJECT     *psBeingTargetted = NULL;
-	SDWORD          damageToDo;
 	unsigned        i;
 
 	CHECK_DROID(psDroid);
@@ -836,43 +825,19 @@ void droidUpdate(DROID *psDroid)
 	// -----------------
 
 	/* Update the fire damage data */
-	if (psDroid->inFire & IN_FIRE)
+	if (psDroid->burnStart != 0 && psDroid->burnStart != gameTime - deltaGameTime)  // -deltaGameTime, since projectiles are updated after droids.
 	{
-		/* Still in a fire, reset the fire flag to see if we get out this turn */
-		psDroid->inFire = 0;
-	}
-	else
-	{
-		/* The fire flag has not been set so we must be out of the fire */
-		if (psDroid->inFire & BURNING)
+		// The burnStart has been set, but is not from the previous tick, so we must be out of the fire.
+		psDroid->burnDamage = 0;  // Reset burn damage done this tick.
+		if (psDroid->burnStart + BURN_TIME < gameTime)
 		{
-			if (psDroid->burnStart + BURN_TIME < gameTime)
-			{
-				// stop burning
-				psDroid->inFire = 0;
-				psDroid->burnStart = 0;
-				psDroid->burnDamage = 0;
-			}
-			else
-			{
-				// do burn damage
-				damageToDo = BURN_DAMAGE * ((SDWORD)gameTime - (SDWORD)psDroid->burnStart) /
-								GAME_TICKS_PER_SEC;
-				damageToDo -= (SDWORD)psDroid->burnDamage;
-				if (damageToDo > 0)
-				{
-					psDroid->burnDamage += damageToDo;
-
-					droidDamage(psDroid, damageToDo, WC_HEAT, WSC_FLAME, gameTime - deltaGameTime/2);
-				}
-			}
+			// Finished burning.
+			psDroid->burnStart = 0;
 		}
-		else if (psDroid->burnStart != 0)
+		else
 		{
-			// just left the fire
-			psDroid->inFire |= BURNING;
-			psDroid->burnStart = gameTime;
-			psDroid->burnDamage = 0;
+			// do burn damage
+			droidDamage(psDroid, BURN_DAMAGE, WC_HEAT, WSC_FLAME, gameTime - deltaGameTime/2, true);
 		}
 	}
 
@@ -1810,7 +1775,6 @@ UDWORD	calcDroidPower(DROID *psDroid)
 	//get the component power
 	power = (asBodyStats + psDroid->asBits[COMP_BODY].nStat)->buildPower +
 	(asBrainStats + psDroid->asBits[COMP_BRAIN].nStat)->buildPower +
-	//(asPropulsionStats + psDroid->asBits[COMP_PROPULSION])->buildPower +
 	(asSensorStats + psDroid->asBits[COMP_SENSOR].nStat)->buildPower +
 	(asECMStats + psDroid->asBits[COMP_ECM].nStat)->buildPower +
 	(asRepairStats + psDroid->asBits[COMP_REPAIRUNIT].nStat)->buildPower +
@@ -1825,7 +1789,6 @@ UDWORD	calcDroidPower(DROID *psDroid)
 	{
 		if (psDroid->asWeaps[i].nStat > 0)
 		{
-			//power += (asWeaponStats + psDroid->asWeaps[i].nStat)->buildPower;
 			power += (asWeaponStats + psDroid->asWeaps[i].nStat)->buildPower;
 		}
 	}
@@ -1968,7 +1931,6 @@ DROID *reallyBuildDroid(DROID_TEMPLATE *pTemplate, Position pos, UDWORD player, 
 	}
 	memset(psDroid->seenThisTick, 0, sizeof(psDroid->seenThisTick));
 	psDroid->died = 0;
-	psDroid->inFire = 0;
 	psDroid->burnStart = 0;
 	psDroid->burnDamage = 0;
 	psDroid->sDisplay.screenX = OFF_SCREEN;
@@ -3385,9 +3347,7 @@ bool cbSensorDroid(DROID *psDroid)
 	if (asSensorStats[psDroid->asBits[COMP_SENSOR].nStat].type ==
 		VTOL_CB_SENSOR ||
 		asSensorStats[psDroid->asBits[COMP_SENSOR].nStat].type ==
-		INDIRECT_CB_SENSOR ||
-		asSensorStats[psDroid->asBits[COMP_SENSOR].nStat].type ==
-		SUPER_SENSOR)
+		INDIRECT_CB_SENSOR)
 	{
 		return true;
 	}
@@ -3426,7 +3386,7 @@ DROID * giftSingleDroid(DROID *psD, UDWORD to)
 	DROID		*psNewDroid, *psCurr;
 	STRUCTURE	*psStruct;
 	UDWORD		body, armourK, armourH;
-	int them = 0;
+	int them = 0, from = psD->player;
 
 	CHECK_DROID(psD);
 
@@ -3558,6 +3518,7 @@ DROID * giftSingleDroid(DROID *psD, UDWORD to)
 		psScrCBDroidTaken = psD;
 		eventFireCallbackTrigger((TRIGGER_TYPE)CALL_UNITTAKEOVER);
 		psScrCBDroidTaken = NULL;
+		triggerEventObjectTransfer(psD, from);
 
 		return NULL;
 	}

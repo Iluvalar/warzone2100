@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2011  Warzone 2100 Project
+	Copyright (C) 2005-2012  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -38,8 +38,6 @@ extern	BASE_OBJECT	*g_pProjLastAttacker;	///< The last unit that did damage - us
 #define PROJ_MAX_PITCH  45
 #define PROJ_ULTIMATE_PITCH  80
 
-#define IN_FIRE		0x01	///< Whether an object is in a fire.
-#define BURNING		0x02	///< Whether an object has just left the fire, but is still burning.
 #define BURN_TIME	10000	///< How long an object burns for after leaving a fire.
 #define BURN_DAMAGE	15	///< How much damaga a second an object takes when it is burning.
 #define ACC_GRAVITY	1000	///< Downward force against projectiles.

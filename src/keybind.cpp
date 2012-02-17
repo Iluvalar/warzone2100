@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2011  Warzone 2100 Project
+	Copyright (C) 2005-2012  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -163,21 +163,6 @@ void	kf_ToggleRadarJump( void )
 }
 
 // --------------------------------------------------------------------------
-
-void	kf_ForceSync( void )
-{
-	DROID		*psCDroid, *psNDroid;
-
-	for(psCDroid = apsDroidLists[selectedPlayer]; psCDroid; psCDroid = psNDroid)
-	{
-		psNDroid = psCDroid->psNext;
-		if (psCDroid->selected)
-		{
-			ForceDroidSync(psCDroid);
-		}
-	}
-	
-}
 
 void kf_ForceDesync(void)
 {
@@ -1229,29 +1214,7 @@ void	kf_TogglePowerBar( void )
 /* Toggles whether we process debug key mappings */
 void	kf_ToggleDebugMappings( void )
 {
-	const char* cmsg;
-
-#ifndef DEBUG
-	// Prevent cheating in multiplayer when not compiled in debug mode by
-	// bailing out if we're running a _true_ multiplayer game
-	if (runningMultiplayer())
-	{
-		noMPCheatMsg();
-		return;
-	}
-#endif
-
-	if (getDebugMappingStatus())
-	{
-		processDebugMappings(false);
-	}
-	else
-	{
-		processDebugMappings(true);
-	}
-	sasprintf((char**)&cmsg, _("(Player %u) is using cheat :%s"), selectedPlayer,
-		 getDebugMappingStatus() ? _("CHEATS ARE NOW ENABLED!") : _("CHEATS ARE NOW DISABLED!"));
-	sendTextMessage(cmsg, true);
+	sendProcessDebugMappings(!getWantedDebugMappingStatus(selectedPlayer));
 }
 // --------------------------------------------------------------------------
 
@@ -2235,6 +2198,48 @@ void	kf_SelectAllHalfTracked( void )
 }
 
 // --------------------------------------------------------------------------
+void kf_SelectAllCyborgs()
+{
+	selDroidSelection(selectedPlayer, DS_BY_TYPE, DST_CYBORG, false);
+}
+
+// --------------------------------------------------------------------------
+void kf_SelectAllEngineers()
+{
+	selDroidSelection(selectedPlayer, DS_BY_TYPE, DST_ENGINEER, false);
+}
+
+// --------------------------------------------------------------------------
+void kf_SelectAllMechanics()
+{
+	selDroidSelection(selectedPlayer, DS_BY_TYPE, DST_MECHANIC, false);
+}
+
+// --------------------------------------------------------------------------
+void kf_SelectAllTransporters()
+{
+	selDroidSelection(selectedPlayer, DS_BY_TYPE, DST_TRANSPORTER, false);
+}
+
+// --------------------------------------------------------------------------
+void kf_SelectAllRepairTanks()
+{
+	selDroidSelection(selectedPlayer, DS_BY_TYPE, DST_REPAIR_TANK, false);
+}
+
+// --------------------------------------------------------------------------
+void kf_SelectAllSensorUnits()
+{
+	selDroidSelection(selectedPlayer, DS_BY_TYPE, DST_SENSOR, false);
+}
+
+// --------------------------------------------------------------------------
+void kf_SelectAllTrucks()
+{
+	selDroidSelection(selectedPlayer, DS_BY_TYPE, DST_TRUCK, false);
+}
+
+// --------------------------------------------------------------------------
 void	kf_SelectAllDamaged( void )
 {
 	selDroidSelection(selectedPlayer,DS_BY_TYPE,DST_ALL_DAMAGED,false);
@@ -2244,6 +2249,18 @@ void	kf_SelectAllDamaged( void )
 void	kf_SelectAllCombatUnits( void )
 {
 	selDroidSelection(selectedPlayer,DS_BY_TYPE,DST_ALL_COMBAT,false);
+}
+
+// --------------------------------------------------------------------------
+void kf_SelectAllLandCombatUnits()
+{
+	selDroidSelection(selectedPlayer, DS_BY_TYPE, DST_ALL_COMBAT_LAND, false);
+}
+
+// --------------------------------------------------------------------------
+void kf_SelectAllCombatCyborgs()
+{
+	selDroidSelection(selectedPlayer, DS_BY_TYPE, DST_ALL_COMBAT_CYBORG, false);
 }
 
 // --------------------------------------------------------------------------

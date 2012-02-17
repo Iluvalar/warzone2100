@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2011  Warzone 2100 Project
+	Copyright (C) 2005-2012  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -528,6 +528,7 @@ void clustObjectSeen(BASE_OBJECT *psObj, BASE_OBJECT *psViewer)
 			psScrCBObjSeen = psObj;
 			psScrCBObjViewer = psViewer;
 			eventFireCallbackTrigger((TRIGGER_TYPE)CALL_OBJ_SEEN);
+			triggerEventSeen(psViewer, psObj);
 
 			switch (psObj->type)
 			{
@@ -577,7 +578,8 @@ void clustObjectAttacked(BASE_OBJECT *psObj)
 				ASSERT(!"invalid object type", "clustObjectAttacked: invalid object type");
 				return;
 		}
-
+		// and fire the sound effect (and/or...) for the added callback trigger we just processed
+		triggerEventAttacked(psObj, g_pProjLastAttacker);
 		aClusterAttacked[psObj->cluster] = gameTime;
 	}
 }

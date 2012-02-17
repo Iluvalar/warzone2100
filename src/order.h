@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2011  Warzone 2100 Project
+	Copyright (C) 2005-2012  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -112,7 +112,7 @@ void orderSelectedStatsTwoLocDir(UDWORD player, DROID_ORDER order, STRUCTURE_STA
 extern bool secondarySupported(DROID *psDroid, SECONDARY_ORDER sec);
 
 /** \brief Gets the state of a secondary order, return false if unsupported. */
-extern SECONDARY_STATE secondaryGetState(DROID *psDroid, SECONDARY_ORDER sec);
+SECONDARY_STATE secondaryGetState(DROID *psDroid, SECONDARY_ORDER sec, QUEUE_MODE mode = ModeImmediate);
 
 /** \brief Sets the state of a secondary order, return false if failed. */
 extern bool secondarySetState(DROID *psDroid, SECONDARY_ORDER sec, SECONDARY_STATE State, QUEUE_MODE mode = ModeQueue);

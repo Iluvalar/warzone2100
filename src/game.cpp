@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2011  Warzone 2100 Project
+	Copyright (C) 2005-2012  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -65,7 +65,6 @@
 #include "scores.h"
 #include "anim_id.h"
 #include "design.h"
-#include "lighting.h"
 #include "component.h"
 #include "radar.h"
 #include "cmddroid.h"
@@ -2457,7 +2456,7 @@ bool loadGame(const char *pGameToLoad, bool keepObjects, bool freeMem, bool User
 	//cancel first
 	stopReticuleButtonFlash(IDRET_RESEARCH);
 	//then see if needs to be set
-	intCheckResearchButton();
+	intNotifyResearchButton(0);
 
 	//set up the mission countdown flag
 	setMissionCountDown();
@@ -2837,7 +2836,7 @@ static bool gameLoad(const char* fileName)
 		// Failure to open the file is a failure to load the specified savegame
 		return true;
 	}
-
+	initLoadingScreen(true);
 	debug(LOG_WZ, "gameLoad");
 
 	// Read the header from the file
@@ -3627,11 +3626,13 @@ bool gameLoadV(PHYSFS_file* fileHandle, unsigned int version)
 		if (saveGameVersion >= VERSION_33)
 		{
 			PLAYERSTATS		playerStats;
+			bool scav = game.scavengers; // loaded earlier, keep it over struct copy below
 
 			bMultiPlayer	= saveGameData.multiPlayer;
 			bMultiMessages	= bMultiPlayer;
 			productionPlayer = selectedPlayer;
-			game			= saveGameData.sGame;
+			game			= saveGameData.sGame;  // why do this again????
+			game.scavengers = scav;
 			cmdDroidMultiExpBoost(true);
 			NetPlay.bComms = (saveGameData.sNetPlay).bComms;
 			if(bMultiPlayer)
@@ -3669,6 +3670,7 @@ bool gameLoadV(PHYSFS_file* fileHandle, unsigned int version)
 		}
 	}
 	radarPermitted = (bool)powerSaved[0].extractedPower; // nice hack, eh? don't want to break savegames now...
+	allowDesign = (bool)powerSaved[1].extractedPower; // nice hack, eh? don't want to break savegames now...
 
 	return true;
 }
@@ -3748,6 +3750,7 @@ static bool writeGameFile(const char* fileName, SDWORD saveType)
 		saveGame.power[i].currentPower = getPower(i);
 	}
 	saveGame.power[0].extractedPower = radarPermitted; // hideous hack, don't want to break savegames now...
+	saveGame.power[1].extractedPower = allowDesign; // hideous hack, don't want to break savegames now...
 
 	//camera position
 	disp3d_getView(&(saveGame.currentPlayerPos));
@@ -4101,14 +4104,14 @@ static bool loadSaveDroidPointers(const QString &pFileName, DROID **ppsCurrentDr
 static int healthValue(QSettings &ini, int defaultValue)
 {
 	QString health = ini.value("health").toString();
-	if (health.isEmpty())
+	if (health.isEmpty() || defaultValue == 0)
 	{
 		return defaultValue;
 	}
 	else if (health.contains('%'))
 	{
 		int perc = health.remove('%').toInt();
-		return defaultValue * perc / 100;
+		return MAX(defaultValue * perc / 100, 1); //hp not supposed to be 0
 	}
 	else
 	{
@@ -4212,12 +4215,12 @@ static bool loadSaveDroid(const char *pFileName, DROID **ppsCurrentDroidLists)
 		}
 		ASSERT(id != 0, "Droid ID should never be zero here");
 		psDroid->body = healthValue(ini, psDroid->originalBody);
-		psDroid->inFire = ini.value("inFire", 0).toInt();
 		psDroid->burnDamage = ini.value("burnDamage", 0).toInt();
 		psDroid->burnStart = ini.value("burnStart", 0).toInt();
 		psDroid->experience = ini.value("experience", 0).toInt();
 		psDroid->timeLastHit = ini.value("timeLastHit", UDWORD_MAX).toInt();
 		psDroid->secondaryOrder = ini.value("secondaryOrder", DSS_NONE).toInt();
+		psDroid->secondaryOrderPending = psDroid->secondaryOrder;
 		psDroid->action = (DROID_ACTION)ini.value("action", DACTION_NONE).toInt();
 		psDroid->actionPos = ini.vector2i("action/pos");
 		psDroid->actionStarted = ini.value("actionStarted", 0).toInt();
@@ -4396,7 +4399,6 @@ static bool writeDroid(WzConfig &ini, DROID *psCurr, bool onMission, int &counte
 	}
 	if (psCurr->died > 0) ini.setValue("died", psCurr->died);
 	if (psCurr->resistance > 0) ini.setValue("resistance", psCurr->resistance);
-	if (psCurr->inFire > 0) ini.setValue("inFire", psCurr->inFire);
 	if (psCurr->burnStart > 0) ini.setValue("burnStart", psCurr->burnStart);
 	if (psCurr->burnDamage > 0) ini.setValue("burnDamage", psCurr->burnDamage);
 	ini.setValue("droidType", psCurr->droidType);
@@ -4610,7 +4612,6 @@ bool loadSaveStructure(char *pFileData, UDWORD filesize)
 		// The original code here didn't work and so the scriptwriters worked round it by using the module ID - so making it work now will screw up
 		// the scripts -so in ALL CASES overwrite the ID!
 		psStructure->id = psSaveStructure->id > 0 ? psSaveStructure->id : 0xFEDBCA98; // hack to remove struct id zero
-		psStructure->inFire = psSaveStructure->inFire;
 		psStructure->burnDamage = psSaveStructure->burnDamage;
 		burnTime = psSaveStructure->burnStart;
 		psStructure->burnStart = burnTime;
@@ -4736,7 +4737,6 @@ static bool loadSaveStructure2(const char *pFileName, STRUCTURE **ppList)
 		{
 			psStructure->id = id;	// force correct ID
 		}
-		psStructure->inFire = ini.value("inFire", 0).toInt();
 		psStructure->burnDamage = ini.value("burnDamage", 0).toInt();
 		psStructure->burnStart = ini.value("burnStart", 0).toInt();
 		memset(psStructure->visible, 0, sizeof(psStructure->visible));
@@ -4952,7 +4952,6 @@ bool writeStructFile(const char *pFileName)
 			}
 			if (psCurr->died > 0) ini.setValue("died", psCurr->died);
 			if (psCurr->resistance > 0) ini.setValue("resistance", psCurr->resistance);
-			if (psCurr->inFire > 0) ini.setValue("inFire", psCurr->inFire);
 			if (psCurr->burnStart > 0) ini.setValue("burnStart", psCurr->burnStart);
 			if (psCurr->burnDamage > 0) ini.setValue("burnDamage", psCurr->burnDamage);
 			if (psCurr->status != SS_BUILT) ini.setValue("status", psCurr->status);
@@ -5259,7 +5258,6 @@ bool loadSaveFeature(char *pFileData, UDWORD filesize)
 		//restore values
 		pFeature->id = psSaveFeature->id;
 		pFeature->rot.direction = DEG(psSaveFeature->direction);
-		pFeature->inFire = psSaveFeature->inFire;
 		pFeature->burnDamage = psSaveFeature->burnDamage;
 		if (psHeader->version >= VERSION_14)
 		{
@@ -5330,7 +5328,6 @@ bool loadSaveFeature2(const char *pFileName)
 		//restore values
 		pFeature->id = ini.value("id").toInt();
 		pFeature->rot = ini.vector3i("rotation");
-		pFeature->inFire = ini.value("inFire", 0).toInt();
 		pFeature->burnDamage = ini.value("burnDamage", 0).toInt();
 		pFeature->burnStart = ini.value("burnStart", 0).toInt();
 		pFeature->born = ini.value("born", 2).toInt();
@@ -5366,12 +5363,8 @@ bool writeFeatureFile(const char *pFileName)
 		ini.setValue("name", psCurr->psStats->pName);
 		ini.setVector3i("position", psCurr->pos);
 		ini.setVector3i("rotation", psCurr->rot);
-		if (psCurr->inFire)
-		{
-			ini.setValue("inFire", psCurr->inFire);
-			ini.setValue("burnDamage", psCurr->burnDamage);
-			ini.setValue("burnStart", psCurr->burnStart);
-		}
+		ini.setValue("burnDamage", psCurr->burnDamage);
+		ini.setValue("burnStart", psCurr->burnStart);
 		ini.setValue("health", psCurr->body);
 		ini.setValue("born", psCurr->born);
 		if (psCurr->selected) ini.setValue("selected", psCurr->selected);
@@ -5416,7 +5409,7 @@ bool loadSaveTemplate(const char *pFileName)
 		psTemplate->asWeaps[1] = getCompFromName(COMP_WEAPON, ini.value("weapon/2", QString("ZNULLWEAPON")).toString().toUtf8().constData());
 		psTemplate->asWeaps[2] = getCompFromName(COMP_WEAPON, ini.value("weapon/3", QString("ZNULLWEAPON")).toString().toUtf8().constData());
 		psTemplate->numWeaps = ini.value("weapons").toInt();
-
+		psTemplate->enabled = ini.value("enabled").toBool();
 		psTemplate->prefab = false;		// not AI template
 
 		//calculate the total build points
@@ -5485,6 +5478,7 @@ bool writeTemplateFile(const char *pFileName)
 			ini.setValue("sensor", (asSensorStats + psCurr->asParts[COMP_SENSOR])->pName);
 			ini.setValue("construct", (asConstructStats + psCurr->asParts[COMP_CONSTRUCT])->pName);
 			ini.setValue("weapons", psCurr->numWeaps);
+			ini.setValue("enabled", psCurr->enabled);
 			for (int j = 0; j < psCurr->numWeaps; j++)
 			{
 				ini.setValue("weapon/" + QString::number(j + 1), (asWeaponStats + psCurr->asWeaps[j])->pName);
@@ -6221,10 +6215,6 @@ bool loadScriptState(char *pFileName)
 	// The below belongs to the new javascript stuff
 	strcpy(jsFilename, pFileName);
 	strcat(jsFilename, "/scriptstate.ini");
-	if (bMultiPlayer)
-	{
-		loadMultiScripts();
-	}
 	loadScriptStates(jsFilename);
 
 	// change the file extension

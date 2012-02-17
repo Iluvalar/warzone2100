@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2011  Warzone 2100 Project
+	Copyright (C) 2005-2012  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -76,9 +76,14 @@
 #include "wrappers.h"
 #include "version.h"
 #include "map.h"
-#include "parsetest.h"
 #include "keybind.h"
 #include <time.h>
+
+#if defined(WZ_OS_MAC)
+# include <CoreServices/CoreServices.h>
+# include <unistd.h>
+# include "cocoa_wrapper.h"
+#endif // WZ_OS_MAC
 
 /* Always use fallbacks on Windows */
 #if defined(WZ_OS_WIN)
@@ -94,17 +99,6 @@ enum FOCUS_STATE
 	FOCUS_OUT,		// Window does not have the focus
 	FOCUS_IN,		// Window has got the focus
 };
-
-#if defined(WZ_OS_WIN)
-# define WZ_WRITEDIR "Warzone 2100 master"
-#elif defined(WZ_OS_MAC)
-# include <CoreServices/CoreServices.h>
-# include <unistd.h>
-# include "cocoa_wrapper.h"
-# define WZ_WRITEDIR "Warzone 2100 master"
-#else
-# define WZ_WRITEDIR ".warzone2100-master"
-#endif
 
 bool customDebugfile = false;		// Default false: user has NOT specified where to store the stdout/err file.
 
@@ -751,13 +745,13 @@ static void startTitleLoop(void)
 {
 	SetGameMode(GS_TITLE_SCREEN);
 
-	screen_RestartBackDrop();
+	initLoadingScreen(true);
 	if (!frontendInitialise("wrf/frontend.wrf"))
 	{
 		debug( LOG_FATAL, "Shutting down after failure" );
 		exit(EXIT_FAILURE);
 	}
-	frontendInitVars();
+	closeLoadingScreen();
 }
 
 
@@ -821,8 +815,8 @@ static void startGameLoop(void)
 	if (game.type == SKIRMISH)
 	{
 		eventFireCallbackTrigger((TRIGGER_TYPE)CALL_START_NEXT_LEVEL);
-		triggerEvent(TRIGGER_START_LEVEL);
 	}
+	triggerEvent(TRIGGER_START_LEVEL);
 	screen_disableMapPreview();
 }
 
@@ -845,6 +839,7 @@ static void stopGameLoop(void)
 				debug(LOG_ERROR, "levReleaseAll failed!");
 			}
 		}
+		closeLoadingScreen();
 		reloadMPConfig();
 	}
 
@@ -883,6 +878,7 @@ static bool initSaveGameLoad(void)
 	}
 
 	screen_StopBackDrop();
+	closeLoadingScreen();
 
 	// Trap the cursor if cursor snapping is enabled
 	if (war_GetTrapCursor())
@@ -952,6 +948,7 @@ static void runTitleLoop(void)
 		case TITLECODE_SAVEGAMELOAD:
 			{
 				debug(LOG_MAIN, "TITLECODE_SAVEGAMELOAD");
+				initLoadingScreen(true);
 				// Restart into gameloop and load a savegame, ONLY on a good savegame load!
 				stopTitleLoop();
 				if (!initSaveGameLoad())
@@ -961,13 +958,15 @@ static void runTitleLoop(void)
 					startTitleLoop();
 					changeTitleMode(TITLE);
 				}
-
+				closeLoadingScreen();
 			break;
 			}
 		case TITLECODE_STARTGAME:
 			debug(LOG_MAIN, "TITLECODE_STARTGAME");
+			initLoadingScreen(true);
 			stopTitleLoop();
 			startGameLoop(); // Restart into gameloop
+			closeLoadingScreen();
 			break;
 		case TITLECODE_SHOWINTRO:
 			debug(LOG_MAIN, "TITLECODE_SHOWINTRO");
@@ -1174,17 +1173,6 @@ int realmain(int argc, char *argv[])
 	// Find out where to find the data
 	scanDataDirs();
 
-	// Must be run before OpenGL driver is properly initialized due to
-	// strange conflicts - Per
-	if (selfTest)
-	{
-		memset(enabled_debug, 0, sizeof(*enabled_debug) * LOG_LAST);
-		fprintf(stdout, "Carrying out self-test:\n");
-		playListTest();
-		audioTest();
-		soundTest();
-	}
-
 	// Now we check the mods to see if they exist or not (specified on the command line)
 	// They are all capped at 100 mods max(see clparse.c)
 	// FIX ME: I know this is a bit hackish, but better than nothing for now?
@@ -1291,16 +1279,6 @@ int realmain(int argc, char *argv[])
 
 	//set all the pause states to false
 	setAllPauseStates(false);
-
-	/* Runtime unit testing */
-	if (selfTest)
-	{
-		parseTest();
-		levTest();
-		mapTest();
-		fprintf(stdout, "All tests PASSED!\n");
-		exit(0);
-	}
 
 	// Copy this info to be used by the crash handler for the dump file
 	ssprintf(buf,"Using Backend: %s", BACKEND);

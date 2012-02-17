@@ -1,7 +1,7 @@
 /*
 	This file is part of Warzone 2100.
 	Copyright (C) 1999-2004  Eidos Interactive
-	Copyright (C) 2005-2011  Warzone 2100 Project
+	Copyright (C) 2005-2012  Warzone 2100 Project
 
 	Warzone 2100 is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -1387,11 +1387,6 @@ bool scrAddReticuleButton(void)
 		return false;
 	}
 
-	if (selfTest)
-	{
-		return true;	// hack to prevent crashing in self-test
-	}
-
 	//set the appropriate flag to 'draw' the button
 	switch (val)
 	{
@@ -1438,11 +1433,6 @@ bool scrRemoveReticuleButton(void)
 	if (!stackPopParams(2, VAL_INT, &val,VAL_BOOL, &bReset))
 	{
 		return false;
-	}
-
-	if (selfTest)
-	{
-		return true;
 	}
 
 	if(bInTutorial)
@@ -1529,7 +1519,7 @@ bool scrAddMessage(void)
 			}
 		}
 
-		if (playImmediate && !selfTest)
+		if (playImmediate)
 		{
 			displayImmediateMessage(psMessage);
 			stopReticuleButtonFlash(IDRET_INTEL_MAP);
@@ -1596,7 +1586,7 @@ bool scrBuildDroid(void)
 	                         psFactory->pStructureType->type == REF_CYBORG_FACTORY ||
 	                         psFactory->pStructureType->type == REF_VTOL_FACTORY),
 	                 "Structure is not a factory");
-	ASSERT_OR_RETURN(false, validTemplateForFactory(psTemplate, psFactory), "Invalid template - %s for factory - %s",
+	ASSERT_OR_RETURN(false, validTemplateForFactory(psTemplate, psFactory, true), "Invalid template - %s for factory - %s",
 	                 psTemplate->aName, psFactory->pStructureType->pName);
 
 	if (productionRun != 1)
