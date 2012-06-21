@@ -320,7 +320,8 @@ bool combFire(WEAPON *psWeap, BASE_OBJECT *psAttacker, BASE_OBJECT *psTarget, in
 	bool bVisibleAnyway = psTarget->player == selectedPlayer;
 
 	// see if we were lucky to hit the target
-	bool isHit = gameRand(100) <= resultHitChance;
+	int rand = gameRand(100);
+	bool isHit = rand <= resultHitChance;
 	if (isHit)
 	{
 		/* Kerrrbaaang !!!!! a hit */
@@ -329,10 +330,12 @@ bool combFire(WEAPON *psWeap, BASE_OBJECT *psAttacker, BASE_OBJECT *psTarget, in
 	}
 	else /* Deal with a missed shot */
 	{
-		const int minOffset = 5;
-
-		int missDist = 2 * (100 - resultHitChance) + minOffset;
-		Vector3i miss = Vector3i(iSinCosR(gameRand(DEG(360)), missDist), 0);
+		const ObjectShape targetShape = establishTargetShape(psTarget);
+		int minOffset = targetShape.radius();
+		Vector3i deltaPos = psAttacker->pos - predict;
+		int worstShot = iHypot(removeZ(deltaPos))*100/resultHitChance/3;
+		int missDist = minOffset + pow(worstShot*(rand-resultHitChance)/(100-resultHitChance),3)/pow(worstShot,2);
+		Vector3i miss = Vector3i(iSinCosR(gameRand(DEG(270))-DEG(135)+iAtan2(removeZ(deltaPos)), missDist), 0);
 		predict += miss;
 
 		psTarget = NULL;  // Missed the target, so don't expect to hit it.
