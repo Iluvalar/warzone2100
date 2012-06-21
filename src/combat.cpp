@@ -336,13 +336,21 @@ bool combFire(WEAPON *psWeap, BASE_OBJECT *psAttacker, BASE_OBJECT *psTarget, in
 	
 		//worst possible shot based on distance and weapon accuracy
 		Vector3i deltaPos = psAttacker->pos - predict;
-		int worstShot = iHypot(removeZ(deltaPos))*100/resultHitChance/3; 
+		int worstShot;
+		if(resultHitChance>0)
+		{
+			worstShot = iHypot(removeZ(deltaPos))*100/resultHitChance/3; 
+ 		}
+		else
+		{
+			worstShot = iHypot(removeZ(deltaPos))*2;  
+		}
 
 		//Use the random seed to determine how far the miss will land from the target
 		//That pow(x,3) allow the misses to fall much more frequently close to the target
 		//Not exactly a gaussian distribution, but close enough to look nice and allow us to have a "worst shot".
-		int missFactor = 100*(rand-resultHitChance)/(100-resultHitChance);
-		int missDist = minOffset + worstShot * missFactor*missFactor*missFactor/(100*100*100);
+		int64_t num = (rand-resultHitChance), den = (100-resultHitChance);
+		int missDist = minOffset + (worstShot * num*num*num)/(den*den*den);
 
 		//Determine the angle of the miss in the 270 degrees in "front" of the target.
 		//the 90 degrees behind would most probably cause an unwanted hit when the projectile will be drawn trought the hitbox.
