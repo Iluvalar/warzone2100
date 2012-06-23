@@ -320,8 +320,7 @@ bool combFire(WEAPON *psWeap, BASE_OBJECT *psAttacker, BASE_OBJECT *psTarget, in
 	bool bVisibleAnyway = psTarget->player == selectedPlayer;
 
 	// see if we were lucky to hit the target
-	int rand = gameRand(100);
-	bool isHit = rand <= resultHitChance;
+	bool isHit = gameRand(100) <= resultHitChance;
 	if (isHit)
 	{
 		/* Kerrrbaaang !!!!! a hit */
@@ -330,31 +329,29 @@ bool combFire(WEAPON *psWeap, BASE_OBJECT *psAttacker, BASE_OBJECT *psTarget, in
 	}
 	else /* Deal with a missed shot */
 	{
-		//make sure no misses fall inside the hitbox
+		//Get the shape of the target to avoid "missing" inside of it
 		const ObjectShape targetShape = establishTargetShape(psTarget);
-		int minOffset = targetShape.radius(); 
 	
-		//worst possible shot based on distance and weapon accuracy
+		//Worst possible shot based on distance and weapon accuracy
 		Vector3i deltaPos = psAttacker->pos - predict;
 		int worstShot;
 		if(resultHitChance>0)
 		{
-			worstShot = iHypot(removeZ(deltaPos))*100/resultHitChance/3; 
+			worstShot = iHypot(removeZ(deltaPos)) * 100 / resultHitChance / 4; 
  		}
 		else
 		{
-			worstShot = iHypot(removeZ(deltaPos))*2;  
+			worstShot = iHypot(removeZ(deltaPos)) * 2;  
 		}
 
-		//Use the random seed to determine how far the miss will land from the target
-		//That pow(x,3) allow the misses to fall much more frequently close to the target
-		//Not exactly a gaussian distribution, but close enough to look nice and allow us to have a "worst shot".
-		int64_t num = (rand-resultHitChance), den = (100-resultHitChance);
-		int missDist = minOffset + (worstShot * num*num*num)/(den*den*den);
+		//Use a random seed to determine how far the miss will land from the target
+		//That (num/100)^3 allow the misses to fall much more frequently close to the target
+		int64_t num = gameRand(100);
+		int missDist = targetShape.radius() + (worstShot * num * num * num) / (100 * 100 * 100);
 
 		//Determine the angle of the miss in the 270 degrees in "front" of the target.
-		//the 90 degrees behind would most probably cause an unwanted hit when the projectile will be drawn trought the hitbox.
-		Vector3i miss = Vector3i(iSinCosR(gameRand(DEG(270))-DEG(135)+iAtan2(removeZ(deltaPos)), missDist), 0);
+		//The 90 degrees behind would most probably cause an unwanted hit when the projectile will be drawn trought the hitbox.
+		Vector3i miss = Vector3i(iSinCosR(gameRand(DEG(270)) - DEG(135) + iAtan2(removeZ(deltaPos)), missDist), 0);
 		predict += miss;
 
 		psTarget = NULL;  // Missed the target, so don't expect to hit it.
